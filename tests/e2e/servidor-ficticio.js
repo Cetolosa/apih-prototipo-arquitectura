@@ -19,10 +19,12 @@ const HOST = 'https://bjkuupynrylgfmzhyxgz.supabase.co';
       rows.sort((a, b) => a.id < b.id ? -1 : 1); const off = +q.get('offset') || 0, lim = +q.get('limit') || 1000; return ok(rows.slice(off, off + lim));
     }
     if (path.startsWith('registros') && m === 'POST') {
-      const body = JSON.parse(rq.postData() || '[]'), merge = /merge-duplicates/.test(rq.headers()['prefer'] || '');
-      for (const r of body) { if (!merge && db.has(key(r.lista, r.id))) return ok({ message: 'duplicate' }, 409); }
-      const out = body.map(r => { const x = Object.assign({}, r, { actualizado: ts() }); db.set(key(r.lista, r.id), x); return x; });
-      return ok(/representation/.test(rq.headers()['prefer'] || '') ? out : null, /representation/.test(rq.headers()['prefer'] || '') ? 201 : 204);
+      const pref = rq.headers()['prefer'] || '', body = JSON.parse(rq.postData() || '[]'), ignora = /ignore-duplicates/.test(pref);
+      // como el servidor real: el rol de la API no puede hacer ON CONFLICT DO UPDATE (exige SELECT sobre `datos`)
+      if (/merge-duplicates/.test(pref)) return ok({ message: 'permission denied for table registros', code: '42501' }, 403);
+      for (const r of body) { if (!ignora && db.has(key(r.lista, r.id))) return ok({ message: 'duplicate' }, 409); }
+      const out = body.filter(r => !(ignora && db.has(key(r.lista, r.id)))).map(r => { const x = Object.assign({}, r, { actualizado: ts() }); db.set(key(r.lista, r.id), x); return x; });
+      return ok(/representation/.test(pref) ? out : null, /representation/.test(pref) ? 201 : 204);
     }
     if (path.startsWith('registros') && m === 'PATCH') {
       const l = eq('lista'), i = eq('id'), a = eq('actualizado'), cur = db.get(key(l, i));
