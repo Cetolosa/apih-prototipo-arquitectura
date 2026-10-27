@@ -31,6 +31,11 @@ jobs:
           test -n "$CLAVE" || { echo "::error::Falta la variable de Actions SUPABASE_PUBLISHABLE_KEY"; exit 1; }
           grep -q "anonKey: ''" _site/apih-config.js || { echo "::error::apih-config.js no tiene el campo anonKey vacío"; exit 1; }
           sed -i "s|anonKey: ''|anonKey: '$CLAVE'|" _site/apih-config.js
+      - name: Registrar fecha y commit en la versión
+        run: |
+          F=$(TZ=America/Santiago date '+%d-%m-%Y %H:%M')
+          sed -i "s|b: '', c: ''|b: '$F', c: '${GITHUB_SHA::7}'|" _site/apih-config.js
+          grep -q "c: '${GITHUB_SHA::7}'" _site/apih-config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

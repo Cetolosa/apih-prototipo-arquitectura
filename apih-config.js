@@ -8,3 +8,5 @@ window.APIH_OVERRIDE = {
     anonKey: ''   /* la inyecta el despliegue desde la variable de Actions SUPABASE_PUBLISHABLE_KEY */
   }
 };
+/* Versión del prototipo de arquitectura. Fecha y commit se completan en el despliegue. */
+window.APIH_BUILD = { v: 'A1.0', b: '', c: '' };
