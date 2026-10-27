@@ -7,7 +7,8 @@
   "scripts": {
     "seed": "node tools/generar-seed.js",
     "serve": "node tools/servir-demo.js",
-    "test:e2e": "node tools/correr-e2e.js"
+    "test:e2e": "node tools/correr-e2e.js",
+    "pruebas-ti": "node pruebas-ti/correr.js"
   },
   "devDependencies": { "playwright": "1.63.0" }
 }

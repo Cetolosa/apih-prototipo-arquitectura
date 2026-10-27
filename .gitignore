@@ -3,3 +3,5 @@ node_modules/
 *.local
 /*.png
 /tmp/
+pruebas-ti/informe.md
+pruebas-ti/informe.json
