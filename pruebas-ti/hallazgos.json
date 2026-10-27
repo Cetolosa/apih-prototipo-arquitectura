@@ -1,19 +1,139 @@
 [
-  { "n": 1,  "sev": "Alta",  "titulo": "Autorización por área y visibilidad de montos aplicada solo en el navegador", "pasada": "dinámica", "check": null, "suite": "supabase/tests/10_politicas.sql" },
-  { "n": 2,  "sev": "Alta",  "titulo": "Sin validación de esquema en el servidor: un campo inventado se guarda", "pasada": "dinámica", "check": "checks/h02-campo-desconocido.sql" },
-  { "n": 3,  "sev": "Alta",  "titulo": "Acceso a datos que lee tablas completas dentro de transacciones SERIALIZABLE", "pasada": "estática + carga", "check": null },
-  { "n": 4,  "sev": "Alta",  "titulo": "Build no reproducible: sin lockfile y pipeline que reconstruye al desplegar", "pasada": "estática", "check": null },
-  { "n": 5,  "sev": "Alta",  "titulo": "Reglas de negocio en varias copias que divergen (umbral crítico con dos fuentes)", "pasada": "estática", "check": null },
-  { "n": 6,  "sev": "Media", "titulo": "Pipeline sin variables, sin artefacto y sin despliegue de infraestructura ni SQL", "pasada": "ejecución", "check": null },
-  { "n": 7,  "sev": "Media", "titulo": "Base con acceso público, clave de almacenamiento de larga vida, plan en retiro", "pasada": "estática", "check": null },
-  { "n": 8,  "sev": "Media", "titulo": "La API confía en el principal del encabezado; falta prueba de acceso directo al host", "pasada": "dinámica", "check": null },
-  { "n": 9,  "sev": "Media", "titulo": "Reintentos SQL de hasta 60 s dentro de una petición HTTP", "pasada": "estática", "check": null },
-  { "n": 10, "sev": "Media", "titulo": "Notificaciones: envía antes de registrar, un token por mensaje, campana carga toda la base", "pasada": "estática", "check": null },
-  { "n": 11, "sev": "Media", "titulo": "SPA monolítica, CSP con unsafe-inline, activos base64 y correos de admin en el bundle", "pasada": "estática", "check": null },
-  { "n": 12, "sev": "Media", "titulo": "Generador de código del servidor extrayendo funciones del HTML", "pasada": "estática", "check": null },
-  { "n": 13, "sev": "Baja",  "titulo": "Logging sin id de correlación", "pasada": "estática", "check": null },
-  { "n": 14, "sev": "Baja",  "titulo": "Id mal codificado produce 500 en vez de 400", "pasada": "dinámica", "check": null },
-  { "n": 15, "sev": "Baja",  "titulo": "require con try/catch hacia dos rutas que enmascara errores de sintaxis", "pasada": "estática", "check": null },
-  { "n": 16, "sev": "Baja",  "titulo": "Pruebas sin cobertura ni JUnit; e2e fuera de CI", "pasada": "estática", "check": null },
-  { "n": 17, "sev": "Baja",  "titulo": "READMEs contradictorios, un único commit gigante, falta .gitattributes", "pasada": "estática", "check": null }
+  {
+    "n": 1,
+    "sev": "Alta",
+    "titulo": "Autorización por área y visibilidad de montos aplicada solo en el navegador",
+    "pasada": "dinámica",
+    "check": "checks/h01-autorizacion.sql"
+  },
+  {
+    "n": 2,
+    "sev": "Alta",
+    "titulo": "Sin validación de esquema en el servidor: un campo inventado se guarda",
+    "pasada": "dinámica",
+    "check": "checks/h02-campo-desconocido.sql"
+  },
+  {
+    "n": 3,
+    "sev": "Alta",
+    "titulo": "Aislamiento SERIALIZABLE en transacciones de escritura (lecturas de tabla completa no evaluadas)",
+    "pasada": "estática + carga",
+    "check": "checks/h03-aislamiento.js"
+  },
+  {
+    "n": 4,
+    "sev": "Alta",
+    "titulo": "Build no reproducible: sin lockfile y pipeline que reconstruye al desplegar",
+    "pasada": "estática",
+    "check": "checks/h04-build-reproducible.js"
+  },
+  {
+    "n": 5,
+    "sev": "Alta",
+    "titulo": "Reglas de negocio en varias copias que divergen (umbral crítico con dos fuentes)",
+    "pasada": "estática",
+    "check": "checks/h05-reglas-unicas.js"
+  },
+  {
+    "n": 6,
+    "sev": "Media",
+    "titulo": "Pipeline sin variables, sin artefacto y sin despliegue de infraestructura ni SQL",
+    "pasada": "ejecución",
+    "check": null,
+    "aplica": false,
+    "nota": "Pipeline de Azure DevOps: este repo publica con GitHub Actions y no despliega infraestructura propia."
+  },
+  {
+    "n": 7,
+    "sev": "Media",
+    "titulo": "Base con acceso público, clave de almacenamiento de larga vida, plan en retiro",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "Es del Bicep de Corporativo (Azure SQL, Storage, plan de la Function). Aquí la base es Supabase."
+  },
+  {
+    "n": 8,
+    "sev": "Media",
+    "titulo": "La API confía en el principal del encabezado; falta prueba de acceso directo al host",
+    "pasada": "dinámica",
+    "check": null,
+    "aplica": false,
+    "nota": "No hay API propia con encabezado de principal: Supabase valida el JWT en cada petición."
+  },
+  {
+    "n": 9,
+    "sev": "Media",
+    "titulo": "Reintentos SQL de hasta 60 s dentro de una petición HTTP",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "No hay API que reintente contra SQL dentro de una petición HTTP."
+  },
+  {
+    "n": 10,
+    "sev": "Media",
+    "titulo": "Notificaciones: envía antes de registrar, un token por mensaje, campana carga toda la base",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "El prototipo no envía correos: las notificaciones se calculan en el cliente (js/06-administracion.js), sin outbox ni token de Graph. El costo de la campana en el cliente no se evalúa."
+  },
+  {
+    "n": 11,
+    "sev": "Media",
+    "titulo": "SPA monolítica, CSP con unsafe-inline, activos base64 y correos de admin en el bundle",
+    "pasada": "estática",
+    "check": "checks/h11-spa.js"
+  },
+  {
+    "n": 12,
+    "sev": "Media",
+    "titulo": "Generador de código del servidor extrayendo funciones del HTML",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "No existe el generador de código del servidor (tools/generar-motor-notif.js) en este repo."
+  },
+  {
+    "n": 13,
+    "sev": "Baja",
+    "titulo": "Logging sin id de correlación",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "No hay Function App: el servidor son funciones SQL."
+  },
+  {
+    "n": 14,
+    "sev": "Baja",
+    "titulo": "Id mal codificado produce 500 en vez de 400",
+    "pasada": "dinámica",
+    "check": null,
+    "aplica": false,
+    "nota": "No hay router HTTP propio que decodifique ids."
+  },
+  {
+    "n": 15,
+    "sev": "Baja",
+    "titulo": "require con try/catch hacia dos rutas que enmascara errores de sintaxis",
+    "pasada": "estática",
+    "check": null,
+    "aplica": false,
+    "nota": "No hay capa Node del servidor."
+  },
+  {
+    "n": 16,
+    "sev": "Baja",
+    "titulo": "Pruebas sin cobertura ni JUnit; e2e fuera de CI",
+    "pasada": "estática",
+    "check": "checks/h16-pruebas-ci.js"
+  },
+  {
+    "n": 17,
+    "sev": "Baja",
+    "titulo": "READMEs contradictorios, un único commit gigante, falta .gitattributes",
+    "pasada": "estática",
+    "check": "checks/h17-repositorio.js"
+  }
 ]

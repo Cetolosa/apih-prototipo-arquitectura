@@ -12,6 +12,7 @@ Requiere Postgres local (igual que `tools/test-sql.sh`).
 ## Estados
 - **CERRADO**: la prueba reproduce el caso del informe y el servidor lo rechaza.
 - **ABIERTO**: la prueba reproduce el caso y el servidor lo permite.
+- **NO APLICA**: el hallazgo es del stack de Corporativo (Azure Functions, Bicep, pipeline de Azure DevOps); el motivo queda en la evidencia.
 - **PENDIENTE**: aún no hay prueba automatizada para ese hallazgo.
 
 ## Método (el del informe)
@@ -21,4 +22,4 @@ Requiere Postgres local (igual que `tools/test-sql.sh`).
 4. Declarar lo que no se verificó.
 
 ## Cómo agregar una prueba
-Un archivo en `checks/` que imprima `TI|H<nn>|CERRADO|<evidencia>` o `TI|H<nn>|ABIERTO|<evidencia>` y nunca aborte; luego apuntar `check` en `hallazgos.json`.
+Un archivo en `checks/`. Si es `.sql`, imprime `TI|H<nn>|CERRADO|<evidencia>` o `TI|H<nn>|ABIERTO|<evidencia>` y nunca aborta. Si es `.js`, exporta `raiz => ({ estado, evidencia })`. Luego se apunta `check` en `hallazgos.json`. Toda prueba nueva debe tener un control negativo (forzar el fallo y ver ABIERTO).
