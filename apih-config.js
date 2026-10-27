@@ -1,10 +1,10 @@
 /* Configuración pública de APIH Prototipo Arquitectura (proyecto Supabase de PRUEBAS "apih-arq").
-   La clave publishable es pública por diseño; la seguridad real está en el login individual y en RLS.
+   La clave publishable no se guarda en el repositorio: el despliegue la inyecta. Llega al navegador igual (es lo que identifica el proyecto); la seguridad real está en el login individual y en RLS.
    NUNCA pegues aquí la clave "secret" / "service_role". */
 window.APIH_OVERRIDE = {
   auth: { provider: 'supabase' },
   supabase: {
     url: 'https://bjkuupynrylgfmzhyxgz.supabase.co',
-    anonKey: 'sb_publishable_yed04a43187dGPwCKDDSaw_3dpNSKee'
+    anonKey: ''   /* la inyecta el despliegue desde la variable de Actions SUPABASE_PUBLISHABLE_KEY */
   }
 };
