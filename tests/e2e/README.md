@@ -13,7 +13,7 @@ La SPA usa **módulos ES reales**: no abre desde `file://` (hay que servirla por
 
 ## Suite oficial
 sin-externos (CSP de scripts y estilos sin `unsafe-inline`, sin violaciones en consola, sin hosts externos, lint de términos),
-xss1, imp3, fin1, fz1, t13, t43, t44, cap2, r1, c4, imp1, imp2, cfgu1, aprob-srv, cmd-srv, gates-contract, campo-srv.
+xss1, imp3, fin1, fz1, t13, t43, t44, cap2, r1, c4, imp1, imp2, cfgu1, aprob-srv, cmd-srv, gates-contract, campo-srv, servidor-ficticio (capa de datos con PostgREST emulado).
 Pendientes (requieren fixture propio): ps1, sf1.
 
 ## Falsos positivos / fallas heredadas

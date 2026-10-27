@@ -1,6 +1,6 @@
 import { ENLACES } from './00-registro.js';
 import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, gates, gatesAprobar, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
-import { AuthService, DataService, SP_SCHEMA } from './02-datos.js';
+import { AuthService, DataService, ESQUEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
    ============================================================ */
@@ -415,10 +415,10 @@ export function syncInfo() {
   const d = DataService, s = d.st;
   if (d.svc && s.state === 'syncing') return { c: 'sy', t: 'Guardando' + (s.pending ? ' · ' + s.pending : '') + '…', tip: s.msg };
   if (d.svc && s.state === 'error') return { c: 'er', t: 'Error de sync' + (s.pending ? ' · ' + s.pending : ''), tip: s.err };
-  if (d.svc) return { c: 'ok', t: 'Guardado', tip: 'Conectado a ' + (BK() === 'Supabase' ? 'Supabase' : APIH_CONFIG.siteName) + (s.last ? ' · último sync ' + s.last.toTimeString().slice(0, 5) : '') + (s.pending ? ' · ' + s.pending + ' pendiente(s)' : '') + (s.msLoad ? ' · carga ' + (s.msLoad / 1000).toFixed(1) + ' s' : '') + (s.msSave ? ' · último guardado ' + (s.msSave / 1000).toFixed(1) + ' s' : '') };
+  if (d.svc) return { c: 'ok', t: 'Guardado', tip: 'Conectado a ' + BK() + (s.last ? ' · último sync ' + s.last.toTimeString().slice(0, 5) : '') + (s.pending ? ' · ' + s.pending + ' pendiente(s)' : '') + (s.msLoad ? ' · carga ' + (s.msLoad / 1000).toFixed(1) + ' s' : '') + (s.msSave ? ' · último guardado ' + (s.msSave / 1000).toFixed(1) + ' s' : '') };
   if (s.state === 'auth') return { c: 'au', t: 'Iniciar sesión', tip: s.msg };
-  if (s.state === 'error' || d.offlineWhy) return { c: 'er', t: 'Sin SharePoint · demo', tip: s.err || d.offlineWhy };
-  return { c: 'de', t: 'Modo demo', tip: 'Datos solo en memoria: se pierden al recargar. Configure SharePoint en Administración.' };
+  if (s.state === 'error' || d.offlineWhy) return { c: 'er', t: 'Sin servidor · demo', tip: s.err || d.offlineWhy };
+  return { c: 'de', t: 'Modo demo', tip: 'Datos solo en memoria: se pierden al recargar. Configure la conexión en Administración.' };
 }
 function updateSyncUI() {
   const i = syncInfo(), c = $('#syncChip'); if (c) { c.className = 'sync ' + i.c; c.innerHTML = '<i></i>' + esc(i.t); c.title = i.tip; }
@@ -432,9 +432,8 @@ Acts.syncgo = () => { F('adm', {}).tab = 'sp'; go('admin'); };
 /* ---------- banner contextual ---------- */
 export function banner() {
   const d = DataService, s = d.st, out = [];
-  if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su cuenta Microsoft para cargar los datos desde SharePoint.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
+  if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su correo corporativo para cargar los datos.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
   else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Trabajando en modo demo (memoria): los cambios no se guardan.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
-  else if (false) out.push(['info', '<b>Modo demo:</b> los datos viven solo en memoria y se pierden al recargar. Conecte ' + (APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' ? 'Supabase (url y anonKey en apih-config.js)' : 'SharePoint Online en Administración → SharePoint') + '.', btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
   if (d.svc && St.empty && !UI.bnOff2) out.push(['info', '<b>Las listas de ' + BK() + ' están vacías.</b> Puede cargar los datos del archivo original o comenzar a registrar propuestas.', btn('Cargar datos del archivo', 'spseed', { cls: 'pri sm' }) + btn('Ocultar', 'bnoff2', { cls: 'sm' })]);
   if (d.svc && s.state === 'error' && s.pending) out.push(['bad', '<b>Cambios sin sincronizar (' + s.pending + ').</b> ' + esc(s.err || ''), btn('Reintentar ahora', 'spretry', { cls: 'sm' })]);
   return out.map(([k, t, a]) => `<div class="banner ${k}">${icon(k === 'info' ? 'db' : 'warn', 16)}<span>${t}</span><div class="chips">${a || ''}</div></div>`).join('');
@@ -450,7 +449,7 @@ Acts.spretry = async () => {
   if (d.svc) { await d.flush(); return d.refresh(false, false); }
   const S = await d.init(); ENLACES.St = S; UI.sel = null; shell(); render(); toast(d.svc ? 'Conectado a ' + BK() : 'Sigue sin conexión: ' + (d.offlineWhy || d.st.err), d.svc ? 'ok' : 'err');
 };
-export function BK() { return (typeof DataService !== 'undefined' && DataService.svc && DataService.svc.mode === 'supabase') ? 'Supabase' : 'SharePoint'; }
+export function BK() { return 'Supabase'; }
 /* Avance de la fase activa: manual (1-100) > % hitos de la fase > avance general */
 export function avFase(i) {
   const m = +i.avanceFase;
@@ -556,12 +555,12 @@ export function xlsxBlob(sheets) {   // sheets: [{name, rows:[[...]]}] (fila 0 =
   return zipStore(files);
 }
 export function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
-/* Hoja con el diseño exacto de la lista SharePoint (sin DatosJSON) */
+/* Hoja con las columnas de la entidad (sin DatosJSON) */
 function listSheet(ent) {
-  const S = SP_SCHEMA[ent], arr = (St[S.coll] || []).filter(S.filter || (() => true));
+  const S = ESQUEMA[ent], arr = (St[S.coll] || []).filter(S.filter || (() => true));
   return { name: S.label, rows: [S.cols.map(c => c.n), ...arr.map(o => S.cols.map(c => { let v = c.get ? c.get(o) : o[c.k]; if (c.t === 'Date' && v) v = String(v).slice(0, 10); if (c.t === 'DateTime' && v) v = String(o.ts || v).replace('T', ' ').slice(0, 16); return v == null ? '' : v; }))] };
 }
-Acts.xlsxall = () => { downloadBlob('APIH_listas_' + hoy() + '.xlsx', xlsxBlob(Object.keys(SP_SCHEMA).map(listSheet))); toast('Excel exportado (7 hojas = listas SharePoint)'); };
+Acts.xlsxall = () => { downloadBlob('APIH_listas_' + hoy() + '.xlsx', xlsxBlob(Object.keys(ESQUEMA).map(listSheet))); toast('Excel exportado (una hoja por entidad)'); };
 /* ============================================================
    APIH · Carga de planificación e hitos desde Excel
    Plantilla descargable + lector .xlsx propio (sin librerías) + vista previa con validación

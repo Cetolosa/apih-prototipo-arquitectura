@@ -406,7 +406,7 @@ Acts.ptplapply = () => { const c = pcfg(), t = (St.ptpl || []).find(x => x.id ==
 Acts.ptpldel = () => { const c = pcfg(), t = (St.ptpl || []).find(x => x.id === c.tpl); if (!t) return; confirmBox(`¿Eliminar la plantilla <b>${esc(t.nombre)}</b>?`, () => { St.ptpl = St.ptpl.filter(x => x.id !== t.id); c.tpl = ''; save(); prr(); }, 'Eliminar', true); };
 
 /* ---------- historial con copia congelada ---------- */
-/* láminas congeladas: los elementos se guardan compactos (arreglos) para que quepan en SharePoint */
+/* láminas congeladas: los elementos se guardan compactos (arreglos) para que ocupen poco en el registro */
 const rn = v => Math.round(v * 100) / 100;
 const packG = g => ({ bg: g.bg, rail: g.rail, e: g.els.map(e => [e.shape, rn(e.x), rn(e.y), rn(e.w), rn(e.h), e.fill || 0, e.line ? e.line.c : 0, e.line ? e.line.w : 0, e.text, e.size, e.bold ? 1 : 0, e.italic ? 1 : 0, e.color, e.align, e.anchor, e.rot || 0]) });
 const unpackG = p => ({ bg: p.bg, rail: p.rail, frozen: true, pageInc: 0, els: p.e.map(a => ({ shape: a[0], x: a[1], y: a[2], w: a[3], h: a[4], fill: a[5] || null, line: a[6] ? { c: a[6], w: a[7] } : null, text: a[8], size: a[9], bold: !!a[10], italic: !!a[11], color: a[12], align: a[13], anchor: a[14], rot: a[15] })) });
@@ -669,8 +669,8 @@ export const GUIA = {
     ['Mide la carga', 'Columnas de proyectos activos, hitos abiertos (vencidos entre paréntesis), riesgos y decisiones.'],
     ['Ve lo suyo', '«Ver lo suyo» filtra por esa persona; «Ver como» (solo administrador) simula su sesión.']] },
   admin: { t: 'Administración', p: [
-    ['Elige la pestaña', 'Parámetros, catálogos, usuarios, calidad de datos, SharePoint y respaldo.'],
-    ['Conecta datos', 'SharePoint: «Probar conexión» → «Crear listas y columnas» → «Sincronizar ahora».'],
+    ['Elige la pestaña', 'Parámetros, catálogos, usuarios, calidad de datos, conexión y respaldo.'],
+    ['Conecta datos', 'Conexión: «Probar conexión» → «Sincronizar ahora». Las tablas y reglas se crean con las migraciones de supabase/.'],
     ['Cuida la calidad', 'La auditoría lista campos faltantes; corrígelos desde cada ficha.'],
     ['Respalda', '«Respaldo JSON» antes de cambios grandes; «Importar respaldo» restaura.']] },
   cielo: { t: 'Mi cocina', p: [

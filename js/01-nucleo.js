@@ -1,27 +1,19 @@
 import { ENLACES } from './00-registro.js';
 /* =====================================================================
-   APIH V4 · Aramark Portfolio Intelligence Hub
+   APIH · Aramark Portfolio Intelligence Hub
    ---------------------------------------------------------------------
    ARQUITECTURA (capas, de abajo hacia arriba)
-     Domain Layer ............ core.js      (modelo, reglas, cálculos)
-     SharePoint Repository ... data.js      (SharePointService, mapeo a listas)
-     Data Service Layer ...... data.js      (DataService: carga, diff, sincronización)
-     SPA Frontend ............ ui.js, views*.js, ia.js, pres.js
+     Dominio .................. 01-nucleo.js     (modelo, reglas, cálculos)
+     Servicio de datos ........ 02-datos.js      (SupabaseService: REST + comandos RPC; DataService: carga, diff, sincronización)
+     SPA ...................... 03 … 11          (interfaz, vistas, administración, gobierno, presentaciones)
 
-   PERSISTENCIA: SharePoint Lists. NO se usa localStorage.
-   Sin configuración, la app corre en MODO DEMO (memoria; se pierde al recargar).
+   PERSISTENCIA: Postgres (Supabase) con autorización en el servidor. No se usa localStorage para datos.
+   Sin configuración de Supabase la app corre en MODO DEMO (memoria; se pierde al recargar).
 
-   CONFIGURACIÓN: edite el objeto APIH_CONFIG (o use Administración → SharePoint
-   para probar valores en caliente y copiar el bloque resultante).
+   CONFIGURACIÓN: apih-config.js define window.APIH_OVERRIDE = { auth, supabase } (sin recompilar).
    ===================================================================== */
 export const APIH_CONFIG = {
-  /* 'auto' = graph si hay tenantUrl + auth, si no demo · 'demo' | 'graph' | 'rest' */
-  mode: 'auto',
-
-  tenantUrl: 'https://aramark365.sharepoint.com',                 // p.ej. https://aramark.sharepoint.com
-  siteName: 'sites/CL-INT-BIenTeamsbyIT-PMO',                  // ruta relativa del sitio, p.ej. sites/APIH  (o teams/APIH)
-
-  /* Nombres de las listas (se crean con "Crear listas" en Administración → SharePoint) */
+  /* Nombres de las listas lógicas (valor de la columna `lista` en la tabla registros) */
   projectsList: 'APIH_Proyectos',          // solo proyectos (V5)
   proposalsList: 'APIH_Propuestas',        // solo propuestas (V5)
   risksList: 'APIH_Riesgos',
@@ -30,34 +22,20 @@ export const APIH_CONFIG = {
   commitmentsList: 'APIH_Compromisos',   // compromisos / acuerdos de reuniones
   changesList: 'APIH_Cambios',           // control de cambios (alcance, fecha, presupuesto)
   notesList: 'APIH_Notas',               // V22: comentarios de colaboradores por área
-  docsList: 'APIH_Documentos',           // V22: documentación de proyectos (enlaces a OneDrive/SharePoint)
+  docsList: 'APIH_Documentos',           // V22: documentación de proyectos (enlaces)
   auditList: 'APIH_Bitacora',
   committeesList: 'APIH_Comites',     // extensión V4: actas de comité
-  rolesList: 'APIH_Roles',            // roles y usuarios (solo el administrador puede editarla en SharePoint)
+  rolesList: 'APIH_Roles',            // roles y usuarios (solo Administra puede escribirla)
   settingsList: 'APIH_Config',        // extensión V4: parámetros, usuarios, calendario, presentaciones
 
-  /* Autenticación (AuthService). provider:
-       'none'   sin autenticación (modo demo)
-       'msal'   Microsoft Entra ID vía MSAL.js (requiere clientId + copia de msal-browser.min.js)
-       'token'  token Bearer pegado en Administración (pruebas con Graph Explorer)
-       'cookie' sesión de SharePoint (app alojada dentro del mismo sitio; solo modo 'rest')  */
-  auth: {
-    provider: 'none',
-    clientId: '',                // Id. de aplicación (SPA) registrada en Entra ID
-    tenantId: '',                // Id. de directorio (o dominio); vacío = 'common'
-    authority: '',               // opcional; por defecto https://login.microsoftonline.com/{tenantId}
-    redirectUri: '',             // URI registrada (http/https). Vacío = URL actual
-    msalUrl: '',                 // URL/ruta de msal-browser.min.js alojado por Aramark (no se usa CDN)
-    cache: 'sessionStorage',     // 'sessionStorage' | 'memoryStorage' (MSAL nunca usa localStorage aquí)
-    graphScopes: ['Sites.ReadWrite.All'],   // para aprovisionar listas: 'Sites.Manage.All'
-    restScope: ''                // vacío = {tenantUrl}/.default
-  },
+  /* Autenticación: provider = 'supabase' (correo corporativo + contraseña propia) o 'none' (modo demo) */
+  auth: { provider: 'none' },
 
-  /* Proveedor Supabase (auth.provider = 'supabase'): URL y clave pública (anon) del proyecto. Ambas son públicas por diseño. */
+  /* Proyecto Supabase: URL y clave pública (publishable/anon). Ambas son públicas por diseño. */
   supabase: { url: '', anonKey: '' },
   analisis: true,                     // false = oculta toda la sección Análisis (reglas automáticas)
 
-  pollSec: 120                   // refresco automático desde SharePoint (0 = desactivado)
+  pollSec: 120                   // refresco automático desde el servidor (0 = desactivado)
 };
 
 /* Sobrescritura externa opcional: un archivo apih-config.js puede definir window.APIH_OVERRIDE = {…} (sin recompilar la app) */
@@ -268,7 +246,7 @@ export function seedState() {
   const s = clone(SEED);
   return (0, ENLACES.migrateV5)({ v: 3, cfg: Object.assign(defaultCfg(), { comiteParts: s.comiteParts || [] }), ini: s.iniciativas, compromisos: s.compromisos || [], cambios: s.cambios || [], notas: [], documentos: [], hitos: s.hitos, riesgos: s.riesgos, decisiones: s.decisiones, comites: s.comites, bitacora: s.bitacora, ptpl: [], psnap: {}, pres: s.presentaciones, usuarios: s.usuarios, eventos: [], seq: {} });
 }
-/* V4: sin localStorage. El estado inicial lo entrega DataService.init() (SharePoint o demo en memoria). */
+/* V4: sin localStorage. El estado inicial lo entrega DataService.init() (Supabase o demo en memoria). */
 export function save() { _ixGen++; ppInval(); try { audit(); } catch (e) { } ENLACES.DataService.commit(); }
 export function nextId(prefix, list) {   // F-12: contador monótono; un id eliminado no se reutiliza en esta sesión
   St.seq = St.seq || {};

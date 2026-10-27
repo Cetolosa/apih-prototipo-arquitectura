@@ -560,7 +560,7 @@ Acts.startip = d => toast(d.t);
    APIH · V16 · Tenedores y estrellas Michelin
    · Tenedores (hasta 5): gestión del día a día. Se recalculan cada semana (ver STAR_DEF); suben y bajan.
    · Estrellas Michelin (hasta 3): hitos del cronograma. Se guardan en la iniciativa (i.michelin) y, una vez ganadas, no se pierden.
-   Sin listas ni columnas nuevas: viaja dentro del JSON del proyecto (SharePoint y Supabase por igual).
+   Sin listas ni columnas nuevas: viaja dentro del JSON del proyecto (dentro del registro del servidor).
    ============================================================ */
 IC.fork = 'M9 2v6a3 3 0 0 0 6 0V2M12 2v6M12 11v11';
 const MS_DEF = [
@@ -946,7 +946,7 @@ function areaDeAccion(d, el) {
   const de = St.decisiones.find(x => x.id === id); if (de) return de.area || (byId(de.ini) || {}).area || null;
   return null;
 }
-const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spprov', 'spsync', 'splogout', 'sppnp', 'spcopy', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
+const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spsync', 'splogout', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
 const CHG_ADMIN = ['cfg', 'spc', 'impfile', 'impinifile'];
 const ACT_EDIT = ['carmar', 'advance', 'advgo', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota'];
 const CHG_EDIT = ['advto', 'hitotoggle', 'acutoggle', 'bitpres'];
@@ -1002,7 +1002,7 @@ function matrizPermisosHTML() {
   const me = rolActual();
   return `<section class="card" style="margin-top:14px"><header><h2>Esquema de autorizaciones</h2><small>Tu rol: <b>${esc(me)}</b>${areasPropias().length ? ' · área ' + esc(areasPropias().join(', ')) : ''}</small></header>
   <table class="tbl"><thead><tr><th>Rol</th><th>Ve</th><th>Edita</th><th>Análisis</th><th>Panel de Administración</th></tr></thead><tbody>${rows.map(r => `<tr class="${r[0] === me ? 'sel' : ''}"><td><b>${r[0]}</b></td>${r.slice(1).map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>
-  <p class="mut" style="margin:8px 0 0;font-size:12px">El rol y el área de cada persona vienen de la hoja <b>Usuarios</b>; «ve_todo» amplía lo que se ve, nunca lo que se edita. La gestión de comités es de Administra y Responsable. Para que el esquema sea vinculante, los mismos permisos deben aplicarse sobre las listas de SharePoint.</p></section>`;
+  <p class="mut" style="margin:8px 0 0;font-size:12px">El rol y el área de cada persona vienen de la hoja <b>Usuarios</b>; «ve_todo» amplía lo que se ve, nunca lo que se edita. La gestión de comités es de Administra y Responsable. Para que el esquema sea vinculante, el servidor aplica estos mismos permisos (RLS y comandos), no solo la interfaz.</p></section>`;
 }
 
 /* ============================================================

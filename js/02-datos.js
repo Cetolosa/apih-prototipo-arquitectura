@@ -1,14 +1,14 @@
 import { ENLACES } from './00-registro.js';
 import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
-   CAPA DE DATOS · AuthService · SharePointService · DataService
+   CAPA DE DATOS · DataService · SupabaseService · AuthService
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
-   1. ESQUEMA DE LISTAS SHAREPOINT (columnas exactas)
-   Cada columna: n = nombre interno SharePoint · t = tipo · k = campo de dominio
-   rw = true: la columna es editable directamente en SharePoint y "gana" sobre DatosJSON
-   get/set = conversores personalizados. 'Title' es el campo nativo de SharePoint.
+   1. ESQUEMA DE ENTIDADES (columnas y mapeo de dominio)
+   Cada columna: n = nombre de la columna · t = tipo · k = campo de dominio
+   rw = true: la columna se puede editar fuera de la app y "gana" sobre DatosJSON
+   get/set = conversores personalizados. 'Title' es el título visible del registro.
    DatosJSON conserva el objeto de dominio completo (campos sin columna propia).
    --------------------------------------------------------------------- */
 export const C = {
@@ -23,7 +23,7 @@ const nextOpenHito = i => { const hs = St.hitos.filter(h => h.ini === i.id && !h
 const HITO_ESTADOS = ['En plazo', 'Por vencer', 'Vencido', 'Completado'];
 const DEC_ESTADOS_SP = ['Pendiente', 'Aprobada', 'Rechazada', 'Pospuesta', 'Aplicada'];
 
-export const SP_SCHEMA = {
+export const ESQUEMA = {
   projects: {
     label: 'Proyectos', cfg: 'projectsList', coll: 'ini', key: 'Codigo', idCol: 'Codigo', title: 'Titulo (Title)',
     cols: [
@@ -129,7 +129,6 @@ export const SP_SCHEMA = {
   }
 };
 const DATOS_COL = { n: 'DatosJSON', t: 'Note' };
-const ORIGEN_COL = { n: 'Origen', t: 'Text' };   // marca 'APIH' en cada escritura de la app (control de ediciones directas en SharePoint)   // objeto de dominio completo (todas las listas)
 export const SETTINGS_KEYS = ['cfg', 'cfgU', 'usuarios', 'eventos', 'pres', 'ptpl', 'ptema', 'seq'];
 const settingKeys = S => [...SETTINGS_KEYS, ...Object.keys((S && S.psnap) || {}).map(i => 'psnap:' + i)];   // psnap:<id> = presentación congelada       // documentos en APIH_Config
 const LOCAL_CFG = ['usuario', 'areaGlobal'];                                // preferencias de sesión: no se comparten
@@ -141,10 +140,10 @@ const spEq = (a, b) => {
   return a === b;
 };
 
-/* Mapeo dominio <-> campos SharePoint */
-const SPMap = {
+/* Mapeo dominio <-> campos de columna */
+const MapaDatos = {
   fieldsOf(ent, o) {
-    const S = SP_SCHEMA[ent], f = {};
+    const S = ESQUEMA[ent], f = {};
     S.cols.forEach(c => {
       let v = c.get ? c.get(o) : o[c.k];
       if (c.t === 'Date') v = v ? String(v).slice(0, 10) + 'T12:00:00Z' : null;
@@ -153,13 +152,13 @@ const SPMap = {
       else if (c.t === 'Note') v = v == null ? '' : String(v);
       f[c.n] = v;
     });
-    f[DATOS_COL.n] = JSON.stringify(o); f[ORIGEN_COL.n] = 'APIH';
+    f[DATOS_COL.n] = JSON.stringify(o);
     return f;
   },
   objOf(ent, f) {
-    const S = SP_SCHEMA[ent]; let o = null;
+    const S = ESQUEMA[ent]; let o = null;
     try { if (f[DATOS_COL.n]) o = JSON.parse(f[DATOS_COL.n]); } catch (e) { o = null; }
-    if (!o) o = Object.assign(S.tpl(), {});     // fila creada a mano en SharePoint
+    if (!o) o = Object.assign(S.tpl(), {});     // fila creada fuera de la app
     const idc = S.cols.find(c => c.k === 'id');
     if (idc && f[idc.n] && !o.id) o.id = f[idc.n];
     S.cols.forEach(c => {
@@ -178,314 +177,24 @@ const SPMap = {
 };
 
 /* ---------------------------------------------------------------------
-   2. AuthService · Microsoft Entra ID (MSAL) – abstracción
+   4. DataService · carga, diff y sincronización con Supabase
    --------------------------------------------------------------------- */
-export const AuthService = {
-  app: null, acct: null, token: '', error: '',
-  get cfg() { return APIH_CONFIG.auth; },
-  get provider() { return this.cfg.provider || 'none'; },
-  get needsLogin() { return this.provider === 'msal' && !this.acct; },
-  user() { return this.acct ? { name: this.acct.name || this.acct.username, email: this.acct.username } : null; },
-  _loadScript(src) { return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = () => no(new Error('No se pudo cargar ' + src)); document.head.appendChild(s); }); },
-  async init() {
-    this.error = '';
-    if (this.provider !== 'msal') return;
-    const a = this.cfg;
-    if (!a.clientId) throw new Error('auth.clientId vacío');
-    if (!window.msal && a.msalUrl) await this._loadScript(a.msalUrl);
-    if (!window.msal) throw new Error('MSAL.js no disponible: aloje msal-browser.min.js y configure auth.msalUrl (la app no usa CDN)');
-    this.app = new msal.PublicClientApplication({
-      auth: { clientId: a.clientId, authority: a.authority || 'https://login.microsoftonline.com/' + (a.tenantId || 'common'), redirectUri: a.redirectUri || (location.origin + location.pathname) },
-      cache: { cacheLocation: a.cache || 'sessionStorage' }
-    });
-    if (this.app.initialize) await this.app.initialize();
-    const r = await this.app.handleRedirectPromise();
-    this.acct = (r && r.account) || this.app.getAllAccounts()[0] || null;
-    if (this.acct) this.app.setActiveAccount(this.acct);
-  },
-  scopes(mode) {
-    const a = this.cfg;
-    if (mode === 'rest') return [a.restScope || (APIH_CONFIG.tenantUrl.replace(/\/$/, '') + '/.default')];
-    return a.graphScopes && a.graphScopes.length ? a.graphScopes : ['Sites.ReadWrite.All'];
-  },
-  async login() {
-    if (!this.app) await this.init();
-    const r = await this.app.loginPopup({ scopes: this.scopes('graph') });
-    this.acct = r.account; this.app.setActiveAccount(this.acct); return this.user();
-  },
-  async logout() { if (this.app && this.acct) { const a = this.acct; this.acct = null; await this.app.logoutPopup({ account: a }); } },
-  async getToken(mode) {
-    if (this.provider === 'token') return this.token || null;
-    if (this.provider !== 'msal') return null;
-    if (!this.acct) throw new Error('Sesión no iniciada');
-    const req = { scopes: this.scopes(mode), account: this.acct };
-    try { return (await this.app.acquireTokenSilent(req)).accessToken; }
-    catch (e) { return (await this.app.acquireTokenPopup(req)).accessToken; }
-  }
-};
-
-/* ---------------------------------------------------------------------
-   3. SharePointService · Microsoft Graph y REST SharePoint
-   --------------------------------------------------------------------- */
-export class SharePointService {
-  constructor(cfg) {
-    this.cfg = cfg; this.siteId = null; this.digest = null; this.digestAt = 0;
-    this.ids = {};                       // ent -> { codigo: idItemSharePoint }
-    Object.keys(SP_SCHEMA).forEach(e => this.ids[e] = {}); this.ids.settings = {}; this.ids.roles = {};
-  }
-  get mode() { return this.cfg.mode === 'rest' ? 'rest' : 'graph'; }
-  get site() { return this.cfg.tenantUrl.replace(/\/+$/, '') + '/' + this.cfg.siteName.replace(/^\/+|\/+$/g, ''); }
-  listName(ent) { return ent === 'settings' ? this.cfg.settingsList : ent === 'roles' ? (this.cfg.rolesList || 'APIH_Roles') : this.cfg[SP_SCHEMA[ent].cfg]; }
-
-  /* --- transporte con reintentos (429/503) --- */
-  async _fetch(url, opt = {}, tries = 4) {
-    const h = Object.assign({ Accept: this.mode === 'rest' ? 'application/json;odata=nometadata' : 'application/json' }, opt.headers || {});
-    const tk = await AuthService.getToken(this.mode);
-    if (tk) h.Authorization = 'Bearer ' + tk;
-    if (opt.body && !h['Content-Type']) h['Content-Type'] = this.mode === 'rest' ? 'application/json;odata=nometadata' : 'application/json';
-    const o = { method: opt.method || 'GET', headers: h, body: opt.body };
-    if (this.mode === 'rest' && !tk) o.credentials = 'include';
-    let res;
-    for (let n = 0; n < tries; n++) {
-      res = await fetch(url, o);
-      if (res.status === 429 || res.status === 503 || res.status === 504) { const ra = +res.headers.get('Retry-After') || (1 + n * 2); await new Promise(r => setTimeout(r, Math.min(ra, 20) * 1000)); continue; }
-      break;
-    }
-    if (!res.ok) {
-      let msg = ''; try { const j = await res.json(); msg = (j.error && (j.error.message && (j.error.message.value || j.error.message))) || JSON.stringify(j).slice(0, 200); } catch (e) { }
-      const err = new Error('HTTP ' + res.status + (msg ? ' · ' + msg : '')); err.status = res.status; throw err;
-    }
-    if (res.status === 204) return null;
-    const t = await res.text(); return t ? JSON.parse(t) : null;
-  }
-  async _graphSite() {
-    if (this.siteId) return this.siteId;
-    const u = new URL(this.cfg.tenantUrl);
-    const j = await this._fetch('https://graph.microsoft.com/v1.0/sites/' + u.hostname + ':/' + this.cfg.siteName.replace(/^\/+|\/+$/g, ''));
-    return this.siteId = j.id;
-  }
-  async _digest() {
-    if (this.digest && Date.now() - this.digestAt < 20 * 60 * 1000) return this.digest;
-    const j = await this._fetch(this.site + '/_api/contextinfo', { method: 'POST', headers: { 'Content-Type': 'application/json;odata=nometadata' }, body: '{}' });
-    this.digestAt = Date.now(); return this.digest = j.FormDigestValue;
-  }
-  async _listUrl(ent) {
-    const name = this.listName(ent);
-    if (this.mode === 'graph') return 'https://graph.microsoft.com/v1.0/sites/' + (await this._graphSite()) + '/lists/' + encodeURIComponent(name);
-    return this.site + "/_api/web/lists/getbytitle('" + name.replace(/'/g, "''") + "')";
-  }
-
-  /* --- operaciones genéricas sobre una lista --- */
-  async listItems(ent) {
-    const base = await this._listUrl(ent); const out = [];
-    let url = this.mode === 'graph' ? base + '/items?$expand=fields&$top=999' : base + '/items?$top=5000';
-    while (url) {
-      const j = await this._fetch(url);
-      (j.value || []).forEach(it => out.push(this.mode === 'graph' ? { spid: it.id, f: it.fields || {} } : { spid: it.Id, f: it }));
-      url = j['@odata.nextLink'] || j['odata.nextLink'] || null;
-    }
-    return out;
-  }
-  async createItem(ent, fields) {
-    const base = await this._listUrl(ent);
-    if (this.mode === 'graph') { const j = await this._fetch(base + '/items', { method: 'POST', body: JSON.stringify({ fields }) }); return j.id; }
-    const j = await this._fetch(base + '/items', { method: 'POST', headers: { 'X-RequestDigest': await this._digest() }, body: JSON.stringify(fields) }); return j.Id;
-  }
-  async updateItem(ent, spid, fields) {
-    const base = await this._listUrl(ent);
-    if (this.mode === 'graph') return this._fetch(base + '/items/' + spid + '/fields', { method: 'PATCH', body: JSON.stringify(fields) });
-    return this._fetch(base + '/items(' + spid + ')', { method: 'POST', headers: { 'X-RequestDigest': await this._digest(), 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*' }, body: JSON.stringify(fields) });
-  }
-  async deleteItem(ent, spid) {
-    const base = await this._listUrl(ent);
-    if (this.mode === 'graph') return this._fetch(base + '/items/' + spid, { method: 'DELETE' });
-    return this._fetch(base + '/items(' + spid + ')', { method: 'POST', headers: { 'X-RequestDigest': await this._digest(), 'X-HTTP-Method': 'DELETE', 'IF-MATCH': '*' } });
-  }
-
-  /* --- V9 · rendimiento (solo Graph) --- */
-  /* escritura en lotes: hasta 20 operaciones por llamada ($batch). Devuelve [{ok, err}] en el mismo orden. */
-  async batchOps(ops) {
-    const site = await this._graphSite(), reqs = [], out = ops.map(() => ({ ok: true, err: '' })), pos = [];
-    ops.forEach((op, i) => {
-      const base = '/sites/' + site + '/lists/' + encodeURIComponent(this.listName(op.ent));
-      const spid = op.t === 'c' ? null : this.ids[op.ent][op.t === 'd' ? op.id : op.o.id];
-      let r;
-      if (op.t === 'd') { if (!spid) return; r = { method: 'DELETE', url: base + '/items/' + spid }; }
-      else if (op.t === 'u' && spid) r = { method: 'PATCH', url: base + '/items/' + spid + '/fields', headers: { 'Content-Type': 'application/json' }, body: SPMap.fieldsOf(op.ent, op.o) };
-      else r = { method: 'POST', url: base + '/items', headers: { 'Content-Type': 'application/json' }, body: { fields: SPMap.fieldsOf(op.ent, op.o) } };
-      r.id = String(reqs.length); reqs.push(r); pos.push(i);
-    });
-    if (!reqs.length) return out;
-    const j = await this._fetch('https://graph.microsoft.com/v1.0/$batch', { method: 'POST', body: JSON.stringify({ requests: reqs }) });
-    (j.responses || []).forEach(rs => {
-      const i = pos[+rs.id], op = ops[i];
-      if (rs.status >= 200 && rs.status < 300) { if (op.t === 'c' || (op.t === 'u' && rs.body && rs.body.id && !this.ids[op.ent][op.o.id])) { if (rs.body && rs.body.id) this.ids[op.ent][op.o.id] = rs.body.id; } if (op.t === 'd') delete this.ids[op.ent][op.id]; }
-      else { const b = rs.body || {}; out[i] = { ok: false, err: 'HTTP ' + rs.status + ' · ' + ((b.error && b.error.message) || '') }; }
-    });
-    pos.forEach(i => { /* respuestas ausentes = fallo */ });
-    return out;
-  }
-  /* huella barata de las listas (1 llamada $batch): si no cambia, no hace falta releer los datos */
-  async stamp() {
-    const site = await this._graphSite(), names = [...Object.keys(SP_SCHEMA).map(e => this.listName(e)), this.cfg.settingsList, this.listName('roles')];
-    const reqs = names.map((n, i) => ({ id: String(i), method: 'GET', url: '/sites/' + site + '/lists/' + encodeURIComponent(n) + '?$select=lastModifiedDateTime' }));
-    const j = await this._fetch('https://graph.microsoft.com/v1.0/$batch', { method: 'POST', body: JSON.stringify({ requests: reqs }) });
-    const rs = (j.responses || []).sort((a, b) => +a.id - +b.id);
-    if (rs.length !== names.length || rs.some(r => r.status !== 200 || !r.body || !r.body.lastModifiedDateTime)) return null;
-    return rs.map(r => r.body.lastModifiedDateTime).join('|');
-  }
-
-  /* --- API de dominio (lectura) --- */
-  async _read(ent) {
-    const items = await this.listItems(ent), idc = SP_SCHEMA[ent].cols.find(c => c.k === 'id');
-    this.ids[ent] = {};
-    return items.map(it => { const o = SPMap.objOf(ent, it.f); this.ids[ent][o.id] = it.spid; return o; })
-      .filter(o => o.id || ent === 'committees');
-  }
-  getProjects() { return this._read('projects'); }
-  async getProject(id) {
-    if (this.mode === 'graph') { const base = await this._listUrl('projects'); const j = await this._fetch(base + "/items?$expand=fields&$filter=fields/Codigo eq '" + String(id).replace(/'/g, "''") + "'", { headers: { Prefer: 'HonorNonIndexedQueriesWarningMayFailRandomly' } }); return j.value && j.value[0] ? SPMap.objOf('projects', j.value[0].fields) : null; }
-    return (await this.getProjects()).find(p => p.id === id) || null;
-  }
-  getProposals() { return this._read('proposals'); }
-  getRisks() { return this._read('risks'); }
-  getMilestones() { return this._read('milestones'); }
-  getDecisions() { return this._read('decisions'); }
-  getCommitments() { return this._read('commitments'); }
-  getChanges() { return this._read('changes'); }
-  getNotes() { return this._read('notes'); }
-  getDocs() { return this._read('docs'); }
-  getAudit() { return this._read('audit'); }
-  getCommittees() { return this._read('committees'); }
-  async getSettings() {
-    const items = await this.listItems('settings'), out = {}; this.ids.settings = {}; this.ids.roles = {};
-    const raw = {}; items.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.settings[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
-    let ri = []; try { ri = await this.listItems('roles'); } catch (e) { if (e.status !== 404) throw e; }   // lista de roles aún no creada
-    ri.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.roles[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
-    Object.keys(raw).forEach(k => { if (/#\d+$/.test(k)) return; try { let v = JSON.parse(raw[k]); if (v && v.__chunks) { let s = ''; for (let n = 1; n <= v.__chunks; n++) s += raw[k + '#' + n] || ''; v = JSON.parse(s); } out[k] = v; } catch (e) { } });
-    return out;
-  }
-
-  /* --- API de dominio (escritura) --- */
-  async _create(ent, o) { const spid = await this.createItem(ent, SPMap.fieldsOf(ent, o)); this.ids[ent][o.id] = spid; return spid; }
-  async _update(ent, o) { const spid = this.ids[ent][o.id]; if (!spid) return this._create(ent, o); await this.updateItem(ent, spid, SPMap.fieldsOf(ent, o)); return spid; }
-  async _delete(ent, id) { const spid = this.ids[ent][id]; if (!spid) return; await this.deleteItem(ent, spid); delete this.ids[ent][id]; }
-  createProject(p) { return this._create('projects', p); }
-  updateProject(p) { return this._update('projects', p); }
-  deleteProject(id) { return this._delete('projects', id); }
-  createProposal(p) { return this._create('proposals', p); }
-  updateProposal(p) { return this._update('proposals', p); }
-  deleteProposal(id) { return this._delete('proposals', id); }
-  createRisk(r) { return this._create('risks', r); }
-  updateRisk(r) { return this._update('risks', r); }
-  deleteRisk(id) { return this._delete('risks', id); }
-  createMilestone(h) { return this._create('milestones', h); }
-  updateMilestone(h) { return this._update('milestones', h); }
-  deleteMilestone(id) { return this._delete('milestones', id); }
-  createDecision(d) { return this._create('decisions', d); }
-  updateDecision(d) { return this._update('decisions', d); }
-  deleteDecision(id) { return this._delete('decisions', id); }
-  createAudit(b) { return this._create('audit', b); }
-  updateAudit(b) { return this._update('audit', b); }
-  deleteAudit(id) { return this._delete('audit', id); }
-  async saveSetting(k, v) {
-    const ent = k === 'usuarios' ? 'roles' : 'settings';   // los roles viven en su propia lista (permisos exclusivos del administrador)
-    const put = async (key, txt) => { const f = { Title: key, [DATOS_COL.n]: txt, [ORIGEN_COL.n]: 'APIH' }; if (this.ids[ent][key]) await this.updateItem(ent, this.ids[ent][key], f); else this.ids[ent][key] = await this.createItem(ent, f); };
-    const js = JSON.stringify(v), MAX = 50000;
-    if (js.length <= MAX) { await put(k, js); return; }
-    const n = Math.ceil(js.length / MAX); for (let i = 1; i <= n; i++) await put(k + '#' + i, js.slice((i - 1) * MAX, i * MAX));
-    await put(k, JSON.stringify({ __chunks: n }));
-  }
-
-  /* --- aprovisionamiento (solo Graph): crea listas y columnas que falten --- */
-  colDef(c) {
-    const d = { name: c.n, displayName: c.n };
-    if (c.t === 'Text') d.text = { maxLength: 255 };
-    else if (c.t === 'Note') d.text = { allowMultipleLines: true, textType: 'plain', linesForEditing: 6 };
-    else if (c.t === 'Number') d.number = { decimalPlaces: 'automatic' };
-    else if (c.t === 'Date') d.dateTime = { format: 'dateOnly' };
-    else if (c.t === 'DateTime') d.dateTime = { format: 'dateTime' };
-    else if (c.t === 'Choice') d.choice = { allowTextEntry: true, displayAs: 'dropDownMenu', choices: c.ch };
-    return d;
-  }
-  async provision(logf) {
-    if (this.mode !== 'graph') throw new Error('El aprovisionamiento automático requiere modo graph. Use el script PnP descargable.');
-    const sid = await this._graphSite(), base = 'https://graph.microsoft.com/v1.0/sites/' + sid + '/lists';
-    const lists = [...Object.keys(SP_SCHEMA).map(e => ({ ent: e, cols: SP_SCHEMA[e].cols.filter(c => c.n !== 'Title').concat([DATOS_COL, ORIGEN_COL]) })),
-      { ent: 'settings', cols: [DATOS_COL, ORIGEN_COL] }, { ent: 'roles', cols: [DATOS_COL, ORIGEN_COL] }];
-    for (const L of lists) {
-      const name = this.listName(L.ent); let cur = null;
-      try { cur = await this._fetch(base + '/' + encodeURIComponent(name)); } catch (e) { if (e.status !== 404) throw e; }
-      if (!cur) {
-        await this._fetch(base, { method: 'POST', body: JSON.stringify({ displayName: name, list: { template: 'genericList', hidden: true }, columns: L.cols.map(c => this.colDef(c)) }) });
-        logf('✔ Lista creada: ' + name + ' (' + L.cols.length + ' columnas)');
-      } else {
-        const have = (await this._fetch(base + '/' + cur.id + '/columns?$top=200')).value.map(c => c.name); let add = 0;
-        for (const c of L.cols) if (!have.includes(c.n)) { await this._fetch(base + '/' + cur.id + '/columns', { method: 'POST', body: JSON.stringify(this.colDef(c)) }); add++; }
-        logf((add ? '✔ ' : '• ') + name + ': ' + (add ? add + ' columnas agregadas' : 'esquema completo'));
-      }
-    }
-  }
-}
-
-/* Script PnP PowerShell equivalente (para administradores) */
-export function pnpScript() {
-  const xml = c => {
-    const b = `Name="${c.n}" DisplayName="${c.n}" StaticName="${c.n}"`;
-    if (c.t === 'Text') return `<Field Type="Text" ${b} />`;
-    if (c.t === 'Note') return `<Field Type="Note" ${b} NumLines="6" RichText="FALSE" />`;
-    if (c.t === 'Number') return `<Field Type="Number" ${b} />`;
-    if (c.t === 'Date') return `<Field Type="DateTime" ${b} Format="DateOnly" />`;
-    if (c.t === 'DateTime') return `<Field Type="DateTime" ${b} Format="DateTime" />`;
-    return `<Field Type="Choice" ${b} FillInChoice="TRUE"><CHOICES>${c.ch.map(x => `<CHOICE>${x}</CHOICE>`).join('')}</CHOICES></Field>`;
-  };
-  const cf = APIH_CONFIG;
-  let s = `# APIH V4 · Aprovisionamiento de listas SharePoint (PnP.PowerShell)\n# Ejecutar con un usuario con permisos de propietario del sitio.\n$site = "${cf.tenantUrl || 'https://TENANT.sharepoint.com'}/${(cf.siteName || 'sites/APIH').replace(/^\/+/, '')}"\nConnect-PnPOnline -Url $site -Interactive\n\n`;
-  const all = Object.keys(SP_SCHEMA).map(e => ({ name: cf[SP_SCHEMA[e].cfg], title: SP_SCHEMA[e].cols.find(c => c.n === 'Title'), cols: SP_SCHEMA[e].cols.filter(c => c.n !== 'Title').concat([DATOS_COL, ORIGEN_COL]) }));
-  all.push({ name: cf.settingsList, title: null, cols: [DATOS_COL, ORIGEN_COL] }, { name: cf.rolesList || 'APIH_Roles', title: null, cols: [DATOS_COL, ORIGEN_COL] });
-  all.forEach(L => {
-    s += `# ---- ${L.name} ----\nNew-PnPList -Title "${L.name}" -Template GenericList -OnQuickLaunch\n`;
-    if (L.title) s += `Set-PnPField -List "${L.name}" -Identity "Title" -Values @{Title="${SP_SCHEMA[Object.keys(SP_SCHEMA).find(e => cf[SP_SCHEMA[e].cfg] === L.name)].title.split(' ')[0]}"}\n`;
-    L.cols.forEach(c => { s += `Add-PnPFieldFromXml -List "${L.name}" -FieldXml '${xml(c)}' | Out-Null\n`; });
-    s += '\n';
-  });
-  /* ---- seguridad: historial de versiones, listas ocultas, roles exclusivos del administrador ---- */
-  const roles = cf.rolesList || 'APIH_Roles';
-  s += `# ---- SEGURIDAD ----\n# 1) Historial de versiones (autor y fecha de cada cambio, restaurable) + 2) listas ocultas del menú del sitio\n`;
-  all.forEach(L => { s += `Set-PnPList -Identity "${L.name}" -EnableVersioning $true -MajorVersions 200 -Hidden $true\n`; });
-  s += `\n# 3) Roles: solo propietarios pueden editar ${roles}; el resto del sitio solo lee\n` +
-    `Set-PnPList -Identity "${roles}" -BreakRoleInheritance -CopyRoleAssignments\n` +
-    `$miembros = Get-PnPGroup | Where-Object { $_.Title -like "*Members" -or $_.Title -like "*Miembros" }\n` +
-    `Set-PnPListPermission -Identity "${roles}" -Group $miembros -RemoveRole "Edit"\n` +
-    `Set-PnPListPermission -Identity "${roles}" -Group $miembros -AddRole "Read"\n`;
-  return s;
-}
-
-/* ---------------------------------------------------------------------
-   4. DataService · carga, diff y sincronización con SharePoint
-   --------------------------------------------------------------------- */
-const COLLS = Object.keys(SP_SCHEMA);   // projects, risks, milestones, decisions, audit, committees
-const backendName = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' ? 'Supabase' : 'SharePoint';
-const backendLabel = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' ? 'Servidor seguro · acceso individual' : 'SharePoint · ' + APIH_CONFIG.siteName;
-const newSvc = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' && typeof SupabaseService !== 'undefined' ? new SupabaseService(APIH_CONFIG) : new SharePointService(APIH_CONFIG);
+const COLLS = Object.keys(ESQUEMA);   // projects, risks, milestones, decisions, audit, committees
+const backendName = () => 'Supabase';
+const backendLabel = () => 'Servidor seguro · acceso individual';
+const newSvc = () => new SupabaseService(APIH_CONFIG);
 export const DataService = {
   mode: 'demo', svc: null, snap: null, timer: null, poll: null, busy: false, again: false, dirty: false, tries: 0,
   st: { state: 'demo', msg: 'Modo demo', last: null, pending: 0, err: '' },
   setStatus(o) { Object.assign(this.st, o); if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); },
-  resolveMode() {
-    const c = APIH_CONFIG; if (c.mode === 'demo') return 'demo';
-    const ok = c.tenantUrl && c.siteName;
-    if (c.auth && c.auth.provider === 'supabase') return c.supabase && c.supabase.url && c.supabase.anonKey ? 'supabase' : 'demo';
-    if (c.mode === 'graph' || c.mode === 'rest') return ok ? c.mode : 'demo';
-    return ok && c.auth.provider !== 'none' ? 'graph' : 'demo';
-  },
+  resolveMode() { const c = APIH_CONFIG; return c.auth.provider === 'supabase' && c.supabase.url && c.supabase.anonKey ? 'supabase' : 'demo'; },
   /* arranque: devuelve el estado inicial de la aplicación */
   async init() {
     this.mode = this.resolveMode();
     if (this.mode === 'demo') { this.setStatus({ state: 'demo', msg: 'Modo demo · datos en memoria' }); return seedState(); }
     try { await AuthService.init(); }
     catch (e) { this.setStatus({ state: 'error', msg: 'Autenticación', err: e.message }); return this.fallback(e.message); }
-    if (AuthService.needsLogin) { this.setStatus({ state: 'auth', msg: AuthService.provider === 'supabase' ? 'Inicie sesión' : 'Inicie sesión con Microsoft' }); return this.fallback('Inicie sesión para conectar con ' + backendName()); }
+    if (AuthService.needsLogin) { this.setStatus({ state: 'auth', msg: 'Inicie sesión' }); return this.fallback('Inicie sesión para conectar con ' + backendName()); }
     return this.connect();
   },
   fallback(why) { this.mode = 'demo'; this.svc = null; this.snap = null; this.offlineWhy = why; return seedState(); },
@@ -497,7 +206,7 @@ export const DataService = {
       const t0 = performance.now(), S = await this.loadRemote(), raw = S._raw; delete S._raw;
       this.st.msLoad = Math.round(performance.now() - t0); this.fullAt = Date.now(); if (this.svc.stamp) { try { this.stampV = await this.svc.stamp(); } catch (e) { } }
       this.snap = this.snapshot(raw || S); this.dirty = false; this.tries = 0;
-      if (S.empty && this.svc.mode === 'supabase') { ['usuarios', 'cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
+      if (S.empty) { ['usuarios', 'cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       this.startPoll();
       if (raw) { this.dirty = true; setTimeout(() => { this.commit(); if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)('Datos migrados al modelo V5 (Propuestas / Proyectos); sincronizando…'); }, 800); }
@@ -520,11 +229,11 @@ export const DataService = {
     if (ini.some(i => !i.tipo)) { const raw = JSON.parse(JSON.stringify(S)); S = (0, ENLACES.migrateV5)(S); S._raw = raw; }   // datos de versiones anteriores
     return S;
   },
-  /* firma por registro = JSON de los campos SharePoint resultantes (incluye columnas derivadas) */
+  /* firma por registro = JSON de los campos resultantes (incluye columnas derivadas) */
   snapshot(S) {
     const prev = St; ENLACES.St = S; const out = {};
     try {
-      COLLS.forEach(ent => { const m = new Map(); (S[SP_SCHEMA[ent].coll] || []).filter(SP_SCHEMA[ent].filter || (() => true)).forEach(o => m.set(o.id, JSON.stringify(SPMap.fieldsOf(ent, o)))); out[ent] = m; });
+      COLLS.forEach(ent => { const m = new Map(); (S[ESQUEMA[ent].coll] || []).filter(ESQUEMA[ent].filter || (() => true)).forEach(o => m.set(o.id, JSON.stringify(MapaDatos.fieldsOf(ent, o)))); out[ent] = m; });
       out.settings = new Map(); settingKeys(S).forEach(k => out.settings.set(k, JSON.stringify(this.settingValue(S, k))));
     } finally { ENLACES.St = prev; }
     return out;
@@ -539,8 +248,8 @@ export const DataService = {
   diff() {
     const ops = []; const S = St;
     COLLS.forEach(ent => {
-      const arr = (S[SP_SCHEMA[ent].coll] || []).filter(SP_SCHEMA[ent].filter || (() => true)), prev = this.snap[ent], seen = new Set();
-      arr.forEach(o => { seen.add(o.id); const sig = JSON.stringify(SPMap.fieldsOf(ent, o)); if (this.bad && this.bad.has(ent + ':' + o.id + ':' + sig)) return; if (!prev.has(o.id)) ops.push({ t: 'c', ent, o, sig }); else if (prev.get(o.id) !== sig) ops.push({ t: 'u', ent, o, sig }); });
+      const arr = (S[ESQUEMA[ent].coll] || []).filter(ESQUEMA[ent].filter || (() => true)), prev = this.snap[ent], seen = new Set();
+      arr.forEach(o => { seen.add(o.id); const sig = JSON.stringify(MapaDatos.fieldsOf(ent, o)); if (this.bad && this.bad.has(ent + ':' + o.id + ':' + sig)) return; if (!prev.has(o.id)) ops.push({ t: 'c', ent, o, sig }); else if (prev.get(o.id) !== sig) ops.push({ t: 'u', ent, o, sig }); });
       prev.forEach((sig, id) => { if (!seen.has(id)) ops.push({ t: 'd', ent, id }); });
     });
     settingKeys(S).forEach(k => { const sig = JSON.stringify(this.settingValue(S, k)); if (this.snap.settings.get(k) !== sig) ops.push({ t: 's', k, v: this.settingValue(S, k), sig }); });
@@ -603,7 +312,7 @@ export const DataService = {
       if (this.again) { this.again = false; this.commit(); }
     }
   },
-  /* relectura desde SharePoint (manual o periódica). force = descarta cambios locales */
+  /* relectura desde Supabase (manual o periódica). force = descarta cambios locales */
   async refresh(silent, force) {
     if (!this.svc || this.busy) return;
     if (!force && (this.dirty || (typeof ENLACES.Modal !== 'undefined' && ENLACES.Modal.cur))) return;
@@ -629,9 +338,9 @@ export const DataService = {
   startPoll() {
     clearInterval(this.poll); const s = APIH_CONFIG.pollSec; if (s > 0) this.poll = setInterval(() => { if (document.visibilityState === 'visible') this.refresh(true); }, s * 1000);
   },
-  /* carga el estado de demostración en las listas vacías de SharePoint */
+  /* carga el estado de demostración en las listas vacías */
   async seedRemote() {
-    if (!this.svc) throw new Error('Sin conexión a SharePoint');
+    if (!this.svc) throw new Error('Sin conexión a Supabase');
     const keepUser = St.cfg.usuario; ENLACES.St = seedState(); St.cfg.usuario = keepUser;
     this.snap = {}; COLLS.forEach(e => this.snap[e] = new Map()); this.snap.settings = new Map();
     this.dirty = true; await this.flush();
@@ -639,20 +348,18 @@ export const DataService = {
   async testConnection() {
     const t = newSvc(), out = [];
     await AuthService.init();
-    if (t.mode === 'graph') { const sid = await t._graphSite(); out.push('Sitio resuelto: ' + sid.split(',')[0] + '…'); }
     for (const ent of [...COLLS, 'settings', 'roles']) {
-      try { const n = (await t.listItems(ent)).length; out.push('✔ ' + t.listName(ent) + ': ' + n + ' elementos'); }
+      try { const n = (await t.listItems(ent)).length; out.push('✔ ' + t.listName(ent) + ': ' + n + ' registros'); }
       catch (e) { out.push('✘ ' + t.listName(ent) + ': ' + e.message); }
     }
     return out;
   }
 };
 
+
 /* ==========================================================================
-   APIH · Proveedor Supabase (alternativa a SharePoint mientras no exista el registro en Entra ID)
-   · Inicio de sesión individual: correo corporativo + contraseña propia (Supabase Auth; recuperable por correo).
-   · Tabla única `registros(lista, id, datos)`; `datos` = 'p1.' + JSON en texto. La protección es el servidor (RLS + solo correos @aramark.cl).
-   · Los roles se hacen cumplir en el servidor con RLS (ver APIH_supabase_setup.sql).
+   Proveedor Supabase · acceso individual (correo corporativo + contraseña propia) y tabla `registros(lista, id, datos)`.
+   `datos` = 'p1.' + JSON en texto. La autorización se hace cumplir en el servidor (RLS, disparador y comandos RPC).
    ========================================================================== */
 export const SB = {
   KEY: 'APIH_SB', sess: null,
@@ -688,22 +395,99 @@ export const SB = {
 
 export const SBLogin = {};
 
-/* ---- AuthService: proveedor 'supabase' ---- */
-(function () {
-  const A = AuthService, init0 = A.init;
-  Object.defineProperty(A, 'needsLogin', { get() { return this.provider === 'msal' ? !this.acct : this.provider === 'supabase' ? !SB.sess : false; }, configurable: true });
-  A.init = async function () { if (this.provider !== 'supabase') return init0.apply(this, arguments); this.error = ''; if (!(SB.cfg.url && SB.cfg.anonKey)) throw new Error('supabase.url / supabase.anonKey vacíos'); if (/type=recovery/.test(location.hash)) SB.clear(); else SB.restore(); if (!SB.sess) SBLogin.show(); };
-  const user0 = A.user; A.user = function () { if (this.provider !== 'supabase') return user0.apply(this, arguments); if (!SB.sess) return null; const e = SB.sess.email; return { name: e.split('@')[0].split(/[._-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), email: e }; };
-  const gt0 = A.getToken; A.getToken = function (m) { return this.provider === 'supabase' ? SB.token() : gt0.apply(this, arguments); };
-  const lg0 = A.login; A.login = async function () { if (this.provider !== 'supabase') return lg0.apply(this, arguments); SBLogin.show(); throw new Error('Ingresa tus datos en la ventana de acceso'); };
-  const lo0 = A.logout; A.logout = async function () { if (this.provider !== 'supabase') return lo0.apply(this, arguments); SB.logout(); };
-})();
+/* ---- AuthService · Supabase Auth (correo corporativo + contraseña propia) ---- */
+export const AuthService = {
+  get cfg() { return APIH_CONFIG.auth; },
+  get provider() { return this.cfg.provider || 'none'; },
+  get needsLogin() { return this.provider === 'supabase' && !SB.sess; },
+  user() {
+    if (this.provider !== 'supabase' || !SB.sess) return null;
+    const e = SB.sess.email;
+    return { name: e.split('@')[0].split(/[._-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), email: e };
+  },
+  async init() {
+    if (this.provider !== 'supabase') return;
+    if (!(SB.cfg.url && SB.cfg.anonKey)) throw new Error('supabase.url / supabase.anonKey vacíos');
+    if (/type=recovery/.test(location.hash)) SB.clear(); else SB.restore();
+    if (!SB.sess) SBLogin.show();
+  },
+  getToken() { return this.provider === 'supabase' ? SB.token() : null; },
+  async login() { SBLogin.show(); throw new Error('Ingresa tus datos en la ventana de acceso'); },
+  async logout() { SB.logout(); }
+};
 
 /* ---- Servicio de datos ---- */
-export class SupabaseService extends SharePointService {
+export class SupabaseService {
+  constructor(cfg) {
+    this.cfg = cfg;
+    this.ids = {};                       // ent -> { id: id del registro }
+    Object.keys(ESQUEMA).forEach(e => this.ids[e] = {}); this.ids.settings = {}; this.ids.roles = {};
+  }
   get mode() { return 'supabase'; }
   get sb() { return this.cfg.supabase; }
-  _idCol(ent) { return ent === 'settings' || ent === 'roles' ? 'Title' : SP_SCHEMA[ent].key; }
+  listName(ent) { return ent === 'settings' ? this.cfg.settingsList : ent === 'roles' ? (this.cfg.rolesList || 'APIH_Roles') : this.cfg[ESQUEMA[ent].cfg]; }
+  /* --- API de dominio (lectura) --- */
+  async _read(ent) {
+    const items = await this.listItems(ent), idc = ESQUEMA[ent].cols.find(c => c.k === 'id');
+    this.ids[ent] = {};
+    return items.map(it => { const o = MapaDatos.objOf(ent, it.f); this.ids[ent][o.id] = it.spid; return o; })
+      .filter(o => o.id || ent === 'committees');
+  }
+  getProjects() { return this._read('projects'); }
+  async getProject(id) {
+    return (await this.getProjects()).find(p => p.id === id) || null;
+  }
+  getProposals() { return this._read('proposals'); }
+  getRisks() { return this._read('risks'); }
+  getMilestones() { return this._read('milestones'); }
+  getDecisions() { return this._read('decisions'); }
+  getCommitments() { return this._read('commitments'); }
+  getChanges() { return this._read('changes'); }
+  getNotes() { return this._read('notes'); }
+  getDocs() { return this._read('docs'); }
+  getAudit() { return this._read('audit'); }
+  getCommittees() { return this._read('committees'); }
+  async _leerAjustes() {
+    const items = await this.listItems('settings'), out = {}; this.ids.settings = {}; this.ids.roles = {};
+    const raw = {}; items.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.settings[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
+    const ri = await this.listItems('roles');
+    ri.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.roles[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
+    Object.keys(raw).forEach(k => { if (/#\d+$/.test(k)) return; try { let v = JSON.parse(raw[k]); if (v && v.__chunks) { let s = ''; for (let n = 1; n <= v.__chunks; n++) s += raw[k + '#' + n] || ''; v = JSON.parse(s); } out[k] = v; } catch (e) { } });
+    return out;
+  }
+
+  /* --- API de dominio (escritura) --- */
+  async _create(ent, o) { const spid = await this.createItem(ent, MapaDatos.fieldsOf(ent, o)); this.ids[ent][o.id] = spid; return spid; }
+  async _update(ent, o) { const spid = this.ids[ent][o.id]; if (!spid) return this._create(ent, o); await this.updateItem(ent, spid, MapaDatos.fieldsOf(ent, o)); return spid; }
+  async _delete(ent, id) { const spid = this.ids[ent][id]; if (!spid) return; await this.deleteItem(ent, spid); delete this.ids[ent][id]; }
+  createProject(p) { return this._create('projects', p); }
+  updateProject(p) { return this._update('projects', p); }
+  deleteProject(id) { return this._delete('projects', id); }
+  createProposal(p) { return this._create('proposals', p); }
+  updateProposal(p) { return this._update('proposals', p); }
+  deleteProposal(id) { return this._delete('proposals', id); }
+  createRisk(r) { return this._create('risks', r); }
+  updateRisk(r) { return this._update('risks', r); }
+  deleteRisk(id) { return this._delete('risks', id); }
+  createMilestone(h) { return this._create('milestones', h); }
+  updateMilestone(h) { return this._update('milestones', h); }
+  deleteMilestone(id) { return this._delete('milestones', id); }
+  createDecision(d) { return this._create('decisions', d); }
+  updateDecision(d) { return this._update('decisions', d); }
+  deleteDecision(id) { return this._delete('decisions', id); }
+  createAudit(b) { return this._create('audit', b); }
+  updateAudit(b) { return this._update('audit', b); }
+  deleteAudit(id) { return this._delete('audit', id); }
+  async _guardarAjuste(k, v) {
+    const ent = k === 'usuarios' ? 'roles' : 'settings';   // los roles viven en su propia lista (permisos exclusivos del administrador)
+    const put = async (key, txt) => { const f = { Title: key, [DATOS_COL.n]: txt }; if (this.ids[ent][key]) await this.updateItem(ent, this.ids[ent][key], f); else this.ids[ent][key] = await this.createItem(ent, f); };
+    const js = JSON.stringify(v), MAX = 50000;
+    if (js.length <= MAX) { await put(k, js); return; }
+    const n = Math.ceil(js.length / MAX); for (let i = 1; i <= n; i++) await put(k + '#' + i, js.slice((i - 1) * MAX, i * MAX));
+    await put(k, JSON.stringify({ __chunks: n }));
+  }
+
+  _idCol(ent) { return ent === 'settings' || ent === 'roles' ? 'Title' : ESQUEMA[ent].key; }
   async _rest(path, opt = {}, tries = 3) {
     const mk = async () => Object.assign({ apikey: this.sb.anonKey, Authorization: 'Bearer ' + await SB.token(), 'Content-Type': 'application/json' }, opt.headers || {});
     let h = await mk(), res, ref = false;
@@ -747,18 +531,18 @@ export class SupabaseService extends SharePointService {
       if (op.t === 'd') { (del[op.ent] = del[op.ent] || []).push([i, op.id]); }
       else if (op.t === 'u' && this.ver && this.ver[op.ent + ':' + op.o.id]) { cond.push(i); }
       else if (op.t === 'c') { alt.push(i); }
-      else { up.push(await this._row(op.ent, SPMap.fieldsOf(op.ent, op.o))); upI.push(i); }
+      else { up.push(await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o))); upI.push(i); }
     }
     /* V22.34: detección de conflictos. Una actualización solo se aplica si el registro sigue con la versión que se leyó; un alta no pisa un id ya usado. */
     const unoAUno = async (lst, fn) => { const q = lst.slice(); await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const i = q.shift(); try { await fn(i); } catch (e) { out[i] = e.conflict ? { ok: false, conflict: true, err: e.message } : { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) }; } } })); };
     await unoAUno(cond, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, SPMap.fieldsOf(op.ent, op.o));
+      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
       const { data } = await this._rest('registros?lista=eq.' + encodeURIComponent(row.lista) + '&id=eq.' + encodeURIComponent(row.id) + '&actualizado=eq.' + encodeURIComponent(this.ver[k]) + '&select=actualizado', { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ datos: row.datos }) });
       if (!data || !data.length) { const e = new Error('«' + op.o.id + '» fue modificado por otra persona'); e.conflict = true; throw e; }
       this.ver[k] = data[0].actualizado || null; this.ids[op.ent][op.o.id] = op.o.id;
     });
     await unoAUno(alt, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, SPMap.fieldsOf(op.ent, op.o));
+      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
       try { const { data } = await this._rest('registros?select=actualizado', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify([row]) }); this.ver = this.ver || {}; this.ver[k] = (data && data[0] && data[0].actualizado) || null; this.ids[op.ent][op.o.id] = op.o.id; }
       catch (e) { if (e.status === 409) { const c = new Error('El id «' + op.o.id + '» ya fue usado por otra persona'); c.conflict = true; throw c; } throw e; }
     });
@@ -793,20 +577,19 @@ export class SupabaseService extends SharePointService {
     return 'cfgU:' + (correo || '~' + _nrm(nombre));
   }
   async getSettings() {
-    const out = await super.getSettings(), m = Object.assign({}, out.cfgU || {}); this._cfgUsig = {};
+    const out = await this._leerAjustes(), m = Object.assign({}, out.cfgU || {}); this._cfgUsig = {};
     Object.keys(out).forEach(k => { if (!k.startsWith('cfgU:')) return; const r = out[k]; delete out[k]; if (r && r.n) { m[r.n] = r.v; this._cfgUsig[r.n] = JSON.stringify(r.v); } });
     out.cfgU = m; return out;
   }
   async saveSetting(k, v) {
-    if (k !== 'cfgU') return super.saveSetting(k, v);
+    if (k !== 'cfgU') return this._guardarAjuste(k, v);
     const mio = 'cfgU:' + this._emailPropio();
     for (const [nombre, val] of Object.entries(v || {})) {
       const sig = JSON.stringify(val); if ((this._cfgUsig || {})[nombre] === sig) continue;
       const key = this._cfgUKey(nombre); if (key !== mio && !esAdminReal()) continue;   // la preferencia de otra persona solo la escribe el admin
-      await super.saveSetting(key, { n: nombre, v: val }); (this._cfgUsig = this._cfgUsig || {})[nombre] = sig;
+      await this._guardarAjuste(key, { n: nombre, v: val }); (this._cfgUsig = this._cfgUsig || {})[nombre] = sig;
     }
   }
-  async provision(logf) { logf('• Supabase: las tablas y reglas se crean una vez con el script APIH_supabase_setup.sql (editor SQL del proyecto).'); }
 }
 
 
