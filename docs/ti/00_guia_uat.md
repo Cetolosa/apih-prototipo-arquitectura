@@ -15,6 +15,6 @@ Cuentas de prueba: `tolosa-christian@aramark.cl` (Administra) y `cetolosa@gmail.
 | 9 | Conflicto de edición | dos sesiones | La segunda edición no pisa a la primera y avisa |
 | 10 | Exportar e importar JSON | Administra | Los datos vuelven completos; el servidor aplica sus reglas |
 | 11 | Cerrar sesión y recargar | ambas | Pide iniciar sesión de nuevo |
-| 12 | Revisión de términos | revisor | Sin «IA», agente ni chat en pantallas, código ni funciones |
+| 12 | Revisión de términos | revisor | Sin términos vedados (lista en `tools/lint-terminos.js`) en pantallas, código ni funciones |
 
 Registrar cada resultado como OK / Falla / Observación con captura. Automatizado hoy: 3, 4, 5, 6, 7, 9 (servidor y e2e); manual: 1, 2, 8, 11 con sesión real.

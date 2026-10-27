@@ -7,7 +7,7 @@ Propósito: evidenciar, en un entorno de pruebas fuera de Aramark y con datos si
 | --- | --- | --- |
 | Autorización por rol, área y monto aplicada en la API (no en la interfaz) | Políticas de fila por área, vista que oculta montos, disparador que valida cada escritura y comandos transaccionales | `supabase/tests/10_politicas.sql` (37 aserciones) y siguientes |
 | Infraestructura como código | Esquema, políticas y comandos solo por migraciones versionadas (`supabase/migrations`, 9 archivos); nada se crea a mano. Terraform corresponde a Corporativo | las migraciones se aplican en orden sobre una base vacía en `tools/test-sql.sh` (el trabajo de CI equivalente está definido; aún no verificado en un runner) |
-| Sin integraciones ni funciones de IA | No existen en código, textos ni interfaz; el análisis es de reglas deterministas | `tools/lint-terminos.js` (falla el CI si reaparece un término) |
+| Sin integraciones externas de generación de contenido | No existen en código, textos ni interfaz; el análisis es de reglas deterministas y no hay llamadas a servicios de terceros | `tools/lint-terminos.js` y la prueba `sin-externos` (fallan el CI si reaparece algo) |
 | Exportar/importar JSON se mantiene | Sigue disponible; el importador valida y respeta los permisos del servidor | pruebas imp1–imp3 |
 
 ## 2. Capas
