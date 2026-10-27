@@ -2,7 +2,7 @@
 // Corre la regresión e2e contra la SPA (modo demo). Código de salida ≠ 0 si alguna prueba falla.
 const { spawn, spawnSync } = require('child_process'), path = require('path'), fs = require('fs');
 const { servir, PUERTO } = require('./servir-demo');
-const PRUEBAS = ['sin-externos', 'xss1', 'imp3', 'fin1', 'fz1', 't13', 't43', 't44', 'cap2', 'r1', 'c4', 'imp1', 'imp2', 'cfgu1', 'aprob-srv'];
+const PRUEBAS = ['sin-externos', 'xss1', 'imp3', 'fin1', 'fz1', 't13', 't43', 't44', 'cap2', 'r1', 'c4', 'imp1', 'imp2', 'cfgu1', 'aprob-srv', 'cmd-srv'];
 const PENDIENTES = ['ps1', 'sf1'];   // dependen de fechas del plan real; ver docs/linea-base-f0.md
 function correr(t) {   // asíncrono: el servidor de la demo vive en este mismo proceso
   return new Promise(ok => { let so = '', se = ''; const h = spawn('node', [path.join(__dirname, '..', 'tests', 'e2e', t + '.js')], { cwd: require('os').tmpdir(), env: Object.assign({}, process.env, { APIH_URL: 'http://localhost:' + PUERTO + '/demo/index.html' }) });

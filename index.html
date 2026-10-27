@@ -3066,7 +3066,7 @@ Acts.advgo = d => {
 /* ---------- RAG / comentarios / hitos ---------- */
 Acts.applyrag = d => { const i = byId(d.id); log('Cambio', i.id, `RAG ${i.rag} → ${d.rag} (sugerido por reglas automáticas)`); i.rag = d.rag; i.actualizada = hoy(); toast('RAG actualizado'); refresh(); };
 Acts.comment = d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; log('Comentario', d.id, t); toast('Comentario agregado'); refresh(); setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
-function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) i.actualizada = hoy(); log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
+function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; if (conServidor()) return hitoEnServidor(id, !h.completado); h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) i.actualizada = hoy(); log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
 Chg.hitotoggle = el => toggleHito(el.dataset.id); Acts.hitotoggle = d => toggleHito(d.id);
 
 /* ---------- Hito ---------- */
@@ -3132,6 +3132,7 @@ Acts.resolvedec = d => {
     fields: [{ k: 'estado', l: 'Resultado', t: 'select', opts: ['Aprobada', 'Rechazada', 'Diferida'] }, { k: 'fResol', l: 'Fecha', t: 'date' }, { k: 'resolucion', l: 'Resolución / comentario de cierre', t: 'textarea', w: 3 }, { k: 'aplicar', l: 'Efecto', t: 'check', lbl: 'Aplicar efecto: ' + EFECTO(x.tipo, byId(x.ini)), w: 3 }],
     extra: `<p class="mut" style="margin-top:8px"><b>${esc(x.tipo)}</b> · ${esc(x.titulo)}</p>`,
     onSave(o) {
+      if (conServidor()) return resolverEnServidor(x, o);
       if (o.estado === 'Diferida') { x.limite = addD(x.limite && x.limite > hoy() ? x.limite : hoy(), 14); x.resolucion = o.resolucion; log('Decisión', x.ini, `Decisión diferida: ${x.titulo}`, 'Nueva fecha ' + fmtD(x.limite)); toast('Decisión diferida 14 días'); return refresh(); }
       x.estado = o.estado; x.resolucion = o.resolucion; x.fResol = o.fResol; x.aplicada = false;
       const i = byId(x.ini);
@@ -3243,12 +3244,28 @@ Acts.aprobargo = d => {
   Modal.close(); UI.sel = { t: 'ini', id: n.id }; UI.tab = 'resumen'; toast('Proyecto ' + n.id + ' creado. Siguiente paso: planifica sus hitos y riesgos'); refresh();
 };
 
+/* Comandos del servidor: antes de pedirlos, el servidor debe tener lo último que editaste; después se recarga el estado */
+async function esperarSync() { for (let k = 0; k < 40 && (DataService.busy || DataService.dirty); k++) { if (!DataService.busy) DataService.flush(); await new Promise(r => setTimeout(r, 250)); } }
+const conServidor = () => !!(DataService.svc && DataService.svc.rpc);
+async function hitoEnServidor(id, completado) {
+  try { await esperarSync(); await DataService.svc.rpc('apih_hito_estado', { p_id: id, p_completado: completado }); await DataService.refresh(false, true); toast(completado ? 'Hito completado' : 'Hito reabierto'); }
+  catch (e) { toast(String(e.message || e).replace(/^APIH:\s*/, ''), 'err'); }
+}
+async function resolverEnServidor(x, o) {
+  try {
+    await esperarSync();
+    const r = await DataService.svc.rpc('apih_resolver_decision', { p_id: x.id, p_estado: o.estado, p_resolucion: o.resolucion || '', p_fecha: o.fResol || null, p_aplicar: !!o.aplicar });
+    await DataService.refresh(false, true);
+    if (r && r.aviso) toast(r.aviso, 'err');
+    if (r && r.proyecto) toast('Proyecto ' + r.proyecto + ' creado desde ' + x.ini); else if (o.estado === 'Diferida') toast('Decisión diferida 14 días'); else toast('Decisión ' + o.estado.toLowerCase());
+  } catch (e) { toast(String(e.message || e).replace(/^APIH:\s*/, ''), 'err'); }
+}
 /* Con servidor (Supabase): la aprobación es un comando transaccional en la base (apih_aprobar_propuesta); aquí solo se pide y se recarga */
 async function aprobarEnServidor(p, miss, force, nota) {
   if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');
   try {
-    for (let k = 0; k < 40 && (DataService.busy || DataService.dirty); k++) { if (!DataService.busy) DataService.flush(); await new Promise(r => setTimeout(r, 250)); }   // que el servidor ya tenga lo último que editaste
+    await esperarSync();
     const nid = await DataService.svc.rpc('apih_aprobar_propuesta', { p_id: p.id, p_nota: nota.trim(), p_forzar: !!(miss.length && force) });
     await DataService.refresh(false, true);
     Modal.close(); UI.sel = { t: 'ini', id: nid }; UI.tab = 'resumen'; toast('Proyecto ' + nid + ' creado. Siguiente paso: planifica sus hitos y riesgos'); refresh();
