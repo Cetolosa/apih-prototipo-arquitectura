@@ -24,6 +24,13 @@ jobs:
           cp index.html apih-config.js _site/
           cp -r js css _site/
           touch _site/.nojekyll
+      - name: Inyectar la clave publishable (variable de Actions, no está en el repositorio)
+        env:
+          CLAVE: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          test -n "$CLAVE" || { echo "::error::Falta la variable de Actions SUPABASE_PUBLISHABLE_KEY"; exit 1; }
+          grep -q "anonKey: ''" _site/apih-config.js || { echo "::error::apih-config.js no tiene el campo anonKey vacío"; exit 1; }
+          sed -i "s|anonKey: ''|anonKey: '$CLAVE'|" _site/apih-config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
