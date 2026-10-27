@@ -1,0 +1,363 @@
+{
+ "formato": "apih-iniciativas",
+ "v": 1,
+ "iniciativas": [
+  {
+   "tipo": "Proyecto",
+   "titulo": "APIH Prototipo",
+   "desc": "Prototipo de APIH sobre SPA + Supabase (interino). Congelado en V22.52 (15-10-2026): solo correcciones críticas. Sirve de referencia y demo hasta que APIH Corporativo entre a producción.",
+   "area": "BISE",
+   "lider": "Christian Tolosa",
+   "sponsor": "",
+   "fase": "Transición",
+   "estado": "En curso",
+   "rag": "Verde",
+   "prioridad": "Alta",
+   "avance": 90,
+   "inicioPlan": "2026-09-01",
+   "finPlan": "2026-12-22",
+   "presupuesto": 0,
+   "logros": "Congelado en V22.52 con 22 vistas, historial, notificaciones, calendario, capacidad, importador y Completar con IA.",
+   "proximos": "Contraseñas individuales y retiro de la clave de equipo. Funciones pendientes pasan a Corporativo.",
+   "hitos": [
+    {
+     "nombre": "Núcleo del portafolio y 22 vistas operativas",
+     "fase": "Planificación",
+     "fecha": "2026-09-30",
+     "completado": true
+    },
+    {
+     "nombre": "Historial por registro y auditoría (V22.43)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-12",
+     "completado": true
+    },
+    {
+     "nombre": "Notificaciones parametrizables (V22.44)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-13",
+     "completado": true
+    },
+    {
+     "nombre": "Calendario, panel contextual y menú contraíble (V22.45–48)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-14",
+     "completado": true
+    },
+    {
+     "nombre": "Capacidad de equipos (V22.49)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-15",
+     "completado": true
+    },
+    {
+     "nombre": "Contraseñas individuales y retiro de la clave de equipo",
+     "fase": "Ejecución",
+     "fecha": "2026-10-23"
+    },
+    {
+     "nombre": "Importador de iniciativas y Completar con IA (V22.50–52)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-15",
+     "completado": true
+    },
+    {
+     "nombre": "Prototipo congelado en V22.52",
+     "fase": "Transición",
+     "fecha": "2026-10-15",
+     "completado": true
+    },
+    {
+     "nombre": "Retiro del prototipo tras salida de Corporativo",
+     "fase": "Cierre",
+     "fecha": "2026-12-22"
+    }
+   ],
+   "riesgos": [
+    {
+     "desc": "Datos reales en Supabase, fuera de la infraestructura de Aramark",
+     "cat": "Regulatorio",
+     "prob": 3,
+     "imp": 4,
+     "mit": "Usar solo datos de demostración o no sensibles hasta migrar a Corporativo; no cargar datos personales."
+    },
+    {
+     "desc": "Configuración compartida con última escritura gana (cfg/cfgU) puede pisar cambios",
+     "cat": "Técnico",
+     "prob": 3,
+     "imp": 2,
+     "mit": "Aplicar control de versión a la configuración antes de ampliar usuarios."
+    }
+   ]
+  },
+  {
+   "tipo": "Proyecto",
+   "titulo": "APIH Corporativo",
+   "desc": "APIH conforme a requisitos de TI: SPA con Entra ID, API y Azure SQL (3 capas). Plan acelerado: demostrar que la metodología con IA (contratos + pruebas + versiones C) reduce significativamente los plazos. Incluye las funciones diferidas del prototipo: Pronóstico financiero, Ruta crítica y Escenarios.",
+   "area": "BISE",
+   "lider": "Christian Tolosa",
+   "sponsor": "",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "rag": "Verde",
+   "prioridad": "Alta",
+   "avance": 15,
+   "inicioPlan": "2026-10-15",
+   "finPlan": "2026-12-04",
+   "presupuesto": 0,
+   "logros": "En ~2 h (15-10): C1.0 core de fechas/riesgo (equivalencia 68.256 casos con V22.52), C1.1 contrato de Iniciativa (8 operaciones, 10 reglas, 12 pruebas de contrato), C1.2 CHANGELOG + ADR + traspaso. Prototipo intacto.",
+   "proximos": "Enviar a TI propuestas con fecha de no-objeción (21-10). C1.4 contratos de Hitos/Riesgos y compuertas. Construir API, Azure SQL y SPA en paralelo sin esperar a TI.",
+   "resumen": "Producción adelantada del 22-12 al 27-11 (−25 días). La ruta crítica es la infraestructura de TI, no el desarrollo.",
+   "hitos": [
+    {
+     "nombre": "Plan y análisis de brechas",
+     "fase": "Planificación",
+     "fecha": "2026-10-15",
+     "completado": true,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C1.0 · Núcleo de fechas y riesgo con prueba de equivalencia",
+     "fase": "Planificación",
+     "fecha": "2026-10-15",
+     "completado": true,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C1.1 · Contrato de Iniciativa y pruebas de contrato",
+     "fase": "Planificación",
+     "fecha": "2026-10-15",
+     "completado": true,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C1.2 · CHANGELOG, decisiones (ADR) y traspaso",
+     "fase": "Planificación",
+     "fecha": "2026-10-15",
+     "completado": true,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C1.3 · Plan acelerado aprobado",
+     "fase": "Planificación",
+     "fecha": "2026-10-16",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Correo a TI con propuestas y fecha de no-objeción",
+     "fase": "Planificación",
+     "fecha": "2026-10-16",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C1.4 · Contratos de Hitos y Riesgos + compuertas de fase en core",
+     "fase": "Ejecución",
+     "fecha": "2026-10-20",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Vence plazo de no-objeción de TI (stack, Azure SQL, hosting, roles)",
+     "fase": "Ejecución",
+     "fecha": "2026-10-21",
+     "completado": false,
+     "resp": "TI"
+    },
+    {
+     "nombre": "C1.5 · Contratos de decisiones, compromisos, bitácora y comités",
+     "fase": "Ejecución",
+     "fecha": "2026-10-23",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C2.0 · API (backend) sobre el core, pruebas de contrato en verde",
+     "fase": "Ejecución",
+     "fecha": "2026-10-28",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C2.1 · Esquema Azure SQL y migración de datos desde Supabase",
+     "fase": "Ejecución",
+     "fecha": "2026-10-30",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Infraestructura dev habilitada por TI (Entra ID, Azure SQL, Static Web App, pipeline)",
+     "fase": "Ejecución",
+     "fecha": "2026-11-04",
+     "completado": false,
+     "resp": "TI"
+    },
+    {
+     "nombre": "C2.2 · SPA con Entra ID consumiendo la API",
+     "fase": "Ejecución",
+     "fecha": "2026-11-05",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Despliegue en ambiente dev y demo a TI",
+     "fase": "Ejecución",
+     "fecha": "2026-11-10",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "C3.0 · Funciones diferidas: Pronóstico financiero, Ruta crítica, Escenarios",
+     "fase": "Ejecución",
+     "fecha": "2026-11-17",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Pruebas de usuario (UAT) y migración final de datos",
+     "fase": "Transición",
+     "fecha": "2026-11-20",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Revisión de seguridad de TI aprobada",
+     "fase": "Transición",
+     "fecha": "2026-11-24",
+     "completado": false,
+     "resp": "TI"
+    },
+    {
+     "nombre": "Paso a producción (web con Entra ID)",
+     "fase": "Transición",
+     "fecha": "2026-11-27",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Publicación en Teams",
+     "fase": "Cierre",
+     "fecha": "2026-12-01",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Retiro del Prototipo y de Supabase",
+     "fase": "Cierre",
+     "fecha": "2026-12-03",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    },
+    {
+     "nombre": "Informe de aceleración: horas reales vs. estimación tradicional",
+     "fase": "Cierre",
+     "fecha": "2026-12-04",
+     "completado": false,
+     "resp": "Christian Tolosa"
+    }
+   ],
+   "riesgos": [
+    {
+     "desc": "TI no responde ni objeta dentro del plazo (21-10) y el diseño queda abierto",
+     "cat": "Cronograma",
+     "prob": 3,
+     "imp": 5,
+     "mit": "Correo con propuestas concretas y fecha de no-objeción; seguir construyendo en paralelo; ajustar el plan en conjunto con TI si no hay respuesta.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-10-21"
+    },
+    {
+     "desc": "Provisión de infraestructura (Azure SQL, Entra ID, hosting, pipeline) tarda más de 1 semana",
+     "cat": "Cronograma",
+     "prob": 4,
+     "imp": 4,
+     "mit": "Entregar lista exacta de recursos (y plantilla de infraestructura como código) junto al correo; ambiente local equivalente para no detener el desarrollo.",
+     "estado": "Abierto",
+     "dueno": "TI",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-11-04"
+    },
+    {
+     "desc": "TI exige un stack de backend distinto (p. ej. .NET) que impide reutilizar el core en servidor",
+     "cat": "Técnico",
+     "prob": 3,
+     "imp": 3,
+     "mit": "Contrato y pruebas independientes del stack; solo se reescribe la capa API; decisión antes de iniciar C2.0.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-10-23"
+    },
+    {
+     "desc": "Revisión de seguridad formal (pentest/arquitectura) retrasa el paso a producción",
+     "cat": "Regulatorio",
+     "prob": 3,
+     "imp": 4,
+     "mit": "Entregar con la demo (10-11) la documentación de seguridad: Entra ID, roles por grupos, reglas en servidor, OWASP; pedir la revisión con fecha desde el 21-10.",
+     "estado": "Abierto",
+     "dueno": "TI",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-11-10"
+    },
+    {
+     "desc": "Migración Supabase → Azure SQL con datos inconsistentes (área como texto, campos legacy)",
+     "cat": "Técnico",
+     "prob": 2,
+     "imp": 3,
+     "mit": "Script de migración que aplica validarIniciativa; ensayo completo en dev antes de UAT.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-10-30"
+    },
+    {
+     "desc": "Aprobación para publicar en Teams demora",
+     "cat": "Cronograma",
+     "prob": 3,
+     "imp": 2,
+     "mit": "Producción primero como web con Entra ID; Teams es posterior y no bloquea el paso a producción.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-11-24"
+    },
+    {
+     "desc": "Código en repositorio GitHub personal, fuera de Aramark",
+     "cat": "Regulatorio",
+     "prob": 3,
+     "imp": 3,
+     "mit": "Solicitar repositorio corporativo en el correo a TI; migrar con historial antes del despliegue en dev.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-11-04"
+    },
+    {
+     "desc": "Capacidad: un responsable + IA; ausencia o sobrecarga detiene el avance",
+     "cat": "Recursos",
+     "prob": 3,
+     "imp": 3,
+     "mit": "Traspaso, ADR y CHANGELOG al día en cada versión; cualquier sesión puede retomar en minutos.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-10-30"
+    },
+    {
+     "desc": "La aceleración no se puede demostrar por falta de medición",
+     "cat": "Alcance",
+     "prob": 2,
+     "imp": 3,
+     "mit": "Registrar horas reales por versión en el CHANGELOG y compararlas con una estimación tradicional en el informe de cierre.",
+     "estado": "Abierto",
+     "dueno": "Christian Tolosa",
+     "fIdent": "2026-10-16",
+     "fRev": "2026-10-23"
+    }
+   ]
+  }
+ ]
+}

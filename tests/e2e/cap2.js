@@ -1,0 +1,15 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});const p=await b.newPage({viewport:{width:1440,height:900}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:8765/demo/index.html');await p.waitForTimeout(1500);
+await p.evaluate(()=>{celebrar=()=>{};UI.uiOv='pro'; St.ini.push({id:'PRJ-002',tipo:'Proyecto',legacy:'',creada:hoy(),faseDesde:hoy(),origen:'usuario',est:[],hist:[[hoy(),30]],tags:[],rec:null,folio:'',oc:'',ahorroReal:0,inicioReal:null,propuestaOrigen:null,estadoMotivo:'',estadoRev:null,gastado:120,proyecto:null,deps:[],estado:'En curso',fase:'Ejecución',rag:'Ámbar',prioridad:'Alta',area:'BISE',lider:'Ana Pérez',sponsor:'Gerencia TI',titulo:'Migración Plataforma de Datos',avance:45,actualizada:hoy(),desc:'d',presupuesto:350,inicioPlan:addD(hoy(),-90),finPlan:addD(hoy(),120),logros:'',proximos:''});
+ const base=St.ini.find(x=>x.id==='PRJ-002');
+ const mk=(id,t,l,ini,fin,ph)=>{const c=JSON.parse(JSON.stringify(base));Object.assign(c,{id,titulo:t,lider:l,inicioPlan:ini,finPlan:fin,fase:ph||'Ejecución',estado:'En curso'});St.ini.push(c)};
+ base.lider='Ana Pérez';base.inicioPlan=addD(hoy(),-30);base.finPlan=addD(hoy(),150);
+ mk('PRJ-003','Planificador a Brand','Ana Pérez',hoy(),addD(hoy(),100),'Planificación');mk('PRJ-004','Portal Proveedores','Ana Pérez',addD(hoy(),20),addD(hoy(),130));mk('PRJ-005','ERP','Ana Pérez',addD(hoy(),30),addD(hoy(),60));mk('PRJ-006','Ley 21.719','Ana Pérez',addD(hoy(),-5),addD(hoy(),40),'Transición');mk('PRJ-007','Datos X','Ana Pérez',addD(hoy(),35),addD(hoy(),90));mk('PRJ-008','Infra','Luis Soto',addD(hoy(),-10),addD(hoy(),200));mk('PRJ-009','Apps','Carla Díaz',addD(hoy(),-10),addD(hoy(),50));
+ St.cfg.capacidadMax=5;go('capacidad')});await p.waitForTimeout(600);
+await p.screenshot({path:'cap_a.png'});
+await p.click('.cp-p');await p.waitForTimeout(400);await p.screenshot({path:'cap_b.png'});
+console.log(await p.evaluate(()=>JSON.stringify(capData(6).gente.map(p=>[p.n,p.cap,p.ns]))));
+await p.evaluate(()=>{const i=document.querySelector('.cp-in');i.value=3;i.dispatchEvent(new Event('change',{bubbles:true}))});await p.waitForTimeout(300);console.log(await p.evaluate(()=>JSON.stringify(St.cfg.capPers)));
+await p.click('[data-act=caph][data-h="12"]');await p.click('input[data-chg=capalerta]');await p.waitForTimeout(300);console.log('rows',await p.evaluate(()=>document.querySelectorAll('.cp-t tbody tr:not(.cp-x)').length));
+console.log(errs);await b.close()})();

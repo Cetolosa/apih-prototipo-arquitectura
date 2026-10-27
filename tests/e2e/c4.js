@@ -1,0 +1,11 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});const p=await b.newPage({viewport:{width:1250,height:640}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
+await p.goto('http://localhost:8765/demo/index.html');await p.waitForTimeout(1500);
+await p.evaluate(()=>{celebrar=()=>{};UI.uiOv='pro'; St.ini.push({id:'PRJ-002',tipo:'Proyecto',legacy:'',creada:hoy(),faseDesde:hoy(),origen:'usuario',est:[],hist:[[hoy(),30]],tags:[],rec:null,folio:'',oc:'',ahorroReal:0,inicioReal:null,propuestaOrigen:null,estadoMotivo:'',estadoRev:null,gastado:120,proyecto:null,deps:[],estado:'En curso',fase:'Ejecución',rag:'Ámbar',prioridad:'Alta',area:'BISE',lider:'Ana Pérez',sponsor:'Gerencia TI',titulo:'Migración Plataforma de Datos',avance:45,actualizada:hoy(),desc:'d',presupuesto:350,inicioPlan:addD(hoy(),-90),finPlan:addD(hoy(),120),logros:'',proximos:''});
+ St.hitos.push({id:'HIT-901',ini:'PRJ-002',nombre:'Fin UAT',fecha:hoy(),completado:true,fechaReal:hoy(),resp:'',fase:'Ejecución'},{id:'HIT-902',ini:'PRJ-002',nombre:'Hito próximo',fecha:addD(hoy(),2),completado:false,fechaReal:null,resp:'Luis Soto',fase:'Ejecución'});
+ St.riesgos.push({id:'RSK-901',ini:'PRJ-002',desc:'Dependencia de proveedor',cat:'Otro',prob:4,imp:4,mit:'',dueno:'Ana Pérez',estado:'Abierto',fIdent:hoy(),fRev:null});
+ St.decisiones.push({id:'DEC-901',ini:'PRJ-002',tipo:'Mantener',titulo:'Mantener alcance',recomendacion:'x',limite:addD(hoy(),3),estado:'Pendiente',resolucion:'',fResol:null,comite:null,solicita:'Ana Pérez',area:'BISE',aplicada:false});
+ go('calendario')});await p.waitForTimeout(700);
+
+for(const [t,id] of [['hito','HIT-901'],['risk','RSK-901'],['dec','DEC-901'],['ini','PRJ-002']]){await p.evaluate(([t,id])=>{selectEntity(t,id)},[t,id]);await p.waitForTimeout(500);await p.screenshot({path:'pnl_'+t+'.png'});await p.evaluate(()=>{document.documentElement.dataset.theme='dark'});await p.waitForTimeout(200);await p.screenshot({path:'pnd_'+t+'.png'});await p.evaluate(()=>{document.documentElement.dataset.theme='light'});}
+console.log(errs);await b.close()})();

@@ -1,0 +1,34 @@
+// V22.53 · Vista Fases: 4 miradas con el plan de APIH Corporativo (docs/APIH_Corporativo_plan_acelerado_C1.3.json)
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+(async () => {
+  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
+  await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);
+  await p.evaluate(x => { celebrar = () => {}; UI.uiOv = 'pro';
+    const n = Object.assign({ id: 'PRJ-050', legacy: '', creada: '2026-10-15', faseDesde: '2026-10-15', origen: 'importación', est: [], hist: [['2026-10-15', x.avance]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, propuestaOrigen: null, estadoMotivo: '', estadoRev: null, gastado: 0, proyecto: null, deps: [], actualizada: '2026-10-16' }, x); delete n.hitos; delete n.riesgos; St.ini.push(n);
+    x.hitos.forEach(h => St.hitos.push({ id: nextId('HIT', St.hitos), ini: n.id, nombre: h.nombre, fase: h.fase, fecha: h.fecha, completado: !!h.completado, fechaReal: h.completado ? h.fecha : null, resp: h.resp }));
+    x.riesgos.forEach(r => St.riesgos.push(Object.assign({ id: nextId('RSK', St.riesgos), ini: n.id }, r)));
+    UI.view = 'fases'; render(); }, plan);
+  await p.waitForTimeout(500);
+  const r = {};
+  r.tabs = await p.$$eval('.fz-tabs button', a => a.length);
+  r.filasGantt = await p.$$eval('.fz-row', a => a.length);
+  await p.click('[data-act="fzopen"][data-id="PRJ-050"]'); await p.waitForTimeout(300);
+  r.subfilas = await p.$$eval('.fz-sub', a => a.length); r.hitos = await p.$$eval('.fz-sub .fz-h', a => a.length); r.riesgos = await p.$$eval('.fz-sub .fz-r', a => a.length);
+  await p.screenshot({ path: '/tmp/t/fz-a.png', fullPage: true });
+  await p.click('[data-act="fztab"][data-k="linea"]'); await p.evaluate(() => { F('fases', {}).id = 'PRJ-050'; render(); }); await p.waitForTimeout(300);
+  r.pasos = await p.$$eval('.fz-step', a => a.length); r.compuerta = await p.$$eval('.fz-g', a => a.map(x => x.textContent.trim()).join(' | '));
+  await p.click('.fz-step[data-k="1"]'); await p.waitForTimeout(200); r.hitosEjec = await p.$$eval('.fz-li', a => a.length);
+  await p.screenshot({ path: '/tmp/t/fz-b.png', fullPage: true });
+  await p.click('[data-act="fztab"][data-k="tablero"]'); await p.waitForTimeout(300);
+  r.columnas = await p.$$eval('.fz-col', a => a.length); r.tarjetas = await p.$$eval('.fz-col .fz-it', a => a.length);
+  await p.screenshot({ path: '/tmp/t/fz-c.png', fullPage: true });
+  await p.click('[data-act="fztab"][data-k="riesgos"]'); await p.waitForTimeout(300);
+  r.barrasRiesgo = await p.$$eval('.fz-box .fz-row:not(.fz-head)', a => a.length);
+  await p.screenshot({ path: '/tmp/t/fz-d.png', fullPage: true });
+  await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(200); r.scrollX = await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+  r.errores = errs; console.log(JSON.stringify(r, null, 1));
+  const ok = r.tabs === 4 && r.subfilas === 4 && r.hitos === 21 && r.pasos === 4 && r.hitosEjec === 9 && r.columnas === 4 && r.tarjetas >= 21 && r.barrasRiesgo === 9 && !errs.length;
+  console.log(ok ? 'OK fz1' : 'FALLA fz1'); await b.close(); process.exit(ok ? 0 : 1);
+})();
