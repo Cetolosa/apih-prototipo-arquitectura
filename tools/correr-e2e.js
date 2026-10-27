@@ -9,12 +9,16 @@ function correr(t) {   // asíncrono: el servidor de la demo vive en este mismo 
 }
 (async () => {
   if (!fs.existsSync(path.join(__dirname, '..', 'docs', 'seed', 'iniciativas-sinteticas.json'))) spawnSync('node', [path.join(__dirname, 'generar-seed.js')], { stdio: 'inherit' });
-  const srv = await servir(); let fallas = 0;
+  const srv = await servir(); let fallas = 0; const R = [];
   fs.mkdirSync('/tmp/t/out', { recursive: true }); fs.copyFileSync(path.join(__dirname, '..', 'docs', 'seed', 'iniciativas-sinteticas.json'), '/tmp/t/out/iniciativas-sinteticas.json');
   for (const t of (process.env.SOLO ? process.env.SOLO.split(',') : PRUEBAS)) {
-    const r = await correr(t);
+    const t0 = Date.now(), r = await correr(t);
     const ult = (r.stdout || '').trim().split('\n').pop().slice(0, 100), mal = r.status !== 0 || /FALLA/.test(r.stdout || '');
+    R.push({ t, mal, seg: (Date.now() - t0) / 1000, msg: ult + ' ' + (r.stderr || '').split('\n')[0] });
     if (mal) { fallas++; if (process.env.GITHUB_ACTIONS) console.log('::error title=e2e ' + t + '::' + ((r.stderr || '') + ' | ' + (r.stdout || '').slice(-600)).replace(/[\r\n]+/g, ' ').slice(0, 900)); } console.log((mal ? 'FALLA ' : 'OK    ') + t + (mal ? '  ' + ult + ' ' + (r.stderr || '').split('\n')[0] : ''));
   }
+  const esc = x => String(x).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));   // reporte JUnit para la CI
+  fs.mkdirSync(path.join(__dirname, '..', 'test-results'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, '..', 'test-results', 'e2e-junit.xml'), '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="e2e" tests="' + R.length + '" failures="' + fallas + '">\n' + R.map(x => '  <testcase classname="e2e" name="' + esc(x.t) + '" time="' + x.seg.toFixed(1) + '">' + (x.mal ? '<failure message="' + esc(x.msg) + '"/>' : '') + '</testcase>').join('\n') + '\n</testsuite>\n');
   console.log(fallas ? 'FALLAS: ' + fallas : 'Suite completa OK'); srv.close(); process.exit(fallas ? 1 : 0);
 })();
