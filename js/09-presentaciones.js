@@ -434,7 +434,8 @@ Acts.phdel = d => confirmBox('¿Eliminar esta presentación del historial?', () 
    ============================================================ */
 const slug = s => String(s || 'presentacion').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 50);
 function deckHTMLOf(slides, title) {
-  const css = $('style').textContent;
+  // El HTML exportado es autónomo: incrusta la hoja base de la app (css/base.css), leída de las reglas ya cargadas.
+  const css = [...document.styleSheets].filter(h => /css\/base\.css$/.test(h.href || '')).flatMap(h => [...h.cssRules].map(r => r.cssText)).join('\n');
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${css}
   body{background:#1b1a19;margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:'Segoe UI',system-ui,sans-serif}.xs{display:none;width:min(100vw,177.78vh)}.xs.on{display:block}.xn{position:fixed;bottom:10px;color:#ccc;font-size:12px}
   @media print{body{background:#fff;display:block}.xs{display:block!important;width:100%;page-break-after:always}.xn{display:none}@page{size:landscape;margin:0}}</style></head><body>${slides.map((s, k) => `<div class="xs ${k === 0 ? 'on' : ''}">${slideHTML(s)}</div>`).join('')}<div class="xn">← → para navegar · Generado con APIH el ${fmtDL(hoy())}</div><script>var s=[].slice.call(document.querySelectorAll('.xs')),i=0;function g(n){s[i].classList.remove('on');i=(n+s.length)%s.length;s[i].classList.add('on')}document.addEventListener('keydown',function(e){if(['ArrowRight','PageDown',' '].indexOf(e.key)>-1)g(i+1);if(['ArrowLeft','PageUp'].indexOf(e.key)>-1)g(i-1)});document.addEventListener('click',function(){g(i+1)});<\/script></body></html>`;
