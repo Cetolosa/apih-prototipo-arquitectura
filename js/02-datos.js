@@ -520,7 +520,14 @@ export class SupabaseService {
     return out;
   }
   async _row(ent, fields) { const idc = this._idCol(ent), id = String(fields[idc] || ''); if (!id) throw new Error('Registro sin identificador (' + ent + ')'); return { lista: this.listName(ent), id, datos: 'p1.' + (fields[DATOS_COL.n] || '') }; }   // texto plano; la protección es el RLS del servidor
-  async _upsert(rows) { await this._rest('registros?on_conflict=lista,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) }); }
+  /* Alta o actualización sin ON CONFLICT DO UPDATE: ese modo exige SELECT sobre la columna `datos`, que el rol de la API no tiene (los montos se leen solo por registros_v).
+     Se insertan las filas nuevas en bloque (ignorando las existentes) y las que ya existían se actualizan una a una. */
+  async _upsert(rows) {
+    if (!rows.length) return;
+    const { data } = await this._rest('registros?on_conflict=lista,id&select=lista,id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(rows) });
+    const nuevas = new Set((data || []).map(r => r.lista + '\u0001' + r.id)), q = rows.filter(r => !nuevas.has(r.lista + '\u0001' + r.id));
+    await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const r = q.shift(); await this._rest('registros?lista=eq.' + encodeURIComponent(r.lista) + '&id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ datos: r.datos }) }); } }));
+  }
   async createItem(ent, fields) { const r = await this._row(ent, fields); await this._upsert([r]); return r.id; }
   async updateItem(ent, spid, fields) { const r = await this._row(ent, fields); await this._upsert([r]); }
   async deleteItem(ent, spid) { await this._rest('registros?lista=eq.' + encodeURIComponent(this.listName(ent)) + '&id=eq.' + encodeURIComponent(spid), { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); }
