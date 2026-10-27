@@ -104,6 +104,47 @@ select pg_temp.ok((select count(*) from public.registros_v where lista='APIH_Pro
 select pg_temp.ok((select count(*) from public.auditoria) = 0, 'editor no lee auditoría');
 rollback;
 
+
+-- ===== APIH_Config por alcance =====
+insert into public.perfiles (email, rol, app_rol, areas, gobierna) values ('resp-g@test.cl','editor','Responsable','{"A"}', true) on conflict do nothing;
+insert into public.registros(lista,id,datos) values
+  ('APIH_Config','cfg','p1.{"umbral":1}'),
+  ('APIH_Config','pres','p1.[]'),
+  ('APIH_Config','seq','p1.{"PRJ":10,"RSK":5}'),
+  ('APIH_Config','cfgU:colab-a@test.cl','p1.{"n":"Colab A","v":{"tema":"x"}}'),
+  ('APIH_Config','cfgU:colab-b@test.cl','p1.{"n":"Colab B","v":{"tema":"y"}}');
+
+begin; set local role authenticated;
+select pg_temp.como('colab-a@test.cl');
+select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 1, 'colaborador solo ve su configuración personal');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab A","v":{"tema":"z"}}' where id='cfgU:colab-a@test.cl'$$) = 1, 'edita su configuración personal');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab B","v":{"tema":"hack"}}' where id='cfgU:colab-b@test.cl'$$) = 0, 'no edita la configuración de otra persona');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Config','cfgU:colab-b@test.cl2','p1.{}')$$, 'no crea configuración personal ajena');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":999}' where id='cfg'$$) = 0, 'colaborador no cambia parámetros de la organización');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.[1]' where id='pres'$$) = 1, 'colaborador edita colecciones compartidas');
+update public.registros set datos='p1.{"PRJ":2,"RSK":9,"NUEVO":1}' where id='seq';
+reset role;
+select pg_temp.ok((select substr(datos,4)::jsonb ->> 'PRJ' from public.registros where id='seq') = '10', 'el contador no retrocede');
+select pg_temp.ok((select substr(datos,4)::jsonb ->> 'RSK' from public.registros where id='seq') = '9', 'el contador sí avanza');
+rollback;
+
+begin; set local role authenticated;
+select pg_temp.como('resp-g@test.cl');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":2}' where id='cfg'$$) = 1, 'responsable que gobierna cambia parámetros');
+select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 0, 'responsable no ve configuración personal ajena');
+rollback;
+
+begin; set local role authenticated;
+select pg_temp.como('inv-a@test.cl');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.[1]' where id='pres'$$) = 0, 'invitado no edita colecciones compartidas');
+rollback;
+
+begin; set local role authenticated;
+select pg_temp.como('tolosa-christian@aramark.cl');
+select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 2, 'admin ve toda la configuración personal');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":3}' where id='cfg'$$) = 1, 'admin cambia parámetros');
+rollback;
+
 -- alta de usuarios: dominio configurable
 select pg_temp.falla($$insert into auth.users(email) values ('alguien@otro.com')$$, 'dominio no autorizado');
 insert into auth.users(email) values ('nuevo@aramark.cl');

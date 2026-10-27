@@ -2181,6 +2181,27 @@ class SupabaseService extends SharePointService {
     const cr = res.headers.get('Content-Range') || '', n = cr.split('/')[1] || '?';
     return ((data && data[0] && data[0].actualizado) || '0') + '|' + n;
   }
+  /* Configuración por alcance: cada persona guarda sus preferencias en su propio registro «cfgU:<correo>» (el servidor solo deja escribirlo a su dueño o al admin). */
+  _emailPropio() { const u = typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(); return _nrm(u && (u.email || u.username)); }
+  _cfgUKey(nombre) {
+    const u = (typeof St !== 'undefined' && St && St.usuarios || []).find(x => _nrm(x.n) === _nrm(nombre)), mio = this._emailPropio();
+    const correo = _nrm(u && u.correo) || (typeof St !== 'undefined' && St && St.cfg && _nrm(St.cfg.usuario) === _nrm(nombre) ? mio : '');
+    return 'cfgU:' + (correo || '~' + _nrm(nombre));
+  }
+  async getSettings() {
+    const out = await super.getSettings(), m = Object.assign({}, out.cfgU || {}); this._cfgUsig = {};
+    Object.keys(out).forEach(k => { if (!k.startsWith('cfgU:')) return; const r = out[k]; delete out[k]; if (r && r.n) { m[r.n] = r.v; this._cfgUsig[r.n] = JSON.stringify(r.v); } });
+    out.cfgU = m; return out;
+  }
+  async saveSetting(k, v) {
+    if (k !== 'cfgU') return super.saveSetting(k, v);
+    const mio = 'cfgU:' + this._emailPropio();
+    for (const [nombre, val] of Object.entries(v || {})) {
+      const sig = JSON.stringify(val); if ((this._cfgUsig || {})[nombre] === sig) continue;
+      const key = this._cfgUKey(nombre); if (key !== mio && !esAdminReal()) continue;   // la preferencia de otra persona solo la escribe el admin
+      await super.saveSetting(key, { n: nombre, v: val }); (this._cfgUsig = this._cfgUsig || {})[nombre] = sig;
+    }
+  }
   async provision(logf) { logf('• Supabase: las tablas y reglas se crean una vez con el script APIH_supabase_setup.sql (editor SQL del proyecto).'); }
 }
 

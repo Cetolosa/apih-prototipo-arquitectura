@@ -94,7 +94,12 @@ begin
   new.modificado_por := public.apih_email();
   new.actualizado    := clock_timestamp();
   begin jn := substr(new.datos, 4)::jsonb; exception when others then raise exception 'APIH: JSON inválido en %/%', new.lista, new.id using errcode = '22023'; end;
-  if jsonb_typeof(jn) <> 'object' then raise exception 'APIH: se esperaba un objeto JSON en %/%', new.lista, new.id using errcode = '22023'; end if;
+  if jsonb_typeof(jn) <> 'object' then
+    if new.lista <> 'APIH_Config' then raise exception 'APIH: se esperaba un objeto JSON en %/%', new.lista, new.id using errcode = '22023'; end if;
+    new.area := null;      -- la configuración puede ser una lista (eventos, presentaciones…): sin área ni montos
+    insert into public.auditoria(email, accion, lista, id_registro, area) values (new.modificado_por, lower(tg_op), new.lista, new.id, null);
+    return new;
+  end if;
 
   -- validación mínima de proyectos y propuestas
   if new.lista in ('APIH_Proyectos','APIH_Propuestas') then
