@@ -8,8 +8,11 @@ run "$PGBIN/initdb -D $D/data -A trust >/dev/null"
 run "$PGBIN/pg_ctl -D $D/data -o '-p $PORT -k $D' -l $D/log -w start >/dev/null"
 trap 'run "$PGBIN/pg_ctl -D $D/data stop >/dev/null" || true; rm -rf "$D"' EXIT
 P="psql -h $D -p $PORT -U postgres -v ON_ERROR_STOP=1 -q postgres"
-for f in supabase/tests/00_shim_supabase.sql supabase/migrations/*.sql supabase/seed.sql supabase/tests/10_politicas.sql supabase/tests/20_aprobar_propuesta.sql supabase/tests/30_decision_y_hito.sql supabase/tests/40_cambios_y_reapertura.sql; do
+for f in supabase/tests/00_shim_supabase.sql supabase/migrations/*.sql supabase/seed.sql supabase/tests/10_politicas.sql supabase/tests/20_aprobar_propuesta.sql supabase/tests/30_decision_y_hito.sql supabase/tests/40_cambios_y_reapertura.sql supabase/tests/50_validacion.sql; do
   echo "== $f"
-  run "cd $ROOT && $PGBIN/psql -h $D -p $PORT -U postgres -v ON_ERROR_STOP=1 -q -t -A postgres -f $f" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //' | grep -v '^$' | grep -v 'does not exist, skipping' || true
-  [ "${PIPESTATUS[0]}" = 0 ] || { echo "ERROR en $f"; exit 1; }
+  set +e
+  run "cd $ROOT && $PGBIN/psql -h $D -p $PORT -U postgres -v ON_ERROR_STOP=1 -q -t -A postgres -f $f" > "$D/out.txt" 2>&1; rc=$?
+  set -e
+  sed 's/^psql:[^ ]* NOTICE:  //' "$D/out.txt" | grep -v '^$' | grep -v 'does not exist, skipping' || true
+  [ "$rc" = 0 ] || { echo "ERROR en $f (código $rc)"; exit 1; }
 done

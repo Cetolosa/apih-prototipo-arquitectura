@@ -18,13 +18,17 @@ insert into public.registros(lista, id, datos) values
  ('APIH_Propuestas','PROP-001','p1.{"id":"PROP-001","titulo":"Prop uno","area":"A","tipo":"Propuesta","fase":"Aprobación","estado":"Vigente","sponsor":"S","lider":"L","presupuesto":1000,"bc":"bc","tipoIni":"Desarrollo de software","inicioPlan":"2026-11-01","finPlan":"2027-03-01","deps":[]}'),
  ('APIH_Propuestas','PROP-002','p1.{"id":"PROP-002","titulo":"Prop dos","area":"A","tipo":"Propuesta","fase":"Evaluación","estado":"Vigente","sponsor":"","lider":"L","presupuesto":0,"bc":"","deps":[]}'),
  ('APIH_Propuestas','PROP-003','p1.{"id":"PROP-003","titulo":"Prop tres","area":"B","tipo":"Propuesta","fase":"Aprobación","estado":"Vigente","sponsor":"S","lider":"L","presupuesto":10,"bc":"bc","deps":[]}'),
- ('APIH_Propuestas','PROP-004','p1.{"id":"PROP-004","titulo":"Prop cuatro (rompe plantilla)","area":"A","tipo":"Propuesta","fase":"Aprobación","estado":"Vigente","sponsor":"S","lider":"L","presupuesto":10,"bc":"bc","tipoIni":"Desarrollo de software","inicioPlan":"no-es-fecha","deps":[]}'),
  ('APIH_Decisiones','DEC-1','p1.{"id":"DEC-1","ini":"PROP-001","tipo":"Iniciar","estado":"Aprobada"}'),
  ('APIH_Decisiones','DEC-3','p1.{"id":"DEC-3","ini":"PROP-003","tipo":"Iniciar","estado":"Aprobada"}'),
  ('APIH_Decisiones','DEC-4','p1.{"id":"DEC-4","ini":"PROP-004","tipo":"Iniciar","estado":"Aprobada"}'),
  ('APIH_Riesgos','RSK-1','p1.{"id":"RSK-1","ini":"PROP-001","desc":"r"}'),
  ('APIH_Hitos','HIT-900','p1.{"id":"HIT-900","ini":"PROP-001","nombre":"Evaluación","fase":"Evaluación","fecha":"2026-10-01","completado":false,"fechaReal":null}'),
  ('APIH_Proyectos','PRJ-050','p1.{"id":"PRJ-050","titulo":"Depende","area":"A","deps":["PROP-001","X"]}');
+-- PROP-004 trae una fecha corrupta (heredada): el servidor ya no la acepta, así que se siembra saltando los triggers para probar la atomicidad
+set session_replication_role = replica;
+insert into public.registros(lista, id, datos) values
+ ('APIH_Propuestas','PROP-004','p1.{"id":"PROP-004","titulo":"Prop cuatro (rompe plantilla)","area":"A","tipo":"Propuesta","fase":"Aprobación","estado":"Vigente","sponsor":"S","lider":"L","presupuesto":10,"bc":"bc","tipoIni":"Desarrollo de software","inicioPlan":"no-es-fecha","deps":[]}');
+set session_replication_role = origin;
 
 -- 1) sin permiso
 begin; set local role authenticated;
@@ -42,7 +46,7 @@ select pg_temp.ok((select count(*) from public.registros where lista='APIH_Proye
 -- 2) atomicidad: la plantilla falla a mitad de camino (fecha inválida) y no queda nada
 begin; set local role authenticated;
 select pg_temp.como('colab-a@test.cl');
-select pg_temp.falla($$select public.apih_aprobar_propuesta('PROP-004')$$, 'error en la plantilla aborta todo', '%date%');
+select pg_temp.falla($$select public.apih_aprobar_propuesta('PROP-004')$$, 'error en la plantilla aborta todo', '%AAAA-MM-DD%');
 rollback;
 select pg_temp.ok((pg_temp.j('APIH_Propuestas','PROP-004') ->> 'estado') = 'Vigente' and not exists (select 1 from public.registros where lista='APIH_Proyectos' and id like 'PRJ-%' and id <> 'PRJ-050'), 'atomicidad: la propuesta sigue Vigente y no hay proyecto huérfano');
 
