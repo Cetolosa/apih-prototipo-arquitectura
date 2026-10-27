@@ -1,0 +1,11 @@
+[
+  { "nombre": "completa", "prop": { "id": "PROP-C1", "fase": "Aprobación", "sponsor": "S", "lider": "L", "presupuesto": 1000, "bc": "bc" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Aprobada" }], "faltan": [] },
+  { "nombre": "sin decisión", "prop": { "id": "PROP-C2", "fase": "Aprobación", "sponsor": "S", "lider": "L", "presupuesto": 1000, "bc": "bc" }, "decisiones": [], "faltan": ["Decisión \"Iniciar\" aprobada en comité"] },
+  { "nombre": "decisión pendiente no cuenta", "prop": { "id": "PROP-C3", "fase": "Aprobación", "sponsor": "S", "lider": "L", "presupuesto": 1000, "bc": "bc" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Pendiente" }], "faltan": ["Decisión \"Iniciar\" aprobada en comité"] },
+  { "nombre": "decisión de otro tipo no cuenta", "prop": { "id": "PROP-C4", "fase": "Aprobación", "sponsor": "S", "lider": "L", "presupuesto": 1000, "bc": "bc" }, "decisiones": [{ "tipo": "Pausar", "estado": "Aprobada" }], "faltan": ["Decisión \"Iniciar\" aprobada en comité"] },
+  { "nombre": "fase equivocada", "prop": { "id": "PROP-C5", "fase": "Evaluación", "sponsor": "S", "lider": "L", "presupuesto": 1000, "bc": "bc" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Aprobada" }], "faltan": ["Propuesta en fase Aprobación"] },
+  { "nombre": "sin sponsor ni líder", "prop": { "id": "PROP-C6", "fase": "Aprobación", "sponsor": "", "lider": "", "presupuesto": 1000, "bc": "bc" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Aprobada" }], "faltan": ["Sponsor identificado", "Líder asignado"] },
+  { "nombre": "presupuesto cero", "prop": { "id": "PROP-C7", "fase": "Aprobación", "sponsor": "S", "lider": "L", "presupuesto": 0, "bc": "bc" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Aprobada" }], "faltan": ["Presupuesto asignado"] },
+  { "nombre": "presupuesto ausente y sin business case", "prop": { "id": "PROP-C8", "fase": "Aprobación", "sponsor": "S", "lider": "L", "bc": "" }, "decisiones": [{ "tipo": "Iniciar", "estado": "Aprobada" }], "faltan": ["Presupuesto asignado", "Business case redactado"] },
+  { "nombre": "todo faltante", "prop": { "id": "PROP-C9", "fase": "Recepción" }, "decisiones": [], "faltan": ["Propuesta en fase Aprobación", "Sponsor identificado", "Líder asignado", "Presupuesto asignado", "Business case redactado", "Decisión \"Iniciar\" aprobada en comité"] }
+]
