@@ -3,12 +3,15 @@ const { chromium, launchOpts } = require('./_pw');
 const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
   const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  // Fecha fija: los pasos dependen de «hoy»; el plan sintético se calibra para el 2026-10-23.
+  await p.clock.setFixedTime(new Date('2026-10-23T12:00:00'));
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);
   await p.evaluate(x => { celebrar = () => {}; UI.uiOv = 'pro';
     const n = Object.assign({ id: 'PRJ-050', legacy: '', creada: '2026-10-15', faseDesde: '2026-10-15', origen: 'importación', est: [], hist: [['2026-10-15', x.avance]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, propuestaOrigen: null, estadoMotivo: '', estadoRev: null, gastado: 0, proyecto: null, deps: [], actualizada: '2026-10-16' }, x); delete n.hitos; delete n.riesgos; St.ini.push(n);
     x.hitos.forEach(h => St.hitos.push({ id: nextId('HIT', St.hitos), ini: n.id, nombre: h.nombre, fase: h.fase, fecha: h.fecha, completado: !!h.completado, fechaReal: h.completado ? h.fecha : null, resp: h.resp }));
     x.riesgos.forEach(r => St.riesgos.push(Object.assign({ id: nextId('RSK', St.riesgos), ini: n.id }, r)));
+    n.lider = St.cfg.usuario; const R = St.riesgos.filter(r => r.ini === n.id); R[0].fRev = '2026-10-20'; R[1].fRev = '2026-10-26'; R[2].fRev = '2026-10-19';   // dos revisiones vencidas y una próxima: 6+ pasos, para que al posponer uno entre el siguiente
     UI.view = 'fases'; render(); }, plan);
   await p.waitForTimeout(500);
   const r = {};
