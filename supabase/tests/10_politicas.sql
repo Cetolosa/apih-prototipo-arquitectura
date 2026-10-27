@@ -6,9 +6,11 @@ create or replace function pg_temp.ok(c boolean, m text) returns void language p
 $$ begin if not coalesce(c, false) then raise exception 'FALLA: %', m; end if; raise notice 'ok  %', m; end $$;
 create or replace function pg_temp.filas(q text) returns int language plpgsql as
 $$ declare n int; begin execute q; get diagnostics n = row_count; return n; end $$;
-create or replace function pg_temp.falla(sql text, m text) returns void language plpgsql as
-$$ declare e boolean := false; begin begin execute sql; exception when others then e := true; end;
-   if not e then raise exception 'FALLA (debía rechazarse): %', m; end if; raise notice 'ok  % (rechazado)', m; end $$;
+create or replace function pg_temp.falla(sql text, m text, patron text default null) returns void language plpgsql as
+$$ declare e boolean := false; msg text; begin begin execute sql; exception when others then e := true; msg := sqlerrm; end;
+   if not e then raise exception 'FALLA (debía rechazarse): %', m; end if;
+   if patron is not null and msg not like patron then raise exception 'FALLA (se rechazó por otra causa): % -> %', m, msg; end if;
+   raise notice 'ok  % (rechazado)', m; end $$;
 
 -- perfiles de prueba adicionales (el seed trae admin y colaborador)
 insert into public.perfiles (email, rol, app_rol, areas, ve_montos) values
@@ -29,7 +31,7 @@ insert into public.registros(lista,id,datos) values
 begin; set local role authenticated;
 select pg_temp.como('nadie@x.cl');
 select pg_temp.ok((select count(*) from public.registros_v) = 0, 'sin perfil no ve nada');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','X','p1.{"titulo":"x","area":"A"}')$$, 'sin perfil no escribe');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','X','p1.{"titulo":"x","area":"A"}')$$, 'sin perfil no escribe', '%row-level security%');
 rollback;
 
 begin; set local role authenticated;
@@ -37,16 +39,16 @@ select pg_temp.como('colab-a@test.cl');
 select pg_temp.ok((select count(*) from public.registros_v where lista='APIH_Proyectos') = 2, 'colaborador A ve su área + Transversal');
 select pg_temp.ok((select count(*) from public.registros_v where id='H-B') = 0, 'colaborador A no ve hitos de B (área heredada)');
 select pg_temp.ok((select datos from public.registros_v where id='P-A') !~ 'presupuesto|gastado', 'sin ve_montos: la vista oculta montos');
-select pg_temp.falla($$select datos from public.registros$$, 'no se lee datos directo de la tabla');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','X','p1.{"titulo":"x","area":"B"}')$$, 'no crea en área ajena');
+select pg_temp.falla($$select datos from public.registros$$, 'no se lee datos directo de la tabla', '%permission denied%');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','X','p1.{"titulo":"x","area":"B"}')$$, 'no crea en área ajena', '%row-level security%');
 select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"titulo":"Proyecto B2","area":"B"}' where id='P-B'$$) = 0, 'no modifica área ajena (0 filas)');
-select pg_temp.falla($$update public.registros set datos='p1.{"titulo":"A","area":"B"}' where id='P-A'$$, 'no mueve su proyecto a otra área');
+select pg_temp.falla($$update public.registros set datos='p1.{"titulo":"A","area":"B"}' where id='P-A'$$, 'no mueve su proyecto a otra área', '%row-level security%');
 -- edita su área sin tocar montos: los montos existentes se conservan aunque el cliente no los conozca
 update public.registros set datos='p1.{"titulo":"Proyecto A v2","area":"A","avance":50}' where id='P-A';
 select pg_temp.ok(true, 'edita su área');
 select pg_temp.ok(pg_temp.filas($$delete from public.registros where id='R1'$$) = 0, 'no borra APIH_Roles');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','M','p1.{"titulo":"x","area":"A","avance":150}')$$, 'valida avance 0..100');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','M','p1.{"titulo":"x","area":"A","presupuesto":"mucho"}')$$, 'valida tipo numérico');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','M','p1.{"titulo":"x","area":"A","avance":150}')$$, 'valida avance 0..100', '%avance fuera%');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Proyectos','M','p1.{"titulo":"x","area":"A","presupuesto":"mucho"}')$$, 'valida tipo numérico', '%debe ser numérico%');
 rollback;
 
 -- los montos del proyecto A sobreviven a la edición del colaborador (verificado como propietario)
@@ -86,7 +88,7 @@ begin; set local role authenticated;
 select pg_temp.como('inv-a@test.cl');
 insert into public.registros(lista,id,datos) values ('APIH_Notas','N1','p1.{"ini":"P-A","texto":"comentario"}');
 select pg_temp.ok(true, 'invitado comenta en su área');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Notas','N2','p1.{"ini":"P-B","texto":"x"}')$$, 'invitado no comenta en área ajena');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Notas','N2','p1.{"ini":"P-B","texto":"x"}')$$, 'invitado no comenta en área ajena', '%row-level security%');
 rollback;
 
 begin; set local role authenticated;
@@ -119,7 +121,7 @@ select pg_temp.como('colab-a@test.cl');
 select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 1, 'colaborador solo ve su configuración personal');
 select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab A","v":{"tema":"z"}}' where id='cfgU:colab-a@test.cl'$$) = 1, 'edita su configuración personal');
 select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab B","v":{"tema":"hack"}}' where id='cfgU:colab-b@test.cl'$$) = 0, 'no edita la configuración de otra persona');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Config','cfgU:colab-b@test.cl2','p1.{}')$$, 'no crea configuración personal ajena');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Config','cfgU:colab-b@test.cl2','p1.{}')$$, 'no crea configuración personal ajena', '%row-level security%');
 select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":999}' where id='cfg'$$) = 0, 'colaborador no cambia parámetros de la organización');
 select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.[1]' where id='pres'$$) = 1, 'colaborador edita colecciones compartidas');
 update public.registros set datos='p1.{"PRJ":2,"RSK":9,"NUEVO":1}' where id='seq';
@@ -146,7 +148,7 @@ select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral
 rollback;
 
 -- alta de usuarios: dominio configurable
-select pg_temp.falla($$insert into auth.users(email) values ('alguien@otro.com')$$, 'dominio no autorizado');
+select pg_temp.falla($$insert into auth.users(email) values ('alguien@otro.com')$$, 'dominio no autorizado', '%no autorizado%');
 insert into auth.users(email) values ('nuevo@aramark.cl');
 insert into auth.users(email) values ('cetolosa@gmail.com');
 \echo TODAS LAS PRUEBAS SQL OK

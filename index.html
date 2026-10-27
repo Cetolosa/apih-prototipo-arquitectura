@@ -2063,7 +2063,7 @@ const SB = {
   async _auth(grant, body) {
     const r = await fetch(SB.cfg.url + '/auth/v1/token?grant_type=' + grant, { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { const e = new Error(j.error_description || j.msg || ('HTTP ' + r.status)); e.status = r.status; e.code = j.error_code || j.error; throw e; }
+    if (!r.ok) { const e = new Error(j.error_description || j.msg || j.message || ('HTTP ' + r.status)); e.status = r.status; e.code = j.error_code || j.error; throw e; }
     return j;
   },
   async token() {
@@ -2181,6 +2181,8 @@ class SupabaseService extends SharePointService {
     const cr = res.headers.get('Content-Range') || '', n = cr.split('/')[1] || '?';
     return ((data && data[0] && data[0].actualizado) || '0') + '|' + n;
   }
+  /* Comandos del servidor (funciones RPC): la lógica transaccional vive en la base, no en el navegador */
+  async rpc(nombre, args) { const { data } = await this._rest('rpc/' + nombre, { method: 'POST', body: JSON.stringify(args || {}) }); return data; }
   /* Configuración por alcance: cada persona guarda sus preferencias en su propio registro «cfgU:<correo>» (el servidor solo deja escribirlo a su dueño o al admin). */
   _emailPropio() { const u = typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(); return _nrm(u && (u.email || u.username)); }
   _cfgUKey(nombre) {
@@ -3232,6 +3234,8 @@ Acts.aprobar = d => {
 };
 Acts.aprobargo = d => {
   const p = byId(d.id), miss = gatesAprobar(p).filter(x => !x.ok), force = $('#advforce') && $('#advforce').checked;
+  const nota0 = ($('#apr_nota') || {}).value || '';
+  if (DataService.svc && DataService.svc.rpc) return aprobarEnServidor(p, miss, force, nota0);   // con servidor: transacción única en la base
   if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');   // U-12
   const nota = ($('#apr_nota') || {}).value || '';
@@ -3239,6 +3243,17 @@ Acts.aprobargo = d => {
   Modal.close(); UI.sel = { t: 'ini', id: n.id }; UI.tab = 'resumen'; toast('Proyecto ' + n.id + ' creado. Siguiente paso: planifica sus hitos y riesgos'); refresh();
 };
 
+/* Con servidor (Supabase): la aprobación es un comando transaccional en la base (apih_aprobar_propuesta); aquí solo se pide y se recarga */
+async function aprobarEnServidor(p, miss, force, nota) {
+  if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
+  if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');
+  try {
+    for (let k = 0; k < 40 && (DataService.busy || DataService.dirty); k++) { if (!DataService.busy) DataService.flush(); await new Promise(r => setTimeout(r, 250)); }   // que el servidor ya tenga lo último que editaste
+    const nid = await DataService.svc.rpc('apih_aprobar_propuesta', { p_id: p.id, p_nota: nota.trim(), p_forzar: !!(miss.length && force) });
+    await DataService.refresh(false, true);
+    Modal.close(); UI.sel = { t: 'ini', id: nid }; UI.tab = 'resumen'; toast('Proyecto ' + nid + ' creado. Siguiente paso: planifica sus hitos y riesgos'); refresh();
+  } catch (e) { toast(String(e.message || e).replace(/^APIH:\s*/, ''), 'err'); }
+}
 /* Cambio de estado con motivo y fecha de revisión */
 Acts.estado = d => {
   if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
