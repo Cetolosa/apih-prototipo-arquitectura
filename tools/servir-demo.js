@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Sirve la SPA en modo demo para las pruebas e2e: /demo/index.html (copia), /apih-config.js y /out/ (fixtures).
+// Sirve la SPA en modo demo para las pruebas e2e: /demo/index.html (copia), /js/, /css/, /apih-config.js y /out/ (fixtures).
 const http = require('http'), fs = require('fs'), path = require('path');
 const raiz = path.join(__dirname, '..'), PUERTO = +process.env.PORT || 8765;
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.css': 'text/css' };
 function ruta(url) {
   const p = decodeURIComponent(url.split('?')[0]);
   if (p === '/demo/index.html') return path.join(raiz, 'index.html');
+  const m = p.match(/^\/(?:demo\/)?(js|css)\/([\w.-]+)$/); if (m) return path.join(raiz, m[1], m[2]);
   if (p === '/apih-config.js') return path.join(raiz, 'apih-config.js');
   if (p.startsWith('/out/')) return path.join(raiz, 'docs', 'seed', path.basename(p));
   return null;
