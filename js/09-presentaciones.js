@@ -1,4 +1,8 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, $$, DECS, HITOS, St, _nrm, atrasado, by, byId, clone, diffD, esProp, esc, expo, fmtD, fmtDL, hitosDe, hoy, icon, inArea, isLive, log, nameOf, nextId, riesgoAbierto, riesgosDe, save, scope, scopeP, sum, tipoLbl, uniq } from './01-nucleo.js';
+import { Acts, Chg, F, Modal, NAV, UI, Views, btn, confirmBox, downloadBlob, empty, go, openForm, pageHead, panelDec, panelHito, panelIni, panelRisk, refresh, render, selOpts, toast, zipStore } from './03-interfaz.js';
+import { NAV_GRP, esAdministra, ptemaEf, ptemaSet, soloMio } from './07-gobierno.js';
+import { GENE } from './08g-generador-ensamble.js';
 /* ==========================================================================
    APIH V5 · TEMA de presentaciones
    Las láminas se generan con la paleta Alt4 original (hex "fuente"). El tema se aplica
@@ -88,7 +92,7 @@ const isOff = (c, ck, k) => { const v = c.off[offKey(ck, k)]; return v === undef
 const OPTS = {};   // las láminas del original no tienen opciones: qué entra se decide con las casillas "Incluir en presentación"
 const OPT_DEF = {};
 const REGLAS_DEF = () => ({ hitosDias: 30, riesgoMin: 15, soloEnCurso: true, soloAtencion: false, decPend: true, propAprob: true });
-const PRES_DEF = () => ({ alcance: 'portafolio', proys: [], multi: 'bloques', cur: '', titulo: 'Portafolio TI Operaciones · Comité Ejecutivo', comite: '', area: '', nivel: 'ej', order: {}, off: {}, so: {}, free: [], exec: {}, idx: 0, tpl: '', frozen: '', optk: '', tab: 'slides', reglas: REGLAS_DEF() });
+export const PRES_DEF = () => ({ alcance: 'portafolio', proys: [], multi: 'bloques', cur: '', titulo: 'Portafolio TI Operaciones · Comité Ejecutivo', comite: '', area: '', nivel: 'ej', order: {}, off: {}, so: {}, free: [], exec: {}, idx: 0, tpl: '', frozen: '', optk: '', tab: 'slides', reglas: REGLAS_DEF() });
 const pcfg = () => { const c = F('pres', PRES_DEF()); if (!c.reglas || !c.order || Array.isArray(c.order)) { c.reglas = c.reglas || REGLAS_DEF(); if (!c.order || Array.isArray(c.order)) c.order = {}; } return c; };
 const catKey = (c, id) => c.alcance === 'proyecto' ? (byId(id || c.cur || (c.proys || [])[0]) && esProp(byId(id || c.cur || c.proys[0])) ? 'propuesta' : 'proyecto') : 'portafolio';
 const ordOf = (c, ck) => { const base = CAT[ck].map(x => x[0]), cur = (c.order[ck] || []).filter(k => base.includes(k) || c.free.some(f => f.id === k)); base.forEach(k => { if (!cur.includes(k)) cur.push(k); }); c.free.filter(f => f.ck === ck && !cur.includes(f.id)).forEach(f => cur.push(f.id)); return cur; };
@@ -155,7 +159,7 @@ function genKey(c, ck, k, id) {
 }
 
 /* ---------- ensamblado ---------- */
-function slidesOf(c, id) {   // → { ck, order, pages: {key: [slides]} } con todas las diapositivas (activas o no)
+export function slidesOf(c, id) {   // → { ck, order, pages: {key: [slides]} } con todas las diapositivas (activas o no)
   const ck = catKey(c, id), order = ordOf(c, ck), pages = {};
   c._ctx = GENE.contexto(c, id);
   try { order.forEach(k => { try { pages[k] = genKey(c, ck, k, id); } catch (e) { console.error(e); pages[k] = []; pages[k].error = String(e && e.message || e); } }); } finally { delete c._ctx; }
@@ -233,11 +237,11 @@ function incBox(e, o) {
 }
 const _injInc = (html, box) => html.replace(/<\/div>\s*$/, box + '</div>');
 { const pr = panelRisk, ph = panelHito, pd = panelDec, pi = panelIni;
-  panelRisk = r => _injInc(pr(r), incBox('rsk', r)); panelHito = h => _injInc(ph(h), incBox('hito', h)); panelDec = d => _injInc(pd(d), incBox('dec', d));
-  panelIni = i => (!UI.tab || UI.tab === 'resumen') ? _injInc(pi(i), incBox(esProp(i) ? 'prop' : 'prj', i)) : pi(i); }
+  ENLACES.panelRisk = r => _injInc(pr(r), incBox('rsk', r)); ENLACES.panelHito = h => _injInc(ph(h), incBox('hito', h)); ENLACES.panelDec = d => _injInc(pd(d), incBox('dec', d));
+  ENLACES.panelIni = i => (!UI.tab || UI.tab === 'resumen') ? _injInc(pi(i), incBox(esProp(i) ? 'prop' : 'prj', i)) : pi(i); }
 
 
-function presLayout() {
+export function presLayout() {
   if (UI.view !== 'presentaciones') return;
   const m = $('#main'), w = m && m.querySelector('.pres-w'); if (!w || w.dataset.p2) return;
   const cfg = w.querySelector('.pres-c'), s = w.querySelector('.pres-s'); if (!cfg || !s) return; w.dataset.p2 = 1;
@@ -443,7 +447,7 @@ const XE = s => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F
 const NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
 const hexc = c => String(c || '#201F1E').replace('#', '').toUpperCase().padEnd(6, '0').slice(0, 6);
 const run = (t, o = {}) => `<a:r><a:rPr lang="es-CL" sz="${Math.round((o.sz || 14) * 100)}" b="${o.b ? 1 : 0}" dirty="0"><a:solidFill><a:srgbClr val="${hexc(o.c)}"/></a:solidFill><a:latin typeface="Segoe UI"/><a:cs typeface="Segoe UI"/></a:rPr><a:t>${XE(t)}</a:t></a:r>`;
-const para = (runs, o = {}) => `<a:p><a:pPr algn="${o.al || 'l'}"${o.bu ? ' marL="228600" indent="-228600"' : ''}>${o.sp ? `<a:spcAft><a:spcPts val="${o.sp * 100}"/></a:spcAft>` : ''}${o.bu ? '<a:buFont typeface="Arial"/><a:buChar char="•"/>' : '<a:buNone/>'}</a:pPr>${runs}</a:p>`;
+export const para = (runs, o = {}) => `<a:p><a:pPr algn="${o.al || 'l'}"${o.bu ? ' marL="228600" indent="-228600"' : ''}>${o.sp ? `<a:spcAft><a:spcPts val="${o.sp * 100}"/></a:spcAft>` : ''}${o.bu ? '<a:buFont typeface="Arial"/><a:buChar char="•"/>' : '<a:buNone/>'}</a:pPr>${runs}</a:p>`;
 const lines = (t, w, pt) => { const cpl = Math.max(4, Math.floor(w * 72 / (pt * 0.52))); return String(t ?? '').split('\n').reduce((n, l) => n + Math.max(1, Math.ceil(l.length / cpl)), 0); };
 class PSlide {
   constructor() { this.id = 1; this.sp = ''; this.imgs = []; }
@@ -584,7 +588,7 @@ document.addEventListener('keydown', e => { if (UI.view !== 'presentaciones' || 
    muestra bajo las migas de pan, es plegable y recuerda el estado en memoria.
    Para sumar una pantalla nueva basta agregar su clave aquí (si falta, no se rompe nada).
    ========================================================================== */
-const GUIA = {
+export const GUIA = {
   dashboard: { t: 'Dashboard', p: [
     ['Elige el alcance', 'Selector «Área» de la barra superior: todo el sistema se recalcula para esa área.'],
     ['Lee los indicadores', 'Las tarjetas superiores resumen proyectos activos, propuestas, atrasos, riesgos y presupuesto.'],
@@ -764,3 +768,15 @@ NAV.push(['ficha', 'Ficha', 'list']); NAV_GRP.ficha = 'Sistema';
    6. Comentarios de colaboradores por área (los ve quien tiene acceso al área; Administra/Responsable los marca «abordado»).
    7. Login individual con Supabase Auth: cada persona su contraseña, que solo ella conoce y puede cambiar.
    ============================================================ */
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  TEMA: { get: () => TEMA, enumerable: true, configurable: true },
+  guiaHTML: { get: () => guiaHTML, enumerable: true, configurable: true },
+  inc: { get: () => inc, enumerable: true, configurable: true },
+  incChk: { get: () => incChk, enumerable: true, configurable: true },
+  incMarks: { get: () => incMarks, enumerable: true, configurable: true },
+  incT: { get: () => incT, enumerable: true, configurable: true },
+  presLayout: { get: () => presLayout, set: v => { presLayout = v; }, enumerable: true, configurable: true },
+  withArea: { get: () => withArea, enumerable: true, configurable: true },
+});

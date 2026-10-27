@@ -1,4 +1,5 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
    CAPA DE DATOS · AuthService · SharePointService · DataService
    ===================================================================== */
@@ -10,7 +11,7 @@
    get/set = conversores personalizados. 'Title' es el campo nativo de SharePoint.
    DatosJSON conserva el objeto de dominio completo (campos sin columna propia).
    --------------------------------------------------------------------- */
-const C = {
+export const C = {
   txt: (n, k, o) => Object.assign({ n, t: 'Text', k, rw: true }, o),
   note: (n, k, o) => Object.assign({ n, t: 'Note', k, rw: true }, o),
   num: (n, k, o) => Object.assign({ n, t: 'Number', k, rw: true }, o),
@@ -22,7 +23,7 @@ const nextOpenHito = i => { const hs = St.hitos.filter(h => h.ini === i.id && !h
 const HITO_ESTADOS = ['En plazo', 'Por vencer', 'Vencido', 'Completado'];
 const DEC_ESTADOS_SP = ['Pendiente', 'Aprobada', 'Rechazada', 'Pospuesta', 'Aplicada'];
 
-const SP_SCHEMA = {
+export const SP_SCHEMA = {
   projects: {
     label: 'Proyectos', cfg: 'projectsList', coll: 'ini', key: 'Codigo', idCol: 'Codigo', title: 'Titulo (Title)',
     cols: [
@@ -46,7 +47,7 @@ const SP_SCHEMA = {
       ...[['Estrategia', 'estrategia'], ['Valor', 'valor'], ['Esfuerzo', 'esfuerzo'], ['Riesgo', 'riesgo']].map(([n, k]) => C.num('Score' + n, null, { get: o => o.score ? o.score[k] : null, set: (o, v) => { if (v == null || v === '') return; o.score = o.score || {}; o.score[k] = +v; } })),
       C.num('BeneficioEstimado', 'beneficio'), C.txt('Moneda', 'moneda'), C.num('CostoEstimado', 'presupuesto'), C.date('FechaSolicitud', 'creada'), C.date('FechaObjetivo', 'finPlan'),
       C.txt('Dependencias', 'deps', { get: i => (i.deps || []).join(';'), set: (o, v) => { o.deps = v ? String(v).split(/[;,\s]+/).filter(Boolean) : []; } }),
-      C.der('DiasEnFase', 'Number', i => diasEnFase(i)), C.txt('ProyectoGenerado', 'proyecto'), C.note('MotivoEstado', 'estadoMotivo'), C.date('FechaRevision', 'estadoRev')
+      C.der('DiasEnFase', 'Number', i => (0, ENLACES.diasEnFase)(i)), C.txt('ProyectoGenerado', 'proyecto'), C.note('MotivoEstado', 'estadoMotivo'), C.date('FechaRevision', 'estadoRev')
     ],
     tpl: () => ({ tipo: 'Propuesta', moneda: 'CLP', desc: '', bc: '', beneficio: 0, sponsor: '', lider: '', solicitante: '', negocio: '', area: 'BISE', categoria: '', clasif: 'Táctico', gasto: 'OPEX', proveedor: '', contrato: '', fase: 'Recepción', estado: 'Vigente', rag: 'Verde', prioridad: 'Media', presupuesto: 0, gastado: 0, ahorroReal: 0, avance: 0, inicioPlan: null, finPlan: null, inicioReal: null, finReal: null, finEst: null, deps: [], resumen: '', logros: '', proximos: '', issue: '', riesgoTxt: '', creada: hoy(), actualizada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [], tags: [], rec: null, score: { estrategia: 3, valor: 3, esfuerzo: 3, riesgo: 2 }, proyecto: null, estadoMotivo: '', estadoRev: null })
   },
@@ -129,7 +130,7 @@ const SP_SCHEMA = {
 };
 const DATOS_COL = { n: 'DatosJSON', t: 'Note' };
 const ORIGEN_COL = { n: 'Origen', t: 'Text' };   // marca 'APIH' en cada escritura de la app (control de ediciones directas en SharePoint)   // objeto de dominio completo (todas las listas)
-const SETTINGS_KEYS = ['cfg', 'cfgU', 'usuarios', 'eventos', 'pres', 'ptpl', 'ptema', 'seq'];
+export const SETTINGS_KEYS = ['cfg', 'cfgU', 'usuarios', 'eventos', 'pres', 'ptpl', 'ptema', 'seq'];
 const settingKeys = S => [...SETTINGS_KEYS, ...Object.keys((S && S.psnap) || {}).map(i => 'psnap:' + i)];   // psnap:<id> = presentación congelada       // documentos en APIH_Config
 const LOCAL_CFG = ['usuario', 'areaGlobal'];                                // preferencias de sesión: no se comparten
 
@@ -179,7 +180,7 @@ const SPMap = {
 /* ---------------------------------------------------------------------
    2. AuthService · Microsoft Entra ID (MSAL) – abstracción
    --------------------------------------------------------------------- */
-const AuthService = {
+export const AuthService = {
   app: null, acct: null, token: '', error: '',
   get cfg() { return APIH_CONFIG.auth; },
   get provider() { return this.cfg.provider || 'none'; },
@@ -226,7 +227,7 @@ const AuthService = {
 /* ---------------------------------------------------------------------
    3. SharePointService · Microsoft Graph y REST SharePoint
    --------------------------------------------------------------------- */
-class SharePointService {
+export class SharePointService {
   constructor(cfg) {
     this.cfg = cfg; this.siteId = null; this.digest = null; this.digestAt = 0;
     this.ids = {};                       // ent -> { codigo: idItemSharePoint }
@@ -428,7 +429,7 @@ class SharePointService {
 }
 
 /* Script PnP PowerShell equivalente (para administradores) */
-function pnpScript() {
+export function pnpScript() {
   const xml = c => {
     const b = `Name="${c.n}" DisplayName="${c.n}" StaticName="${c.n}"`;
     if (c.t === 'Text') return `<Field Type="Text" ${b} />`;
@@ -467,10 +468,10 @@ const COLLS = Object.keys(SP_SCHEMA);   // projects, risks, milestones, decision
 const backendName = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' ? 'Supabase' : 'SharePoint';
 const backendLabel = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' ? 'Servidor seguro · acceso individual' : 'SharePoint · ' + APIH_CONFIG.siteName;
 const newSvc = () => APIH_CONFIG.auth && APIH_CONFIG.auth.provider === 'supabase' && typeof SupabaseService !== 'undefined' ? new SupabaseService(APIH_CONFIG) : new SharePointService(APIH_CONFIG);
-const DataService = {
+export const DataService = {
   mode: 'demo', svc: null, snap: null, timer: null, poll: null, busy: false, again: false, dirty: false, tries: 0,
   st: { state: 'demo', msg: 'Modo demo', last: null, pending: 0, err: '' },
-  setStatus(o) { Object.assign(this.st, o); if (typeof updateSyncUI === 'function') updateSyncUI(); },
+  setStatus(o) { Object.assign(this.st, o); if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); },
   resolveMode() {
     const c = APIH_CONFIG; if (c.mode === 'demo') return 'demo';
     const ok = c.tenantUrl && c.siteName;
@@ -499,7 +500,7 @@ const DataService = {
       if (S.empty && this.svc.mode === 'supabase') { ['usuarios', 'cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       this.startPoll();
-      if (raw) { this.dirty = true; setTimeout(() => { this.commit(); if (typeof toast === 'function') toast('Datos migrados al modelo V5 (Propuestas / Proyectos); sincronizando…'); }, 800); }
+      if (raw) { this.dirty = true; setTimeout(() => { this.commit(); if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)('Datos migrados al modelo V5 (Propuestas / Proyectos); sincronizando…'); }, 800); }
       return S;
     } catch (e) {
       console.error(e);
@@ -516,23 +517,23 @@ const DataService = {
     const ini = [...prjs, ...props];
     let S = { v: 3, cfg, ini, hitos, riesgos, decisiones, comites, bitacora, compromisos: compromisos || [], cambios: cambios || [], notas: notas || [], documentos: docs || [], pres: set.pres || [], ptpl: set.ptpl || [], ptema: set.ptema || {}, psnap: Object.fromEntries(Object.keys(set).filter(k => k.startsWith('psnap:')).map(k => [k.slice(6), set[k]])), usuarios: set.usuarios || seed.usuarios, eventos: set.eventos || [], cfgU: set.cfgU || {}, seq: set.seq || {} };
     S.empty = !ini.length && !hitos.length && !riesgos.length;
-    if (ini.some(i => !i.tipo)) { const raw = JSON.parse(JSON.stringify(S)); S = migrateV5(S); S._raw = raw; }   // datos de versiones anteriores
+    if (ini.some(i => !i.tipo)) { const raw = JSON.parse(JSON.stringify(S)); S = (0, ENLACES.migrateV5)(S); S._raw = raw; }   // datos de versiones anteriores
     return S;
   },
   /* firma por registro = JSON de los campos SharePoint resultantes (incluye columnas derivadas) */
   snapshot(S) {
-    const prev = St; St = S; const out = {};
+    const prev = St; ENLACES.St = S; const out = {};
     try {
       COLLS.forEach(ent => { const m = new Map(); (S[SP_SCHEMA[ent].coll] || []).filter(SP_SCHEMA[ent].filter || (() => true)).forEach(o => m.set(o.id, JSON.stringify(SPMap.fieldsOf(ent, o)))); out[ent] = m; });
       out.settings = new Map(); settingKeys(S).forEach(k => out.settings.set(k, JSON.stringify(this.settingValue(S, k))));
-    } finally { St = prev; }
+    } finally { ENLACES.St = prev; }
     return out;
   },
   settingValue(S, k) { if (k.startsWith('psnap:')) return S.psnap[k.slice(6)]; if (k === 'cfg') { const c = Object.assign({}, S.cfg); LOCAL_CFG.forEach(x => delete c[x]); return c; } return S[k]; },
   /* llamado por save(): programa un envío diferido */
   commit() {
     this.dirty = true; this.gen = (this.gen || 0) + 1;
-    if (!this.svc || !this.snap) { if (typeof updateSyncUI === 'function') updateSyncUI(); return; }
+    if (!this.svc || !this.snap) { if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); return; }
     clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 500);
   },
   diff() {
@@ -591,10 +592,10 @@ const DataService = {
       if (fail) { this.tries++; this.setStatus({ state: 'error', msg: 'Error de sincronización', err: fail.message, pending: this.diff().length }); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), Math.min(60000, 5000 * this.tries)); return; }   // no recargar: se perderían las ediciones pendientes
       await this.refresh(false, true); return;
     }
-    if (this.badMsg && this.badMsg.length) { const n = this.badMsg.length; console.warn('APIH: registros rechazados por el servidor', this.badMsg); this.badMsg = []; if (typeof toast === 'function') toast(n + ' registro(s) fueron rechazados por el servidor y no se guardaron (revisa tus datos o recarga la página). El resto sí se guardó.', 'err'); }
+    if (this.badMsg && this.badMsg.length) { const n = this.badMsg.length; console.warn('APIH: registros rechazados por el servidor', this.badMsg); this.badMsg = []; if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)(n + ' registro(s) fueron rechazados por el servidor y no se guardaron (revisa tus datos o recarga la página). El resto sí se guardó.', 'err'); }
     if (fail) {
       this.tries++; this.setStatus({ state: 'error', msg: 'Error de sincronización', err: fail.message, pending: this.diff().length });
-      if (this.tries === 1 && typeof toast === 'function') toast('No se pudo guardar en ' + backendName() + ': ' + fail.message, 'err');
+      if (this.tries === 1 && typeof ENLACES.toast === 'function') (0, ENLACES.toast)('No se pudo guardar en ' + backendName() + ': ' + fail.message, 'err');
       clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), Math.min(60000, 5000 * this.tries));
     } else {
       this.tries = 0; this.dirty = false;
@@ -605,7 +606,7 @@ const DataService = {
   /* relectura desde SharePoint (manual o periódica). force = descarta cambios locales */
   async refresh(silent, force) {
     if (!this.svc || this.busy) return;
-    if (!force && (this.dirty || (typeof Modal !== 'undefined' && Modal.cur))) return;
+    if (!force && (this.dirty || (typeof ENLACES.Modal !== 'undefined' && ENLACES.Modal.cur))) return;
     try {
       /* V9: sondeo liviano. Si ninguna lista cambió y la última lectura completa fue hace < 10 min, no se relee nada. */
       if (silent && !force && this.svc.stamp) {
@@ -616,14 +617,14 @@ const DataService = {
       const t0 = performance.now(), gen0 = this.gen || 0;
       const S = await this.loadRemote(); if (S._raw) return; const snap = this.snapshot(S);
       /* si el usuario editó mientras se leía, no se pisa su trabajo con la lectura (salvo force) */
-      if (!force && (this.dirty || this.busy || (this.gen || 0) !== gen0 || (typeof Modal !== 'undefined' && Modal.cur))) return;
+      if (!force && (this.dirty || this.busy || (this.gen || 0) !== gen0 || (typeof ENLACES.Modal !== 'undefined' && ENLACES.Modal.cur))) return;
       this.setStatus({ msLoad: Math.round(performance.now() - t0) }); this.fullAt = Date.now(); if (this.svc.stamp) { try { this.stampV = this._nextStamp || await this.svc.stamp(); } catch (e) { } this._nextStamp = null; }
       const same = COLLS.every(e => { const a = snap[e], b = this.snap[e]; return a.size === b.size && [...a].every(([k, s]) => b.get(k) === s); }) && settingKeys(S).every(k => snap.settings.get(k) === this.snap.settings.get(k));
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), err: '' });
       if (same && !force) return;
-      St = S; this.snap = snap; this.dirty = false; _alertCache = null; if (typeof shell === 'function') { shell(); } render();
-      if (!silent) toast('Datos recargados desde ' + backendName());
-    } catch (e) { this.setStatus({ state: 'error', msg: 'Error al leer ' + backendName(), err: e.message }); if (!silent) toast(e.message, 'err'); }
+      ENLACES.St = S; this.snap = snap; this.dirty = false; ENLACES._alertCache = null; if (typeof ENLACES.shell === 'function') { (0, ENLACES.shell)(); } (0, ENLACES.render)();
+      if (!silent) (0, ENLACES.toast)('Datos recargados desde ' + backendName());
+    } catch (e) { this.setStatus({ state: 'error', msg: 'Error al leer ' + backendName(), err: e.message }); if (!silent) (0, ENLACES.toast)(e.message, 'err'); }
   },
   startPoll() {
     clearInterval(this.poll); const s = APIH_CONFIG.pollSec; if (s > 0) this.poll = setInterval(() => { if (document.visibilityState === 'visible') this.refresh(true); }, s * 1000);
@@ -631,7 +632,7 @@ const DataService = {
   /* carga el estado de demostración en las listas vacías de SharePoint */
   async seedRemote() {
     if (!this.svc) throw new Error('Sin conexión a SharePoint');
-    const keepUser = St.cfg.usuario; St = seedState(); St.cfg.usuario = keepUser;
+    const keepUser = St.cfg.usuario; ENLACES.St = seedState(); St.cfg.usuario = keepUser;
     this.snap = {}; COLLS.forEach(e => this.snap[e] = new Map()); this.snap.settings = new Map();
     this.dirty = true; await this.flush();
   },
@@ -653,7 +654,7 @@ const DataService = {
    · Tabla única `registros(lista, id, datos)`; `datos` = 'p1.' + JSON en texto. La protección es el servidor (RLS + solo correos @aramark.cl).
    · Los roles se hacen cumplir en el servidor con RLS (ver APIH_supabase_setup.sql).
    ========================================================================== */
-const SB = {
+export const SB = {
   KEY: 'APIH_SB', sess: null,
   restore() {
     for (const st of [sessionStorage, localStorage]) { try { const j = st.getItem(SB.KEY); if (j) { SB.sess = JSON.parse(j); SB.sess._st = st === localStorage ? 'l' : 's'; return; } } catch (e) { } }
@@ -685,7 +686,7 @@ const SB = {
   logout() { SB.clear(); }
 };
 
-const SBLogin = {};
+export const SBLogin = {};
 
 /* ---- AuthService: proveedor 'supabase' ---- */
 (function () {
@@ -699,7 +700,7 @@ const SBLogin = {};
 })();
 
 /* ---- Servicio de datos ---- */
-class SupabaseService extends SharePointService {
+export class SupabaseService extends SharePointService {
   get mode() { return 'supabase'; }
   get sb() { return this.cfg.supabase; }
   _idCol(ent) { return ent === 'settings' || ent === 'roles' ? 'Title' : SP_SCHEMA[ent].key; }
@@ -808,3 +809,9 @@ class SupabaseService extends SharePointService {
   async provision(logf) { logf('• Supabase: las tablas y reglas se crean una vez con el script APIH_supabase_setup.sql (editor SQL del proyecto).'); }
 }
 
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  AuthService: { get: () => AuthService, enumerable: true, configurable: true },
+  DataService: { get: () => DataService, enumerable: true, configurable: true },
+});

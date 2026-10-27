@@ -1,6 +1,11 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, ACUERDOS, ADMIN_USERS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
+import { AuthService, DataService, SETTINGS_KEYS, SP_SCHEMA, SharePointService, pnpScript } from './02-datos.js';
+import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
+import { cmdServidor, conServidor, diasEnFase, migrateV5 } from './04-flujos.js';
+import { DESC_MAX, cutDesc, faseNotaP, fasesVentana, hitosSub, rangoTx, sfImportar, sfRef, subfasesDe, ventanaDe } from './05-vistas.js';
 /* ======================= ADMINISTRACIÓN ======================= */
-const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info', 14)}<span>Los umbrales de alerta (desviación, días sin actualización, riesgo crítico, semáforo de propuestas y meta de «Mi cocina») se ajustan en <button class="lnk" data-act="go" data-v="miconfig">Mi configuración</button>, donde Administra los fija para todos y cada líder puede personalizarlos.</span></div>` + (esAdministra() && window.V22 && V22.MENU ? menuRolCard() : '');
+const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info', 14)}<span>Los umbrales de alerta (desviación, días sin actualización, riesgo crítico, semáforo de propuestas y meta de «Mi cocina») se ajustan en <button class="lnk" data-act="go" data-v="miconfig">Mi configuración</button>, donde Administra los fija para todos y cada líder puede personalizarlos.</span></div>` + ((0, ENLACES.esAdministra)() && window.V22 && V22.MENU ? (0, ENLACES.menuRolCard)() : '');
 /* ============================================================
    V22.44 · Notificaciones (estructura paramétrica)
    · Catálogo NOTIF: qué se avisa, a quién (destinatarios), con qué parámetros y por qué canal.
@@ -11,8 +16,8 @@ const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info
    · Lectura: por navegador (localStorage) para no pisar la configuración compartida.
    ============================================================ */
 const NOTIF_CANALES = [['app', 'En la app', true], ['correo', 'Correo', false], ['teams', 'Teams', false]];   /* [id, etiqueta, disponible hoy] */
-const NOTIF_DEST = [['lider', 'Líder'], ['sponsor', 'Sponsor'], ['resp', 'Responsable directo'], ['pmo', 'PMO (Administra)']];
-const NOTIF_GRUPOS = { plazos: 'Plazos y compromisos', riesgos: 'Riesgos y decisiones', salud: 'Salud y avance', colab: 'Colaboración', gob: 'Gobierno y cambios' };
+export const NOTIF_DEST = [['lider', 'Líder'], ['sponsor', 'Sponsor'], ['resp', 'Responsable directo'], ['pmo', 'PMO (Administra)']];
+export const NOTIF_GRUPOS = { plazos: 'Plazos y compromisos', riesgos: 'Riesgos y decisiones', salud: 'Salud y avance', colab: 'Colaboración', gob: 'Gobierno y cambios' };
 const NOTIF = [
   { id: 'hito_prox', g: 'plazos', l: 'Hito por vencer', d: 'Un hito pendiente vence en los próximos días.', sev: 1, on: true, dest: ['resp', 'lider'], dias: 3, diasL: 'días de anticipación' },
   { id: 'hito_venc', g: 'plazos', l: 'Hito vencido', d: 'Un hito de un proyecto en curso pasó su fecha sin completarse.', sev: 2, on: true, dest: ['resp', 'lider'] },
@@ -31,16 +36,16 @@ const NOTIF = [
   { id: 'cambio_res', g: 'gob', l: 'Solicitud de cambio resuelta', d: 'Se aprobó o rechazó una solicitud que hiciste (últimos 14 días).', sev: 1, on: true, dest: ['resp'], ev: true, fijoDest: true }
 ];
 const NOTIF_VENT = 14;   /* días hacia atrás para los avisos por evento */
-const rolDeUser = n => { const k = _nrm(n); if (ADMIN_USERS.some(a => _nrm(a) === k)) return 'Administra'; const u = St.usuarios.find(x => _nrm(x.n) === k); return u && PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador'; };
-function notifPref(id, user) {
-  const c = NOTIF.find(x => x.id === id), o = ((St.cfg.notif || {}).tipos || {})[id] || {}, p = (((cfgUOf(user).notif || {}).tipos) || {})[id] || {};
+const rolDeUser = n => { const k = _nrm(n); if (ADMIN_USERS.some(a => _nrm(a) === k)) return 'Administra'; const u = St.usuarios.find(x => _nrm(x.n) === k); return u && ENLACES.PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador'; };
+export function notifPref(id, user) {
+  const c = NOTIF.find(x => x.id === id), o = ((St.cfg.notif || {}).tipos || {})[id] || {}, p = ((((0, ENLACES.cfgUOf)(user).notif || {}).tipos) || {})[id] || {};
   const can = Object.assign({ app: true, correo: false, teams: false }, o.canales || {}, p.canales || {});
   return { on: p.on != null ? p.on : o.on != null ? o.on : c.on, dest: o.dest || c.dest, dias: o.dias != null ? o.dias : c.dias, canales: can };
 }
-function notifPara(user) {
+export function notifPara(user) {
   if (!St || !user) return [];
   const u = _nrm(user), hy = hoy(), rol = rolDeUser(user), out = [];
-  const visible = i => i && areaVisible(i.area);
+  const visible = i => i && (0, ENLACES.areaVisible)(i.area);
   /* rel(i, extra): relación de «user» con la iniciativa/ítem → lista de roles que cumple */
   const rel = (i, resp) => { const r = []; if (i && _nrm(i.lider) === u) r.push('lider'); if (i && _nrm(i.sponsor) === u) r.push('sponsor'); if (resp && _nrm(resp) === u) r.push('resp'); if (rol === 'Administra') r.push('pmo'); return r; };
   const aplica = (id, i, resp) => { const p = notifPref(id, user); if (!p.on) return false; const r = rel(i, resp); return p.dest.some(k => r.includes(k)); };
@@ -59,13 +64,13 @@ function notifPara(user) {
     if (d < 0 && aplica('comp_venc', i, a.resp)) add('comp_venc', a.id, i, `«${cut(a.texto, 70)}» venció hace ${-d} d · ${a.resp || 'sin responsable'}`, { ts: a.limite });
     else if (d >= 0 && d <= pC && aplica('comp_prox', i, a.resp)) add('comp_prox', a.id, i, `«${cut(a.texto, 70)}» vence ${d === 0 ? 'hoy' : 'en ' + d + ' d'} · ${a.resp || 'sin responsable'}`, { ts: a.limite });
   });
-  St.riesgos.filter(r => riesgoAbierto(r)).forEach(r => { const i = byId(r.ini); if (!i || !isLive(i) || !visible(i)) return; const e = expo(r); if (e >= cfgI(i, 'umbralCritico') && aplica('riesgo_crit', i, r.dueno)) add('riesgo_crit', r.id, i, `Exposición ${e}: ${cut(r.desc, 80)} · ${i.titulo}`, { ts: r.fIdent || hy }); });
+  St.riesgos.filter(r => riesgoAbierto(r)).forEach(r => { const i = byId(r.ini); if (!i || !isLive(i) || !visible(i)) return; const e = expo(r); if (e >= (0, ENLACES.cfgI)(i, 'umbralCritico') && aplica('riesgo_crit', i, r.dueno)) add('riesgo_crit', r.id, i, `Exposición ${e}: ${cut(r.desc, 80)} · ${i.titulo}`, { ts: r.fIdent || hy }); });
   DECS().filter(d => d.estado === 'Pendiente' && d.limite && d.limite < hy).forEach(d => { const i = byId(d.ini); if (d.ini && !visible(i)) return; if (aplica('dec_venc', i, d.solicita)) add('dec_venc', d.id, i, `«${cut(d.titulo, 70)}» venció hace ${diffD(hy, d.limite)} d`, { ts: d.limite }); });
   vivas.filter(isActive).forEach(i => {
     if (atrasado(i) && aplica('atraso', i)) add('atraso', i.id, i, `${i.titulo}: +${desv(i)} d sobre el plan`);
-    const du = diasSinUpd(i); if (du > cfgI(i, 'diasSinUpdate') && aplica('sin_update', i)) add('sin_update', i.id, i, `${i.titulo}: ${du >= 999 ? 'sin registro de actualización' : du + ' d sin actualizar'}`);
+    const du = diasSinUpd(i); if (du > (0, ENLACES.cfgI)(i, 'diasSinUpdate') && aplica('sin_update', i)) add('sin_update', i.id, i, `${i.titulo}: ${du >= 999 ? 'sin registro de actualización' : du + ' d sin actualizar'}`);
   });
-  scopeP().filter(i => isLive(i) && visible(i) && i.estado === 'Vigente').forEach(i => { const d = diasEnFase(i), amb = cfgI(i, 'propDiasAmb') || 30; if (d > amb && aplica('prop_estancada', i)) add('prop_estancada', i.id, i, `${i.titulo}: ${d} d en la fase ${i.fase}`); });
+  scopeP().filter(i => isLive(i) && visible(i) && i.estado === 'Vigente').forEach(i => { const d = diasEnFase(i), amb = (0, ENLACES.cfgI)(i, 'propDiasAmb') || 30; if (d > amb && aplica('prop_estancada', i)) add('prop_estancada', i.id, i, `${i.titulo}: ${d} d en la fase ${i.fase}`); });
   CAMBIOS().filter(c => c.estado === 'Solicitado').forEach(c => { const i = byId(c.ini); if (!visible(i)) return; if (aplica('cambio_pend', i, c.aprobador)) add('cambio_pend', c.id, i, `${c.tipo}: ${cut(c.desc || c.id, 70)} · pide ${c.solicita || '—'}`, { ts: c.creada || hy }); });
   /* --- eventos (últimos NOTIF_VENT días; no avisan al autor del cambio) --- */
   CAMBIOS().filter(c => c.estado !== 'Solicitado' && c.fDec && diffD(hy, c.fDec) <= NOTIF_VENT).forEach(c => { const i = byId(c.ini); if (!visible(i)) return; if (aplica('cambio_res', i, c.solicita)) add('cambio_res', c.id, i, `Tu solicitud de ${String(c.tipo).toLowerCase()} fue ${String(c.estado).toLowerCase()} · ${cut(c.desc || c.id, 60)}`, { ts: c.fDec }); });
@@ -82,16 +87,16 @@ function notifPara(user) {
   return out.sort((a, b) => (b.ts > a.ts ? 1 : b.ts < a.ts ? -1 : b.sev - a.sev));
 }
 /* cola de salida para canales externos: la consumirá el proceso servidor cuando TI habilite correo / Teams */
-function notifOutbox(user, canal) { return notifPara(user).filter(n => n.canales.includes(canal)); }
+export function notifOutbox(user, canal) { return notifPara(user).filter(n => n.canales.includes(canal)); }
 const _nlg = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, _nls = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
 const nlKey = () => 'apih_nl_' + _nrm(miUsuario());
 const nlLeidas = () => { try { return new Set(JSON.parse(_nlg(nlKey()) || '[]')); } catch (e) { return new Set(); } };
 const nlGuardar = (set, vigentes) => { const keep = [...set].filter(k => vigentes.has(k)).slice(-600); _nls(nlKey(), JSON.stringify(keep)); };
 let _notifC = null;
-function notifMias() { const k = St.ini.length + '|' + St.bitacora.length + '|' + _ixGen + '|' + hoy() + '|' + miUsuario(); if (_notifC && _notifC.k === k) return _notifC.v; const v = notifPara(miUsuario()).filter(n => n.canales.includes('app')); _notifC = { k, v }; return v; }
+export function notifMias() { const k = St.ini.length + '|' + St.bitacora.length + '|' + _ixGen + '|' + hoy() + '|' + miUsuario(); if (_notifC && _notifC.k === k) return _notifC.v; const v = notifPara(miUsuario()).filter(n => n.canales.includes('app')); _notifC = { k, v }; return v; }
 function bellPop() {
   const pb = $('#pop-bell'), bn = $('#bellN'); if (!pb) return;
-  const al = typeof motorAlertas === 'function' ? motorAlertas() : [], alc = al.filter(a => a.sev === 3).length, av = notifMias(), L = nlLeidas(), nl = av.filter(n => !L.has(n.key)), tab = UI.bellTab || 'avisos';
+  const al = typeof ENLACES.motorAlertas === 'function' ? (0, ENLACES.motorAlertas)() : [], alc = al.filter(a => a.sev === 3).length, av = notifMias(), L = nlLeidas(), nl = av.filter(n => !L.has(n.key)), tab = UI.bellTab || 'avisos';
   if (bn) { const t = nl.length + alc; bn.textContent = t > 99 ? '99+' : t || ''; bn.style.display = t ? '' : 'none'; }
   const head = `<div class="pop-tabs" role="tablist"><button role="tab" aria-selected="${tab === 'avisos'}" class="${tab === 'avisos' ? 'on' : ''}" data-act="belltab" data-t="avisos">Avisos${nl.length ? ` <b>${nl.length}</b>` : ''}</button>${APIH_CONFIG.analisis !== false ? `<button role="tab" aria-selected="${tab === 'alertas'}" class="${tab === 'alertas' ? 'on' : ''}" data-act="belltab" data-t="alertas">Alertas${alc ? ` <b>${alc}</b>` : ''}</button>` : ''}</div>`;
   if (tab === 'alertas' && APIH_CONFIG.analisis !== false) pb.innerHTML = head + (al.slice(0, 7).map(a => `<button data-act="alertgo" data-id="${esc(a.ini || '')}"><span class="sev s-${a.sev}"></span><span><b>${esc(a.titulo)}</b><small>${esc(a.grupo)} · ${esc(a.ini ? nameOf(a.ini) : '')}</small></span></button>`).join('') || '<div class="empty-s">Sin alertas</div>') + `<button class="pop-f" data-act="go" data-v="analisis">Ver todas en Análisis →</button>`;
@@ -125,21 +130,21 @@ function notifCanalesCard() {
 function notifAdminHTML() {
   return `<div class="card"><header><h2>Notificaciones · valores por defecto</h2><small>Qué se avisa, a quién y por qué canal. Cada persona puede ajustar lo suyo en Mi configuración.</small></header>${notifCanalesCard()}${notifMatriz('org')}<div class="chips" style="margin-top:10px">${btn('Restablecer valores', 'notifreset')}</div></div>`;
 }
-function notifUserCard() {
+export function notifUserCard() {
   const n = notifMias().length;
   return `<section class="card c12"><header><h2>Notificaciones</h2><small>Qué quieres que te avise APIH · hoy te llegan ${n} avisos en la campana</small></header>${notifMatriz('user')}<div class="chips" style="margin-top:10px">${btn('Restablecer mis avisos', 'notifmyreset')}</div></section>`;
 }
 const notifOrg = () => (St.cfg.notif = St.cfg.notif || { tipos: {}, canalOn: {} });
 const notifOrgT = id => { const o = notifOrg(); o.tipos = o.tipos || {}; return (o.tipos[id] = o.tipos[id] || {}); };
-Chg.notifon = el => { if (FL.verComo) return; if (el.dataset.m === 'org') { if (!esAdministra()) return; notifOrgT(el.dataset.id).on = el.checked; } else { const u = Object.assign({}, cfgUOf(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); u.tipos[el.dataset.id] = Object.assign({}, u.tipos[el.dataset.id], { on: el.checked }); cfgSet(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
-Chg.notifcan = el => { if (FL.verComo) return; const id = el.dataset.id, c = el.dataset.c; if (el.dataset.m === 'org') { if (!esAdministra()) return; const t = notifOrgT(id); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); } else { const u = Object.assign({}, cfgUOf(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); const t = u.tipos[id] = Object.assign({}, u.tipos[id]); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); cfgSet(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
-Chg.notifdest = el => { if (!esAdministra() || FL.verComo) return; const id = el.dataset.id, t = notifOrgT(id), cur = (t.dest || NOTIF.find(x => x.id === id).dest).slice(), k = el.dataset.k, p = cur.indexOf(k); if (el.checked && p < 0) cur.push(k); if (!el.checked && p >= 0) cur.splice(p, 1); if (!cur.length) { toast('Debe quedar al menos un destinatario', 'err'); refresh(); return; } t.dest = cur; _notifC = null; refresh(); };
-Chg.notifdias = el => { if (!esAdministra() || FL.verComo) return; notifOrgT(el.dataset.id).dias = Math.min(30, Math.max(1, +el.value || 1)); _notifC = null; refresh(); };
-Chg.notifcanon = el => { if (!esAdministra() || FL.verComo) return; const o = notifOrg(); o.canalOn = Object.assign({}, o.canalOn, { [el.dataset.c]: el.checked }); _notifC = null; refresh(); };
-Acts.notifreset = () => { if (!esAdministra()) return; confirmBox('Se restablecerán los destinatarios, parámetros y canales por defecto de toda la organización. ¿Continuar?', () => { delete St.cfg.notif; _notifC = null; toast('Valores restablecidos'); refresh(); }, 'Restablecer', true); };
-Acts.notifmyreset = () => { if (FL.verComo) return; const u = cfgUOf(miUsuario()); delete u.notif; _notifC = null; toast('Avisos restablecidos'); refresh(); };
+Chg.notifon = el => { if (FL.verComo) return; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; notifOrgT(el.dataset.id).on = el.checked; } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); u.tipos[el.dataset.id] = Object.assign({}, u.tipos[el.dataset.id], { on: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
+Chg.notifcan = el => { if (FL.verComo) return; const id = el.dataset.id, c = el.dataset.c; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; const t = notifOrgT(id); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); const t = u.tipos[id] = Object.assign({}, u.tipos[id]); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
+Chg.notifdest = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const id = el.dataset.id, t = notifOrgT(id), cur = (t.dest || NOTIF.find(x => x.id === id).dest).slice(), k = el.dataset.k, p = cur.indexOf(k); if (el.checked && p < 0) cur.push(k); if (!el.checked && p >= 0) cur.splice(p, 1); if (!cur.length) { toast('Debe quedar al menos un destinatario', 'err'); refresh(); return; } t.dest = cur; _notifC = null; refresh(); };
+Chg.notifdias = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; notifOrgT(el.dataset.id).dias = Math.min(30, Math.max(1, +el.value || 1)); _notifC = null; refresh(); };
+Chg.notifcanon = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const o = notifOrg(); o.canalOn = Object.assign({}, o.canalOn, { [el.dataset.c]: el.checked }); _notifC = null; refresh(); };
+Acts.notifreset = () => { if (!(0, ENLACES.esAdministra)()) return; confirmBox('Se restablecerán los destinatarios, parámetros y canales por defecto de toda la organización. ¿Continuar?', () => { delete St.cfg.notif; _notifC = null; toast('Valores restablecidos'); refresh(); }, 'Restablecer', true); };
+Acts.notifmyreset = () => { if (FL.verComo) return; const u = (0, ENLACES.cfgUOf)(miUsuario()); delete u.notif; _notifC = null; toast('Avisos restablecidos'); refresh(); };
 
-const ADM_TABS = [['param', 'Parámetros'], ['cat', 'Catálogos'], ['met', 'Metodología'], ['usr', 'Usuarios y roles'], ['not', 'Notificaciones'], ['cal', 'Calidad de datos'], ['dat', 'Datos y exportación'], ['sp', 'SharePoint']];
+export const ADM_TABS = [['param', 'Parámetros'], ['cat', 'Catálogos'], ['met', 'Metodología'], ['usr', 'Usuarios y roles'], ['not', 'Notificaciones'], ['cal', 'Calidad de datos'], ['dat', 'Datos y exportación'], ['sp', 'SharePoint']];
 Views.admin = {
   render() {
     const f = F('adm', { tab: 'param' }); const tabs = ADM_TABS;
@@ -180,13 +185,13 @@ Views.admin = {
   }
 };
 Acts.atab = d => { F('adm', {}).tab = d.k; if (UI.view !== 'admin') go('admin'); else render(); };
-Chg.cfg = el => { const k = el.dataset.k; St.cfg[k] = el.dataset.bool ? el.checked : el.dataset.num ? Math.max(0, +el.value || 0) : el.value; if (PERS_KEYS.includes(k)) Object.values(St.cfgU || {}).forEach(u => { if (u.cfg) delete u.cfg[k]; }); if (k === 'readOnly' && St.cfg.readOnly) toast('Modo solo lectura activado'); if (k === 'usuario') { const fx = document.activeElement && document.activeElement.dataset.key; shell(); render(); const el = fx && $(`[data-key="${fx}"]`); if (el) { el.focus(); el.setSelectionRange && el.setSelectionRange(el.value.length, el.value.length); } save(); return; } refresh(); };
+Chg.cfg = el => { const k = el.dataset.k; St.cfg[k] = el.dataset.bool ? el.checked : el.dataset.num ? Math.max(0, +el.value || 0) : el.value; if (ENLACES.PERS_KEYS.includes(k)) Object.values(St.cfgU || {}).forEach(u => { if (u.cfg) delete u.cfg[k]; }); if (k === 'readOnly' && St.cfg.readOnly) toast('Modo solo lectura activado'); if (k === 'usuario') { const fx = document.activeElement && document.activeElement.dataset.key; shell(); render(); const el = fx && $(`[data-key="${fx}"]`); if (el) { el.focus(); el.setSelectionRange && el.setSelectionRange(el.value.length, el.value.length); } save(); return; } refresh(); };
 Acts.catadd = d => { const el = $('#new_' + d.k), v = el.value.trim(); if (!v) return; if (!St.cfg[d.k].includes(v)) St.cfg[d.k].push(v); refresh(); };
 Acts.catdel = d => { St.cfg[d.k].splice(+d.n, 1); refresh(); };
 Acts.expjson = () => { download('APIH_respaldo_' + hoy() + '.json', JSON.stringify(St, null, 1), 'application/json'); toast('Respaldo exportado'); };
 Acts.impjson = () => $('#impfile').click();
 Chg.impfile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
-  if (!esAdministra() || FL.verComo) { toast('Solo el rol Administra puede importar un respaldo', 'err'); return; }
+  if (!(0, ENLACES.esAdministra)() || FL.verComo) { toast('Solo el rol Administra puede importar un respaldo', 'err'); return; }
   const r = new FileReader(); r.onload = () => { try {
     const o = JSON.parse(r.result); if (!o || o.v !== 3 || !Array.isArray(o.ini)) throw new Error('Formato inválido');
     const ks = [['ini', 'Iniciativas'], ['hitos', 'Hitos'], ['riesgos', 'Riesgos'], ['decisiones', 'Decisiones']], len = (x, k) => Array.isArray(x[k]) ? x[k].length : 0;
@@ -194,10 +199,10 @@ Chg.impfile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
     const cmp = ks.map(([k, n]) => n + ': ' + len(St, k) + ' → ' + len(o, k)).join(' · '), loss = len(o, 'ini') < len(St, 'ini') * 0.5 && len(St, 'ini') >= 4;
     const msg = 'Se reemplazarán TODOS los datos actuales por el respaldo' + (DataService.svc ? ' y el cambio se sincronizará para todos los usuarios' : '') + '.<br><br>Actual → Respaldo<br>' + cmp + (loss ? '<br><br>⚠ El respaldo tiene menos de la mitad de las iniciativas actuales.' : '') + '<br><br>Antes de importar se descargará una copia de los datos actuales. ¿Continuar?';
     confirmBox(msg, () => { try { download('APIH_antes_de_importar_' + hoy() + '.json', JSON.stringify(St, null, 1), 'application/json'); } catch (e) { }
-      St = migrateV5(o); ['hitos', 'riesgos', 'decisiones', 'comites', 'bitacora', 'usuarios', 'eventos', 'compromisos', 'cambios', 'notas', 'documentos', 'pres'].forEach(k => { St[k] = St[k] || []; }); St.comites.forEach(c => { if (c && typeof c === 'object') ['acciones', 'compromisos', 'decisiones'].forEach(k => { if (!Array.isArray(c[k])) c[k] = []; }); }); St.cfgU = St.cfgU || {}; St.ini.forEach(x => { if (!x || typeof x !== 'object') return; ['deps', 'subfases', 'hist', 'est', 'tags'].forEach(k => { if (!Array.isArray(x[k])) x[k] = []; }); if (!x.faseNota || typeof x.faseNota !== 'object') x.faseNota = {}; ['titulo', 'lider', 'sponsor', 'negocio', 'proveedor', 'desc', 'bc', 'resumen', 'proximos', 'folio', 'oc', 'estadoMotivo', 'tipoIni'].forEach(k => { if (typeof x[k] !== 'string') x[k] = x[k] == null ? '' : String(x[k]); }); if (typeof x.area !== 'string') x.area = 'BISE'; if (typeof x.rag !== 'string') x.rag = 'Verde'; if (typeof x.prioridad !== 'string') x.prioridad = 'Media'; if (typeof x.moneda !== 'string') x.moneda = 'CLP'; if (typeof x.estado !== 'string') x.estado = 'En curso'; if (typeof x.fase !== 'string') x.fase = 'Planificación'; }); /* F-03: respaldo parcial */ sanSt(St); St.cfg = Object.assign(defaultCfg(), St.cfg); St.ptpl = St.ptpl || []; St.psnap = St.psnap || {}; toast('Respaldo importado (copia previa descargada)'); shell(); refresh(); if (DataService.svc) save(); }, 'Importar', true);
+      ENLACES.St = migrateV5(o); ['hitos', 'riesgos', 'decisiones', 'comites', 'bitacora', 'usuarios', 'eventos', 'compromisos', 'cambios', 'notas', 'documentos', 'pres'].forEach(k => { St[k] = St[k] || []; }); St.comites.forEach(c => { if (c && typeof c === 'object') ['acciones', 'compromisos', 'decisiones'].forEach(k => { if (!Array.isArray(c[k])) c[k] = []; }); }); St.cfgU = St.cfgU || {}; St.ini.forEach(x => { if (!x || typeof x !== 'object') return; ['deps', 'subfases', 'hist', 'est', 'tags'].forEach(k => { if (!Array.isArray(x[k])) x[k] = []; }); if (!x.faseNota || typeof x.faseNota !== 'object') x.faseNota = {}; ['titulo', 'lider', 'sponsor', 'negocio', 'proveedor', 'desc', 'bc', 'resumen', 'proximos', 'folio', 'oc', 'estadoMotivo', 'tipoIni'].forEach(k => { if (typeof x[k] !== 'string') x[k] = x[k] == null ? '' : String(x[k]); }); if (typeof x.area !== 'string') x.area = 'BISE'; if (typeof x.rag !== 'string') x.rag = 'Verde'; if (typeof x.prioridad !== 'string') x.prioridad = 'Media'; if (typeof x.moneda !== 'string') x.moneda = 'CLP'; if (typeof x.estado !== 'string') x.estado = 'En curso'; if (typeof x.fase !== 'string') x.fase = 'Planificación'; }); /* F-03: respaldo parcial */ sanSt(St); St.cfg = Object.assign(defaultCfg(), St.cfg); St.ptpl = St.ptpl || []; St.psnap = St.psnap || {}; toast('Respaldo importado (copia previa descargada)'); shell(); refresh(); if (DataService.svc) save(); }, 'Importar', true);
   } catch (e) { toast('No se pudo importar: ' + e.message, 'err'); } }; r.readAsText(fl); };
 /* V22.50: importar iniciativas (suma registros, no reemplaza) */
-const INI_PLANTILLA = () => ({ formato: 'apih-iniciativas', v: 1, iniciativas: [
+export const INI_PLANTILLA = () => ({ formato: 'apih-iniciativas', v: 1, iniciativas: [
   { tipo: 'Proyecto', titulo: 'APIH Prototipo', desc: 'Prototipo de APIH sobre SPA + Supabase (interino). Fuente de verdad de las reglas de negocio y las vistas.', area: 'BISE', lider: St.cfg.usuario || '', sponsor: '', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', avance: 70, inicioPlan: hoy(), finPlan: addD(hoy(), 120), presupuesto: 0 },
   { tipo: 'Proyecto', titulo: 'APIH Corporativo', desc: 'APIH conforme a los requisitos de TI: SPA con Entra ID, API y Azure SQL (3 capas). Reutiliza el núcleo del prototipo.', area: 'BISE', lider: St.cfg.usuario || '', sponsor: '', fase: 'Planificación', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', avance: 5, inicioPlan: hoy(), finPlan: addD(hoy(), 240), presupuesto: 0,
     hitos: [{ nombre: 'Plan aprobado', fase: 'Planificación', fecha: addD(hoy(), 10), cat: 'Gobierno' }, { nombre: 'API lista', fase: 'Ejecución', fecha: addD(hoy(), 60), cat: 'Entregable', subfase: 'Construcción' }, { nombre: 'Piloto con usuarios', fase: 'Ejecución', fecha: addD(hoy(), 90), cat: 'Técnico', subfase: 'Piloto' }],
@@ -246,7 +251,7 @@ function normIni(x) {
 }
 const set2 = (o, k, v) => { if (v !== undefined) o[k] = v; };
 Chg.impinifile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
-  if (!esAdministra() || FL.verComo) { toast('Solo el rol Administra puede importar iniciativas', 'err'); return; }
+  if (!(0, ENLACES.esAdministra)() || FL.verComo) { toast('Solo el rol Administra puede importar iniciativas', 'err'); return; }
   const r = new FileReader(); r.onload = () => { try {
     const o = JSON.parse(r.result), L = Array.isArray(o) ? o : (o && Array.isArray(o.iniciativas) ? o.iniciativas : null);
     if (!L || !L.length) throw new Error('Formato inválido: se espera { "iniciativas": [...] }');
@@ -270,7 +275,7 @@ Chg.impinifile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
 const ARCH_TXT = ['titulo', 'desc', 'bc', 'sponsor', 'lider', 'negocio', 'categoria', 'resumen', 'logros', 'proximos', 'issue', 'riesgoTxt'], ARCH_NUM = ['avance', 'presupuesto', 'gastado', 'beneficio'], ARCH_DATE = ['inicioPlan', 'finPlan', 'finEst'];
 const archFecha = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(Date.parse(v)) && +v.slice(0, 4) >= 1900 && +v.slice(0, 4) <= 2100;   // N-S-03: años 1900-2100
 function archPendientes(i) {
-  const p = [], hs = hitosDe(i.id), rs = riesgosDe(i.id), um = cfgI(i, 'umbralCritico');
+  const p = [], hs = hitosDe(i.id), rs = riesgosDe(i.id), um = (0, ENLACES.cfgI)(i, 'umbralCritico');
   [['desc', 'Descripción / objetivo'], ['sponsor', 'Sponsor'], ['lider', 'Líder'], ['negocio', 'Responsable de negocio'], ['inicioPlan', 'Inicio plan'], ['finPlan', 'Fin plan'], ['logros', 'Logros del período'], ['proximos', 'Próximos pasos']].forEach(([k, n]) => { if (!String(i[k] || '').trim()) p.push('Falta: ' + n); });
   if (!(i.presupuesto > 0)) p.push('Falta: presupuesto (si es transversal o sin costo, confirmarlo con el usuario)');
   if (hs.length < 2) p.push('Hitos insuficientes: hay ' + hs.length + ', se requieren al menos 2 (idealmente 3 a 6 por fase)');
@@ -282,8 +287,8 @@ function archPendientes(i) {
   if (i.finPlan && i.finPlan < hoy() && i.estado === 'En curso') p.push('Fin plan vencido (' + i.finPlan + ') y sigue En curso: ¿nueva fecha o está completado?');
   return p;
 }
-function archExport(i) {
-  const um = cfgI(i, 'umbralCritico'), pr = {}; [...ARCH_TXT, ...ARCH_NUM, ...ARCH_DATE, 'rag', 'prioridad', 'moneda'].forEach(k => pr[k] = i[k] == null ? (ARCH_NUM.includes(k) ? 0 : '') : i[k]);
+export function archExport(i) {
+  const um = (0, ENLACES.cfgI)(i, 'umbralCritico'), pr = {}; [...ARCH_TXT, ...ARCH_NUM, ...ARCH_DATE, 'rag', 'prioridad', 'moneda'].forEach(k => pr[k] = i[k] == null ? (ARCH_NUM.includes(k) ? 0 : '') : i[k]);
   return { formato: 'apih-proyecto-archivo', v: 1, generado: hoy(), proyecto_id: i.id, tipo: i.tipo,
     instrucciones: {
       que_es_esto: 'APIH (Aramark Portfolio Intelligence Hub) gestiona el portafolio de iniciativas de TI de Aramark Chile. Este archivo contiene UN proyecto con sus hitos y riesgos. Tu tarea es ayudar al usuario a completar lo que falta y devolver un JSON que APIH pueda importar.',
@@ -310,12 +315,12 @@ Acts.proyarchget = d => { const i = byId(d.id); if (!i) return; download('APIH_'
 Acts.proyarchup = d => { const f = $('#archfile'); if (f) { f.dataset.id = d.id; f.value = ''; f.click(); } };
 Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = ''; if (!fl) return;
   const i = byId(id); if (!i) return;
-  if (soloLectura() || !puedeEditarIni(i)) { toast('Tu rol no permite editar este proyecto', 'err'); return; }
+  if ((0, ENLACES.soloLectura)() || !(0, ENLACES.puedeEditarIni)(i)) { toast('Tu rol no permite editar este proyecto', 'err'); return; }
   const r = new FileReader(); r.onload = () => { try {
     let t = String(r.result).trim(); const m = t.match(/```(?:json)?\s*([\s\S]*?)```/); if (m) t = m[1].trim();
     const o = JSON.parse(t); if (!o || o.formato !== 'apih-proyecto-archivo') throw new Error('No es un archivo apih-proyecto-archivo');
     if (o.proyecto_id !== i.id) throw new Error('El archivo es de ' + o.proyecto_id + ', no de ' + i.id);
-    const ch = [], err = [], ap = [], um = cfgI(i, 'umbralCritico'), P = o.proyecto || {}, L = (a, b, c) => ch.push(a + ': ' + b + ' → ' + c);
+    const ch = [], err = [], ap = [], um = (0, ENLACES.cfgI)(i, 'umbralCritico'), P = o.proyecto || {}, L = (a, b, c) => ch.push(a + ': ' + b + ' → ' + c);
     const ver = x => x === '' || x == null ? '—' : String(x).slice(0, 70);
     Object.keys(P).forEach(k => { const v = P[k], a = i[k];
       if (ARCH_TXT.includes(k)) { if (typeof v !== 'string') return err.push(k + ': debe ser texto'); if (k === 'titulo' && !v.trim()) return err.push('titulo vacío'); if (v !== (a || '')) { L(k, ver(a), ver(v)); ap.push(() => { i[k] = v; }); } }
@@ -366,7 +371,7 @@ Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = '
       if (bloqueo) { toast('finPlan anterior a inicioPlan: corrige el archivo', 'err'); return; }
       ap.forEach(f => f()); i.actualizada = hoy(); log('Cambio', i.id, 'Completado con archivo: ' + ch.length + ' cambio(s) aplicados desde archivo'); toast(ch.length + ' cambio(s) aplicados'); refresh(); }, 'Aplicar');
   } catch (e) { toast(e instanceof SyntaxError ? 'El archivo no es un JSON válido' : 'No se pudo leer: ' + e.message, 'err'); } }; r.readAsText(fl); };
-Acts.reset = () => confirmBox(DataService.svc ? 'Se reemplazarán TODOS los datos de ' + BK() + ' por los datos del archivo original. ¿Continuar?' : 'Se perderán los cambios y se restaurarán los datos de demostración. ¿Continuar?', () => { St = seedState(); UI.sel = null; shell(); toast('Datos restaurados'); refresh(); }, 'Restaurar', true);
+Acts.reset = () => confirmBox(DataService.svc ? 'Se reemplazarán TODOS los datos de ' + BK() + ' por los datos del archivo original. ¿Continuar?' : 'Se perderán los cambios y se restaurarán los datos de demostración. ¿Continuar?', () => { ENLACES.St = seedState(); UI.sel = null; shell(); toast('Datos restaurados'); refresh(); }, 'Restaurar', true);
 
 
 /* ---------- Administración → SharePoint ---------- */
@@ -398,7 +403,7 @@ const splog = t => { UI.splog = t; const b = $('#splog'); if (b) b.textContent =
 Acts.sptest = async () => { splog('Probando…'); try { splog((await DataService.testConnection()).join('\n')); } catch (e) { splog('✘ ' + e.message); } };
 Acts.spconnect = async () => {
   splog('Conectando…'); if (DataService.svc) await DataService.flush();
-  const S = await DataService.init(); St = S; UI.sel = null; shell(); render();
+  const S = await DataService.init(); ENLACES.St = S; UI.sel = null; shell(); render();
   splog(DataService.svc ? '✔ Conectado a ' + (BK() === 'Supabase' ? 'Supabase' : APIH_CONFIG.siteName) + ' · ' + St.ini.length + ' proyectos, ' + St.riesgos.length + ' riesgos, ' + St.hitos.length + ' hitos.' : '✘ ' + (DataService.offlineWhy || DataService.st.err || 'Modo demo'));
 };
 Acts.spprov = async () => {
@@ -406,7 +411,7 @@ Acts.spprov = async () => {
   try { await AuthService.init(); lg('Aprovisionando listas en ' + APIH_CONFIG.siteName + '…'); await (DataService.svc || new SharePointService(APIH_CONFIG)).provision(lg); lg('Listo.'); } catch (e) { lg('✘ ' + e.message); }
 };
 Acts.spsync = async () => { if (!DataService.svc) return toast('Sin conexión a ' + BK(), 'err'); await DataService.flush(); await DataService.refresh(false, true); };
-Acts.splogout = async () => { try { await AuthService.logout(); } catch (e) { } const S = await DataService.init(); St = S; shell(); render(); };
+Acts.splogout = async () => { try { await AuthService.logout(); } catch (e) { } const S = await DataService.init(); ENLACES.St = S; shell(); render(); };
 Acts.sppnp = () => download('Provision-APIH-Lists.ps1', pnpScript(), 'text/plain');
 Acts.spcopy = () => {
   const c = JSON.parse(JSON.stringify(APIH_CONFIG)), txt = '/* pegar al inicio de src/config.js */\nconst APIH_CONFIG = ' + JSON.stringify(c, null, 2) + ';';
@@ -418,7 +423,7 @@ Acts.spcopy = () => {
    Fases del workflow y tipos de iniciativa con sus hitos tipo.
    Las nuevas propuestas/proyectos se guían por esta parametrización.
    ============================================================ */
-const MET = () => St.cfg.metodo || (St.cfg.metodo = METODO_DEF());
+export const MET = () => St.cfg.metodo || (St.cfg.metodo = METODO_DEF());
 const metTipoSel = () => { const f = F('adm', {}), m = MET(); return m.tipos.find(t => t.id === f.tipo) || m.tipos[0] || null; };
 const enUso = fase => St.ini.filter(i => i.fase === fase).length;
 function metTab() {
@@ -501,7 +506,7 @@ Acts.metreset = () => confirmBox('Se restablecen fases y tipos a la metodología
    4) Control de cambios con línea base
    ============================================================ */
 const GEN_OPT = { v: '', t: 'General (sin iniciativa)' };
-const cut = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+export const cut = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
 const MIN_DIAS_RONDA = 6;
 function copiarTxt(txt) {
   const ok = () => toast('Copiado al portapapeles');
@@ -513,13 +518,13 @@ Acts.copiartxt = () => { const el = $('#txtcopy'); if (el) copiarTxt(el.value); 
 /* ------------------------------------------------------------------
    1) ACTUALIZACIÓN SEMANAL
    ------------------------------------------------------------------ */
-const rondaIds = () => { const me = miUsuario(); return St.ini.filter(i => !esProp(i) && i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > MIN_DIAS_RONDA && inArea(i)).sort(by(i => i.actualizada || '')).map(i => i.id); };
+export const rondaIds = () => { const me = miUsuario(); return St.ini.filter(i => !esProp(i) && i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > MIN_DIAS_RONDA && inArea(i)).sort(by(i => i.actualizada || '')).map(i => i.id); };
 const avanceHitos = i => { const hs = hitosDe(i.id); if (!hs.length) return null; const d = hs.filter(h => h.completado).length; return { v: Math.round(d / hs.length * 100), d, n: hs.length }; };
 Acts.ronda = () => { const q = rondaIds(); if (!q.length) return toast('Todos tus proyectos están al día', 'ok'); UI.wkq = q.slice(1); UI.wkn = q.length; Acts.wk({ id: q[0], first: '1' }); };
 function wkNext() { const nx = (UI.wkq || []).shift(); if (nx) setTimeout(() => Acts.wk({ id: nx }), 60); else { UI.wkq = null; UI.wkn = 0; } }
 Acts.wk = d => {
   const i = byId(d.id); if (!i || esProp(i)) return;
-  if (soloLectura() || !puedeEditarIni(i)) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)() || !(0, ENLACES.puedeEditarIni)(i)) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   if (!d.first && !UI.wkq) UI.wkn = 0;
   const sg = ragSugerido(i), ah = avanceHitos(i), fc = forecast(i), dv = desv(i), q = UI.wkq, pos = UI.wkn ? UI.wkn - (q ? q.length : 0) : 0;
   const abiertos = ACUERDOS().filter(a => a.ini === i.id && a.estado === 'Abierto');
@@ -537,7 +542,7 @@ Acts.wk = d => {
     ],
     extra: `<div style="margin-top:10px;display:flex;gap:14px;flex-wrap:wrap"><a class="lnk" data-act="wknc" data-id="${i.id}">✓ Sin novedades: solo confirmar que sigue vigente</a><a class="lnk" data-act="informe" data-id="${i.id}">Ver informe de estado</a><a class="lnk" data-act="acunew" data-id="${i.id}">+ Compromiso</a></div>${abiertos.length ? `<div class="note" style="margin-top:8px"><span><b>Compromisos abiertos (${abiertos.length}):</b> ${abiertos.slice(0, 4).map(a => esc(cut(a.texto, 50)) + ' — ' + esc(a.resp || 's/r') + (a.limite ? ' (' + fmtD(a.limite) + ')' : '')).join(' · ')}</span></div>` : ''}`,
     onSave(o) {
-      const b0 = cieloOn() ? estrellasOn(i) : null, diffs = [];
+      const b0 = (0, ENLACES.cieloOn)() ? (0, ENLACES.estrellasOn)(i) : null, diffs = [];
       if (+o.avance !== +i.avance) diffs.push(`Avance ${i.avance}% → ${o.avance}%`);
       if (o.rag !== i.rag) diffs.push(`RAG ${i.rag} → ${o.rag}`);
       if ((o.finEst || '') !== (i.finEst || '')) diffs.push(`Fin estimado ${fmtD(i.finEst)} → ${fmtD(o.finEst)}`);
@@ -545,19 +550,19 @@ Acts.wk = d => {
       const patch = { avance: +o.avance, rag: o.rag, finEst: o.finEst || i.finEst, logros: o.logros || i.logros, proximos: o.proximos, issue: o.issue };
       Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); snapFases(i);
       log('Actualización', i.id, 'Actualización semanal' + (diffs.length ? ': ' + diffs.join('; ') : ': sin cambios de indicadores') + (o.logros ? '. Logros: ' + o.logros : '') + (o.proximos ? '. Próximos: ' + o.proximos : '') + (o.issue ? '. Issue: ' + o.issue : ''));
-      toast('Actualización guardada'); refresh(); celebrar(i, b0); wkNext();
+      toast('Actualización guardada'); refresh(); (0, ENLACES.celebrar)(i, b0); wkNext();
     }
   });
 };
 Acts.wkset = d => { const el = $('#f_' + d.f); if (!el) return; el.value = d.v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
 Acts.wkpass = () => { const t = $('#f_logros'), p = $('#f_proximos'); if (!t || !p) return; t.value = (t.value ? t.value + '\n' : '') + p.value.trim(); };
 Acts.wknc = d => {
-  const i = byId(d.id); if (!i) return; Modal.close(); const b0 = cieloOn() ? estrellasOn(i) : null;
+  const i = byId(d.id); if (!i) return; Modal.close(); const b0 = (0, ENLACES.cieloOn)() ? (0, ENLACES.estrellasOn)(i) : null;
   if (!i.hist.length || i.hist[i.hist.length - 1][0] !== hoy()) i.hist.push([hoy(), i.avance]);
-  snapFases(i); i.actualizada = hoy(); log('Actualización', i.id, 'Actualización semanal: sin novedades, el proyecto sigue vigente'); toast('Confirmado: sin novedades'); refresh(); celebrar(i, b0); wkNext();
+  snapFases(i); i.actualizada = hoy(); log('Actualización', i.id, 'Actualización semanal: sin novedades, el proyecto sigue vigente'); toast('Confirmado: sin novedades'); refresh(); (0, ENLACES.celebrar)(i, b0); wkNext();
 };
 /* informe de estado listo para copiar */
-function informeTxt(i) {
+export function informeTxt(i) {
   const f = forecast(i), hs = hitosDe(i.id), prox = hs.filter(h => !h.completado).sort(by('fecha')).slice(0, 5), cr = riesgosDe(i.id).filter(r => riesgoAbierto(r)).sort(by(r => -expo(r))).slice(0, 3);
   const ac = ACUERDOS().filter(a => a.ini === i.id && a.estado === 'Abierto'), cp = CAMBIOS().filter(c => c.ini === i.id && c.estado === 'Solicitado'), ca = CAMBIOS().filter(c => c.ini === i.id && c.estado === 'Aprobado');
   const L = [`INFORME DE ESTADO · ${i.titulo} (${i.id})`, `Fecha: ${fmtD(hoy())} · Líder: ${i.lider || '—'} · Sponsor: ${i.sponsor || '—'} · Fase: ${i.fase} · Salud: ${i.rag || '—'}`, ''];
@@ -586,7 +591,7 @@ const repFmt = (iso, long) => { if (!iso) return ''; const p = String(iso).slice
 const repLines = t => String(t || '').split('\n').map(s => s.trim()).filter(Boolean);
 const repDia = iso => ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][pD(iso).getDay()] + ' ' + repFmt(iso).slice(0, 5);
 /* avance de fase y de cada subfase en cada actualización: alimenta el «↑ desde» del reporte */
-function snapFases(i) {
+export function snapFases(i) {
   if (!i || esProp(i)) return;
   const m = {}; m['F:' + i.fase] = avFase(i).v;
   subfasesDe(i).forEach(s => { const hs = hitosSub(i, s), d = hs.filter(h => h.completado).length; m['s:' + s.id] = hs.length ? Math.round(d / hs.length * 100) : 0; });
@@ -595,15 +600,15 @@ function snapFases(i) {
 const repPrev = (i, key) => { const s = (i.snapFase || []).filter(x => x[0] < hoy()).slice(-1)[0]; return s && s[1] && s[1][key] != null ? s[1][key] : ''; };
 const repSubsActivas = i => subfasesDe(i).filter(s => s.fase === i.fase && s.inicio <= hoy() && (s.fin >= hoy() || hitosSub(i, s).some(h => !h.completado))).sort(by('inicio'));
 const repFormaAuto = i => repSubsActivas(i).length >= 2 ? 'B' : 'A';
-function repDatos(i) {
+export function repDatos(i) {
   const hs = hitosDe(i.id).slice().sort(by('fecha')), n = hs.length || 1;
   const conPeso = hs.length > 0 && hs.every(h => typeof h.peso === 'number' && h.peso >= 0) && Math.round(hs.reduce((a, h) => a + h.peso, 0)) === 100;
-  const ms = hs.map(h => ({ name: h.nombre, weight: typeof h.peso === 'number' ? h.peso : null, w: conPeso ? h.peso : 100 / n, date: h.fecha, done: !!h.completado, vis: inc(h) }));
-  const ph = (i.hist || []).filter(x => x[0] < hoy()).slice(-1)[0], nx = hs.find(h => !h.completado && inc(h)) || null, v = ventanaDe(i, i.fase);
+  const ms = hs.map(h => ({ name: h.nombre, weight: typeof h.peso === 'number' ? h.peso : null, w: conPeso ? h.peso : 100 / n, date: h.fecha, done: !!h.completado, vis: (0, ENLACES.inc)(h) }));
+  const ph = (i.hist || []).filter(x => x[0] < hoy()).slice(-1)[0], nx = hs.find(h => !h.completado && (0, ENLACES.inc)(h)) || null, v = ventanaDe(i, i.fase);
   let subs = repSubsActivas(i); if (!subs.length) subs = subfasesDe(i).filter(s => s.fase === i.fase).sort(by('inicio'));
   const phases = subs.length ? subs.map(s => { const hh = hitosSub(i, s), d = hh.filter(h => h.completado).length; return { name: s.nombre, progress: hh.length ? Math.round(d / hh.length * 100) : 0, prev: repPrev(i, 's:' + s.id), count: hh.length ? d + '/' + hh.length : '' }; })
     : [{ name: i.fase, progress: avFase(i).v, prev: repPrev(i, 'F:' + i.fase), count: '' }];
-  const pend = [...DECS().filter(x => x.ini === i.id && x.estado === 'Pendiente' && inc(x)).map(x => ({ f: x.limite, text: x.titulo })), ...ACUERDOS().filter(a => a.ini === i.id && a.estado === 'Abierto').map(a => ({ f: a.limite, text: a.texto }))]
+  const pend = [...DECS().filter(x => x.ini === i.id && x.estado === 'Pendiente' && (0, ENLACES.inc)(x)).map(x => ({ f: x.limite, text: x.titulo })), ...ACUERDOS().filter(a => a.ini === i.id && a.estado === 'Abierto').map(a => ({ f: a.limite, text: a.texto }))]
     .sort((a, b) => (a.f || '9') < (b.f || '9') ? -1 : (a.f || '9') > (b.f || '9') ? 1 : 0)
     .map(p => ({ tag: p.f ? repDia(p.f) : 'POR DEFINIR', color: !p.f ? '#98999B' : p.f < hoy() ? '#EB002A' : '#41B6E6', text: p.text }));
   return { project: i.titulo, pm: i.lider || '', client: i.negocio || '', cutoff: hoy(), status: REP_ST[i.rag] || 'EN PLAN', overall: Math.round(+i.avance || 0), prevOverall: ph ? ph[1] : '',
@@ -657,7 +662,7 @@ function repHtmlB(d) {
     + '  <div style="display:grid;grid-template-columns:repeat(' + cols + ',1fr);gap:10px;margin-bottom:12px;">\n' + boxes.join('') + '  </div>\n'
     + '  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">\n    <div style="border:1px solid #EBEBEB;border-radius:10px;padding:14px;">\n      <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;"><div style="width:8px;height:8px;border-radius:50%;background:#007D8A;flex-shrink:0;"></div><div style="font-size:12px;font-weight:700;color:#000;">Semana actual</div></div>\n      ' + repLi(d.last, '✓', '#007D8A') + '\n    </div>\n    <div style="border:1px solid #EBEBEB;border-radius:10px;padding:14px;">\n      <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;"><div style="width:8px;height:8px;border-radius:50%;background:#41B6E6;flex-shrink:0;"></div><div style="font-size:12px;font-weight:700;color:#000;">Próxima semana</div></div>\n      ' + repLi(d.nextWeek, '→', '#41B6E6') + '\n    </div>\n  </div>\n  ' + repNote(d) + repPend(d) + '\n</div>');
 }
-const repHtml = (i, forma) => { const f = forma === 'A' || forma === 'B' ? forma : repFormaAuto(i), d = repDatos(i); return { forma: f, html: f === 'B' ? repHtmlB(d) : repHtmlA(d) }; };
+export const repHtml = (i, forma) => { const f = forma === 'A' || forma === 'B' ? forma : repFormaAuto(i), d = repDatos(i); return { forma: f, html: f === 'B' ? repHtmlB(d) : repHtmlA(d) }; };
 const repBody = html => html.replace(/[\s\S]*<body[^>]*>/, '').replace(/<\/body>[\s\S]*/, '');
 function repPintar(i) {
   const r = repHtml(i, UI.repForma), box = $('#rep-prev'), inf = $('#rep-info'); if (!box) return; box.innerHTML = repBody(r.html);
@@ -707,7 +712,7 @@ Acts.repcopy = async () => { const i = byId(UI.repId); if (!i) return; const h =
    2) COMPROMISOS Y ACUERDOS
    ------------------------------------------------------------------ */
 const ACU_ABIERTO = a => a.estado === 'Abierto';
-function todosAcu() {
+export function todosAcu() {
   const own = ACUERDOS().map(a => Object.assign({ src: 'acu', abierto: a.estado === 'Abierto' }, a));
   const com = []; St.comites.forEach(c => ['acciones', 'compromisos'].forEach(k => (c[k] || []).forEach(a => { const ab = ['Abierta', 'Abierto'].includes(a.estado); com.push({ id: a.id, texto: a.texto, resp: a.resp, de: '', limite: a.limite, ini: a.ini || null, estado: ab ? 'Abierto' : 'Cumplido', src: 'com', c: c.id, k, origen: 'Comité · ' + fmtD(c.fecha), tema: '', abierto: ab }); })));
   return [...own, ...com].filter(a => !a.ini || !byId(a.ini) || (inArea(byId(a.ini)) && !esSB(byId(a.ini))));
@@ -733,8 +738,8 @@ function acuForm(a, pre) {
     }
   });
 }
-Acts.acunew = d => { if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar'); const pre = {}; if (d && d.id) pre.ini = d.id; if (d && d.texto) pre.texto = d.texto; if (d && d.tema) pre.tema = d.tema; closePops(); if (Modal.cur) Modal.close(); setTimeout(() => acuForm(null, pre), 40); };
-Acts.acuedit = d => { if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar'); const a = St.compromisos.find(x => x.id === d.id); if (a) acuForm(a); };
+Acts.acunew = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const pre = {}; if (d && d.id) pre.ini = d.id; if (d && d.texto) pre.texto = d.texto; if (d && d.tema) pre.tema = d.tema; closePops(); if (Modal.cur) Modal.close(); setTimeout(() => acuForm(null, pre), 40); };
+Acts.acuedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const a = St.compromisos.find(x => x.id === d.id); if (a) acuForm(a); };
 Chg.acutoggle = el => { const a = St.compromisos.find(x => x.id === el.dataset.id); if (!a) return; a.estado = el.checked ? 'Cumplido' : 'Abierto'; a.fechaReal = el.checked ? hoy() : null; log('Cambio', a.ini, `Compromiso ${a.id} ${el.checked ? 'cumplido' : 'reabierto'}: ${a.texto}`); toast(el.checked ? 'Compromiso cumplido' : 'Compromiso reabierto'); refresh(); };
 Views.compromisos = {
   render() {
@@ -768,7 +773,7 @@ Acts.acue = d => { F('acu', {}).est = d.k; render(); };
 /* ------------------------------------------------------------------
    3) RESUMEN DE MI SEMANA
    ------------------------------------------------------------------ */
-function esAprobadorDe(i) { const r = rolActual(); return r === 'Administra' || r === 'Responsable' || (!!i && !!i.sponsor && i.sponsor === miUsuario()); }
+function esAprobadorDe(i) { const r = (0, ENLACES.rolActual)(); return r === 'Administra' || r === 'Responsable' || (!!i && !!i.sponsor && i.sponsor === miUsuario()); }
 function resumenDe(me) {
   const L = d => diffD(d, hoy()), S = [];
   const acu = todosAcu().filter(a => a.abierto && a.resp === me && a.limite && L(a.limite) <= 7).sort(by('limite'));
@@ -828,11 +833,11 @@ function chgForm(c, pre) {
     }
   });
 }
-Acts.chgnew = d => { if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar'); const pre = {}; if (d && d.id) { pre.ini = d.id; const i = byId(d.id); if (i) { const f = forecast(i); if (f && i.finPlan && f > i.finPlan) { pre.tipo = 'Fecha'; pre.fNue = f; } } } closePops(); if (Modal.cur) Modal.close(); setTimeout(() => chgForm(null, pre), 40); };
-Acts.chgedit = d => { if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar'); const c = St.cambios.find(x => x.id === d.id); if (c) chgForm(c); };
+Acts.chgnew = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const pre = {}; if (d && d.id) { pre.ini = d.id; const i = byId(d.id); if (i) { const f = forecast(i); if (f && i.finPlan && f > i.finPlan) { pre.tipo = 'Fecha'; pre.fNue = f; } } } closePops(); if (Modal.cur) Modal.close(); setTimeout(() => chgForm(null, pre), 40); };
+Acts.chgedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const c = St.cambios.find(x => x.id === d.id); if (c) chgForm(c); };
 Acts.chgdec = d => {
   const c = St.cambios.find(x => x.id === d.id), i = c && byId(c.ini); if (!c || !i || c.estado !== 'Solicitado') return;
-  if (soloLectura() || !esAprobadorDe(i)) return NO_PERM('Solo el sponsor del proyecto, el administrador o Administra pueden resolver cambios');
+  if ((0, ENLACES.soloLectura)() || !esAprobadorDe(i)) return (0, ENLACES.NO_PERM)('Solo el sponsor del proyecto, el administrador o Administra pueden resolver cambios');
   const ap = d.e === 'Aprobado';
   openForm({
     title: (ap ? 'Aprobar' : 'Rechazar') + ' cambio ' + c.id, values: { aprobador: miUsuario(), nota: '' }, saveLabel: ap ? 'Aprobar y aplicar' : 'Rechazar',
@@ -854,7 +859,7 @@ Views.cambios = {
     if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(c => (c.desc + c.motivo + nameOf(c.ini) + c.solicita).toLowerCase().includes(q)); }
     rows.sort(by(c => (c.estado === 'Solicitado' ? '0' : '1') + (c.creada || '')));
     const all = CAMBIOS(), n = e => all.filter(c => c.estado === e).length;
-    const tr = c => { const i = byId(c.ini), can = c.estado === 'Solicitado' && esAprobadorDe(i) && (c.solicita !== miUsuario() || rolActual() === 'Administra');
+    const tr = c => { const i = byId(c.ini), can = c.estado === 'Solicitado' && esAprobadorDe(i) && (c.solicita !== miUsuario() || (0, ENLACES.rolActual)() === 'Administra');
       return `<tr><td class="mono">${c.id}</td><td>${iniLink(c.ini, esc(cut(nameOf(c.ini), 30)))}</td><td>${esc(c.tipo)}</td>
         <td style="white-space:normal;min-width:260px"><b>${esc(c.desc)}</b><small>${esc(chgEfecto(c))}</small><small>Motivo: ${esc(c.motivo || '—')}</small></td><td>${esc(c.solicita || '—')}<small>${fmtD(c.creada)}</small></td>
         <td><span class="pill" style="--c:${CHG_C[c.estado]}">${c.estado}</span>${c.aprobador ? `<small>${esc(c.aprobador)} · ${fmtD(c.fDec)}${c.nota ? ' · ' + esc(cut(c.nota, 40)) : ''}</small>` : ''}</td>
@@ -868,3 +873,13 @@ Views.cambios = {
 };
 Acts.chge = d => { F('chg', {}).est = d.k; render(); };
 
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  acuVencidos: { get: () => acuVencidos, enumerable: true, configurable: true },
+  archFecha: { get: () => archFecha, enumerable: true, configurable: true },
+  bellPop: { get: () => bellPop, enumerable: true, configurable: true },
+  cut: { get: () => cut, enumerable: true, configurable: true },
+  rondaIds: { get: () => rondaIds, enumerable: true, configurable: true },
+  snapFases: { get: () => snapFases, enumerable: true, configurable: true },
+});

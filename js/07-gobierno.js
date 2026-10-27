@@ -1,11 +1,17 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, ACUERDOS, ADMIN_USERS, APIH_CONFIG, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { AuthService } from './02-datos.js';
+import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
+import { diasEnFase, priorScore } from './04-flujos.js';
+import { pasosCocinaHTML, semOf, semSet } from './05-vistas.js';
+import { cut, informeTxt, notifUserCard, rondaIds, todosAcu } from './06-administracion.js';
 /* ============================================================
    APIH · Mi cocina (gamificación sin ranking de personas)
    Cada proyecto activo tiene 5 tenedores por semana: premian la gestión (actualizar, cumplir, avisar), nunca el resultado.
    Las estrellas Michelin (V16) premian hitos del cronograma y no se pierden.
    Todo se calcula con datos existentes: no hay listas nuevas.
    ============================================================ */
-const cieloOn = () => !St.cfg || St.cfg.cieloOn !== false;
+export const cieloOn = () => !St.cfg || St.cfg.cieloOn !== false;
 const wkIni = d => addD(d, -((pD(d).getDay() + 6) % 7));            // lunes de la semana de d
 const STAR_DEF = [
   { k: 'dia', l: 'Al día', tip: 'Actualiza el proyecto esta semana (avance, logros o próximos pasos).' },
@@ -19,13 +25,13 @@ const STAR_SVG = (s, sz = 16) => s === 'na'
   : `<svg class="fk fk-${s}" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 2h1.6v7.4H6.2zM11.2 2h1.6v7.4h-1.6zM16.2 2h1.6v7.4h-1.6zM6.2 8h11.6v1.8c0 1.8-1.7 3-4.6 3.2V22h-2.4V13c-2.9-.2-4.6-1.4-4.6-3.2z"/></svg>`;
 
 /* --- ¿qué hizo el proyecto en la semana W (lunes)? --- */
-function actSemana(i, W) {
+export function actSemana(i, W) {
   const E = addD(W, 6); let real = false, nc = false;
   St.bitacora.forEach(b => { if (b.ini !== i.id || b.tipo !== 'Actualización') return; const d = String(b.ts).slice(0, 10); if (d < W || d > E) return; if (/sin novedades/i.test(b.texto || '')) nc = true; else real = true; });
   if (!real && !nc && i.actualizada && i.actualizada >= W && i.actualizada <= E) real = true;
   return real ? 'real' : nc ? 'nc' : null;
 }
-const hoyW = () => wkIni(hoy());
+export const hoyW = () => wkIni(hoy());
 /* Tope anti-vanidad: el tenedor «Al día» no puede ganarse si el proyecto lleva TOPE_SIN_AVANCE semanas seguidas actualizándose sin avance real
    (ni % de avance ni hitos cerrados). Es una señal de gestión desconectada del progreso, no un castigo: se levanta con cualquier avance. */
 const TOPE_SIN_AVANCE = 3;
@@ -39,8 +45,8 @@ function sinAvanceSostenido(i, W) {
   for (let k = 0; k < TOPE_SIN_AVANCE; k++) { const w = addD(W, -7 * k); if (avanzoSemana(i, w) || !actSemana(i, w)) return false; }
   return true;
 }
-function vencidosA(arr, f, E, doneF) { return arr.filter(x => x[f] && x[f] < E && !doneF(x, E)); }
-function starsOf(i, W) {
+export function vencidosA(arr, f, E, doneF) { return arr.filter(x => x[f] && x[f] < E && !doneF(x, E)); }
+export function starsOf(i, W) {
   const cur = W === hoyW(), E = cur ? hoy() : addD(W, 6), out = {};
   /* Al día */
   const a = actSemana(i, W); let dia = a === 'real';
@@ -66,8 +72,8 @@ function starsOf(i, W) {
 }
 const cieloLleno = st => !st.some(x => x.s === 'off') && st.some(x => x.s === 'on');
 const starsHist = st => st.filter(x => ['dia', 'hit', 'cmp'].includes(x.k));        // criterio histórico (calculable hacia atrás)
-const proyActivos = (me, W) => St.ini.filter(i => !esProp(i) && isLive(i) && FASES_ACT.includes(i.fase) && (!me || i.lider === me) && (i.creada || '0') <= addD(W, 6));
-function cieloPersona(me) {
+export const proyActivos = (me, W) => St.ini.filter(i => !esProp(i) && isLive(i) && FASES_ACT.includes(i.fase) && (!me || i.lider === me) && (i.creada || '0') <= addD(W, 6));
+export function cieloPersona(me) {
   const W0 = hoyW(), mine = proyActivos(me, W0), cur = mine.map(i => ({ i, st: starsOf(i, W0) }));
   let racha = 0, total = 0;
   if (mine.length) {
@@ -86,7 +92,7 @@ function cieloColectivo() {
   return { n: ps.length, prom: ps.length ? on / ps.length : 0, msTot: prjs.reduce((a, i) => a + msN(i), 0), ms3: prjs.filter(i => msN(i) === 3).length, llenas: cur.filter(x => cieloLleno(x.st)).length, pct: on + off ? Math.round(on / (on + off) * 100) : 0, serie, ayuda: cur.filter(x => x.st.some(y => y.s === 'off')).sort(by(x => -x.st.filter(y => y.s === 'off').length)) };
 }
 const starTxt = x => x.l + ': ' + (x.s === 'on' ? 'lograda' : x.s === 'off' ? 'pendiente. ' + x.tip : 'no aplica esta semana');
-const starsRow = (st, sz = 16) => `<span class="skyrow">${st.map(x => `<span class="stw" data-act="startip" data-t="${esc(starTxt(x))}" title="${esc(starTxt(x))}">${STAR_SVG(x.s, sz)}</span>`).join('')}</span>`;
+export const starsRow = (st, sz = 16) => `<span class="skyrow">${st.map(x => `<span class="stw" data-act="startip" data-t="${esc(starTxt(x))}" title="${esc(starTxt(x))}">${STAR_SVG(x.s, sz)}</span>`).join('')}</span>`;
 function starsMini(i) {
   if (!cieloOn() || esProp(i)) return '';
   const act = isLive(i) && FASES_ACT.includes(i.fase), n = msN(i);
@@ -94,7 +100,7 @@ function starsMini(i) {
   return `<span class="pill soft" style="gap:6px" title="Tenedores de la semana y estrellas Michelin">${act ? starsRow(starsOf(i, hoyW()), 13) : ''}${n ? msRow(i, 13) : ''}</span>`;
 }
 function semLbl(W) { const E = addD(W, 6), p = pD(W), q = pD(E); return `${p.getDate()} ${MES3[p.getMonth()]} – ${q.getDate()} ${MES3[q.getMonth()]}`; }
-const NIV = [['Pinche', 0, 1, '#8A8886'], ['Cocinero', 1, 4, '#C98A00'], ['Chef de partida', 4, 12, '#0B5394'], ['Chef ejecutivo', 12, 12, '#7A5AF8']];
+export const NIV = [['Pinche', 0, 1, '#8A8886'], ['Cocinero', 1, 4, '#C98A00'], ['Chef de partida', 4, 12, '#0B5394'], ['Chef ejecutivo', 12, 12, '#7A5AF8']];
 function anillo(pct, meta, sz = 120) {
   const r = 48, c = 2 * Math.PI * r, a = meta / 100 * 2 * Math.PI, mx = 60 + r * Math.sin(a), my = 60 - r * Math.cos(a);
   return `<svg width="${sz}" height="${sz}" viewBox="0 0 120 120" role="img" aria-label="${pct}% de estrellas encendidas, meta ${meta}%"><circle cx="60" cy="60" r="${r}" fill="none" stroke="var(--bd2)" stroke-width="9"/><circle cx="60" cy="60" r="${r}" fill="none" stroke="#F5B82E" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c * pct / 100} ${c}" transform="rotate(-90 60 60)"/><circle cx="${mx}" cy="${my}" r="4.5" fill="var(--pri)" stroke="#fff" stroke-width="1.5"/><text x="60" y="58" text-anchor="middle" font-size="25" font-weight="700" fill="currentColor">${pct}%</text><text x="60" y="76" text-anchor="middle" font-size="10" fill="var(--tx2)">meta ${meta}%</text></svg>`;
@@ -108,7 +114,7 @@ function impecable(i) {
   if (i.finReal && i.finPlan && i.finReal > i.finPlan && !CAMBIOS().some(c => c.ini === i.id && c.estado === 'Aprobado' && c.tipo === 'Fecha')) return false;
   return true;
 }
-function insignias(me) {
+export function insignias(me) {
   const P = cieloPersona(me), C = cieloColectivo(), meta = cfgMi('cieloMeta') || 80, W0 = hoyW();
   let cs = 0; for (let k = 0; k < 26; k++) { const W = addD(W0, -7 * k), ps = proyActivos(me, W); if (!ps.length) break; if (ps.every(i => starsOf(i, W)[1].s !== 'off')) cs++; else break; }
   const aviso = CAMBIOS().filter(c => c.solicita === me && c.fAnt && c.creada && c.creada <= c.fAnt).length;
@@ -223,7 +229,7 @@ function cocaPase(me, P, C, meta, adm) {
   }
   return h + '</div></div>';
 }
-function cocFit() {
+export function cocFit() {
   const o = document.getElementById('csout'); if (!o) return;
   o.style.width = ''; const p = o.parentElement, cs = getComputedStyle(p), w = p.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - 4, top = p.getBoundingClientRect().top, avail = innerHeight - top - 14;
   const s = Math.max(.34, Math.min(w / 1500, avail / 694));
@@ -250,7 +256,7 @@ Acts.semrep = () => {
 };
 /* C2.30 · «Qué cambió desde tu última visita»: lo que venció, lo que te asignaron y lo que otras personas hicieron en tus proyectos.
    La última visita se guarda en tu perfil (St.cfgU[usuario].sem.visita); «Entendido» la actualiza. Solo tus proyectos vigentes. */
-const nowTs = () => hoy() + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
+export const nowTs = () => hoy() + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
 function cambiosDesde(me) {
   const v = semOf().visita; if (!v) return null;
   const vd = v.slice(0, 10), H = hoy(), n = _nrm(me), ids = new Set(St.ini.filter(i => _nrm(i.lider) === n && !esSB(i) && !esProp(i) && !isDone(i)).map(i => i.id));
@@ -287,7 +293,7 @@ function hisData(me, k) {
   const T = (semOf().t || []).filter(t => t.hecha && dentro(t.hecha)).sort((a, b) => String(b.hecha).localeCompare(String(a.hecha)));
   return { d0, H, proy, hitos, aTiempo, comp, dev: T.filter(t => t.cat === 'Desarrollo profesional'), trab: T.filter(t => t.cat === 'Trabajo'), estrellas: proy.reduce((a, i) => a + msN(i), 0) };
 }
-function hisTxt(me, k) {
+export function hisTxt(me, k) {
   const D = hisData(me, k), r = (HIS_RANGOS.find(x => x[0] === k) || HIS_RANGOS[1])[1], one = v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim(), L = [];
   L.push('# Resumen de logros · ' + one(me), '', r + (k === 'todo' ? '' : ' (desde ' + fmtDL(D.d0) + ')') + ' · al ' + fmtDL(D.H), '');
   L.push('## En cifras', '- Proyectos liderados: ' + D.proy.length + (D.estrellas ? ' (' + D.estrellas + ' estrella' + (D.estrellas === 1 ? '' : 's') + ' Michelin)' : ''), '- Hitos cumplidos: ' + D.hitos.length + (D.hitos.length ? ' (' + D.aTiempo + ' a tiempo)' : ''), '- Compromisos cumplidos: ' + D.comp.length, '- Capacitación y desarrollo profesional: ' + D.dev.length, '');
@@ -358,7 +364,7 @@ Views.cielo = {
 Acts.cielotab = d => { F('cielo', {}).tab = d.k; render(); };
 /* --- celebración al ganar estrellas --- */
 function estrellasOn(i) { return starsOf(i, hoyW()).filter(x => x.s === 'on').length; }
-function celebrar(i, antes) {
+export function celebrar(i, antes) {
   if (!cieloOn() || antes == null) return;
   const st = starsOf(i, hoyW()), ahora = st.filter(x => x.s === 'on').length, ganadas = ahora - antes; if (ganadas <= 0) return;
   const lleno = cieloLleno(st), d = document.createElement('div'); d.className = 'sky-pop'; d.setAttribute('role', 'status');
@@ -413,17 +419,17 @@ IC.expand = 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5';
    · Resto de perfiles: los umbrales y los ajustes de presentación solo rigen sobre las iniciativas que lidera la persona.
    Persistencia: St.cfgU[usuario] = { cfg:{…}, ptema:{…} } (clave «cfgU» de APIH_Config / registros).
    ============================================================ */
-let PRES_MIO = false;
+export let PRES_MIO = false;
 const PERS_KEYS = ['tolDesv', 'umbralCritico', 'diasSinUpdate', 'propDiasAmb', 'propDiasRojo', 'cieloMeta'];
-const esAdministra = () => rolActual() === 'Administra';
+export const esAdministra = () => rolActual() === 'Administra';
 const cfgUOf = n => (St.cfgU || {})[_nrm(n)] || {};
 function cfgOf(n) { return cfgUOf(n).cfg || {}; }
-function cfgI(i, k) { const v = i && i.lider && !fijo(k) ? cfgOf(i.lider)[k] : null; return v != null && v !== '' ? v : St.cfg[k]; }   // rige el valor de quien lidera la iniciativa
+export function cfgI(i, k) { const v = i && i.lider && !fijo(k) ? cfgOf(i.lider)[k] : null; return v != null && v !== '' ? v : St.cfg[k]; }   // rige el valor de quien lidera la iniciativa
 function cfgMi(k) { const v = fijo(k) ? null : cfgOf(miUsuario())[k]; return v != null && v !== '' ? v : St.cfg[k]; }                        // para etiquetas y KPIs de quien mira
-function cfgSet(n, o) { St.cfgU = St.cfgU || {}; const k = _nrm(n); St.cfgU[k] = St.cfgU[k] || {}; Object.assign(St.cfgU[k], o); }
-function soloMio(fn) { const sv = PRES_MIO; PRES_MIO = !esAdministra(); try { return fn(); } finally { PRES_MIO = sv; } }   // presentaciones: no-Administra solo con sus iniciativas
-function ptemaEf() { if (!esAdministra() && !fijo('tema')) { const o = cfgUOf(miUsuario()).ptema; if (o) return o; } return St.ptema || {}; }
-function ptemaSet(t) { if (esAdministra()) St.ptema = t; else if (fijo('tema')) { toast('El tema lo fijó el rol Administra', 'err'); return; } else cfgSet(miUsuario(), { ptema: t }); TEMA.set(t); }
+export function cfgSet(n, o) { St.cfgU = St.cfgU || {}; const k = _nrm(n); St.cfgU[k] = St.cfgU[k] || {}; Object.assign(St.cfgU[k], o); }
+export function soloMio(fn) { const sv = PRES_MIO; PRES_MIO = !esAdministra(); try { return fn(); } finally { PRES_MIO = sv; } }   // presentaciones: no-Administra solo con sus iniciativas
+export function ptemaEf() { if (!esAdministra() && !fijo('tema')) { const o = cfgUOf(miUsuario()).ptema; if (o) return o; } return St.ptema || {}; }
+export function ptemaSet(t) { if (esAdministra()) St.ptema = t; else if (fijo('tema')) { toast('El tema lo fijó el rol Administra', 'err'); return; } else cfgSet(miUsuario(), { ptema: t }); ENLACES.TEMA.set(t); }
 const PERS_DEF = [
   ['tolDesv', 'Tolerancia de desviación (días)', 'Sobre este valor una iniciativa se considera «atrasada»', 0, 365],
   ['diasSinUpdate', 'Días sin actualización (alerta)', 'Regla «Sin actualización» del Reglas PMO y recordatorios', 1, 365],
@@ -516,10 +522,10 @@ function escalarSync() {   // las decisiones que superan el plazo de escalamient
    ============================================================ */
 const NAV_SIMPLE = ['dashboard', 'cielo', 'proyectos', 'riesgos', 'decisiones', 'presentaciones', 'personas', 'miconfig', 'admin'];
 const COLS_SIMPLE = ['tipo', 'id', 'titulo', 'fase', 'avance', 'lider', 'rag'];
-const NAV_GRP = { dashboard: 'Portafolio', cielo: 'Portafolio', portfolio: 'Portafolio', proyectos: 'Portafolio', propuestas: 'Portafolio', hitos: 'Portafolio', riesgos: 'Portafolio', roadmap: 'Portafolio', gantt: 'Portafolio', fases: 'Portafolio', capacidad: 'Portafolio',
+export const NAV_GRP = { dashboard: 'Portafolio', cielo: 'Portafolio', portfolio: 'Portafolio', proyectos: 'Portafolio', propuestas: 'Portafolio', hitos: 'Portafolio', riesgos: 'Portafolio', roadmap: 'Portafolio', gantt: 'Portafolio', fases: 'Portafolio', capacidad: 'Portafolio',
   comite: 'Gobierno', decisiones: 'Gobierno', compromisos: 'Gobierno', cambios: 'Gobierno', bitacora: 'Gobierno', calendario: 'Gobierno', personas: 'Personas y reportes', presentaciones: 'Personas y reportes',
   miconfig: 'Sistema', admin: 'Sistema', analisis: 'Sistema', proposito: 'Sistema' };
-const modoUI = () => { if (!UI.uiOv) { try { UI.uiOv = localStorage.getItem('apih_modo') || 'simple'; } catch (e) { UI.uiOv = 'simple'; } } return UI.uiOv === 'pro' ? 'pro' : 'simple'; };   // U-21: el modo se recuerda en este navegador
+export const modoUI = () => { if (!UI.uiOv) { try { UI.uiOv = localStorage.getItem('apih_modo') || 'simple'; } catch (e) { UI.uiOv = 'simple'; } } return UI.uiOv === 'pro' ? 'pro' : 'simple'; };   // U-21: el modo se recuerda en este navegador
 
 const SX_SEC = ['fecha real', 'solicitado por', 'iniciativa', 'mitigación', 'prob.', 'impacto', 'dueño', 'tipo', 'solicita', 'cargo', 'áreas', 'hitos abiertos', 'riesgos', 'decisiones', 'roles en el portafolio', 'rol', 've', 'edita', 'usa ia', 'panel de administración', 'acceso', 'inicio plan', 'fin real', 'sponsor', 'negocio'];
 function simplify() {
@@ -695,7 +701,7 @@ function motorAlertas() {
 const insightsFor = i => motorAlertas().filter(f => f.ini === i.id);
 
 /* ---------- Resumen ejecutivo automático ---------- */
-function execSummary(tone) {
+export function execSummary(tone) {
   const K = kpis(), L = scope(), live = L.filter(isLive), det = tone === 'det';
   const crit = live.filter(i => FASES_ACT.includes(i.fase)).sort(by(i => -critScore(i))).slice(0, det ? 4 : 3);
   const recent = HITOS().filter(h => h.completado && h.fechaReal && diffD(hoy(), h.fechaReal) <= 30 && byId(h.ini) && inArea(byId(h.ini)));
@@ -792,7 +798,7 @@ Acts.vercomo = d => { FL.verComo = d.n || ''; FL.mine = false; FL.resp = ''; ppI
 
 /* ---------- acceso a Administración ---------- */
 const _go0 = go;
-go = function (v) {
+ENLACES.go = function (v) {
   if (v === 'admin' && !esAdmin()) { toast('Administración es de acceso exclusivo del administrador', 'err'); return; }
   if (v === 'personas' && !esAdministra()) { toast('Personas es exclusivo del rol Administra', 'err'); return; }
   return _go0(v);
@@ -837,7 +843,7 @@ const capDe = n => { const o = (St.cfg.capPers || {})[_nrm(n)]; return o > 0 ? +
 const capFin = i => [i.finPlan, forecast(i)].filter(Boolean).sort().pop() || null;
 const capIni = i => i.inicioPlan || i.inicioReal || i.creada || hoy();
 function capMeses(h) { const b = pD(hoy()); return Array.from({ length: h }, (_, k) => { const a = new Date(b.getFullYear(), b.getMonth() + k, 1, 12), z = new Date(b.getFullYear(), b.getMonth() + k + 1, 0, 12); return { s: toISO(a), e: toISO(z), l: MESES[a.getMonth()].slice(0, 3), y: a.getFullYear() }; }); }
-function capData(h) {
+export function capData(h) {
   const meses = capMeses(h), R = respSel(), by = {};
   scope().filter(i => !esProp(i) && isLive(i) && i.lider).forEach(i => { (by[i.lider] = by[i.lider] || []).push(i); });
   const gente = Object.keys(by).filter(n => !R || n === R).map(n => {
@@ -914,22 +920,22 @@ function usuarioActual() {
   const n = _nrm(miUsuario()), au = !FL.verComo && typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(), em = _nrm(au && (au.email || au.username));
   return St.usuarios.find(u => _nrm(u.n) === n) || St.usuarios.find(u => em && _nrm(u.correo) === em) || (FL.verComo ? usuarioSintetico(FL.verComo) : null);
 }
-function rolActual() {
+export function rolActual() {
   if (!FL.verComo && esAdminReal()) return 'Administra';
   const u = usuarioActual(); if (!u) return 'Invitado';                       // desconocido ⇒ solo lectura
   return PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador';
 }
-const areasDe = a => String(Array.isArray(a) ? a.join(',') : a || '').split(',').map(x => x.trim()).filter(Boolean);
-const areasPropias = () => { const u = usuarioActual(); return u ? areasDe(u.area) : []; };
+export const areasDe = a => String(Array.isArray(a) ? a.join(',') : a || '').split(',').map(x => x.trim()).filter(Boolean);
+export const areasPropias = () => { const u = usuarioActual(); return u ? areasDe(u.area) : []; };
 function puedeVerTodo() { const r = rolActual(), u = usuarioActual(); return r === 'Administra' || r === 'Responsable' || !!(u && (u.veTodo === true || u.veTodo === 'TRUE')) || (!FL.verComo && esAdminReal()); }
-const areaVisible = a => puedeVerTodo() || areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x));
+export const areaVisible = a => puedeVerTodo() || areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x));
 function puedeEditarArea(a) { const r = rolActual(); if (r === 'Administra') return true; if (r === 'Invitado') return false; return areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x)); }
-const puedeEditarIni = i => !!i && puedeEditarArea(i.area);
-const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && rolActual() === 'Administra';
-const puedeGobernar = () => ['Administra', 'Responsable'].includes(rolActual());   // comités: agenda, acuerdos
-const soloLectura = () => !!St.cfg.readOnly || rolActual() === 'Invitado';
-const areasPermitidas = () => puedeVerTodo() ? St.cfg.areas : St.cfg.areas.filter(a => a === 'Transversal' || areasPropias().includes(a));
-const NO_PERM = (m) => toast(m || 'No tienes permiso para esta acción', 'err');
+export const puedeEditarIni = i => !!i && puedeEditarArea(i.area);
+export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && rolActual() === 'Administra';
+export const puedeGobernar = () => ['Administra', 'Responsable'].includes(rolActual());   // comités: agenda, acuerdos
+export const soloLectura = () => !!St.cfg.readOnly || rolActual() === 'Invitado';
+export const areasPermitidas = () => puedeVerTodo() ? St.cfg.areas : St.cfg.areas.filter(a => a === 'Transversal' || areasPropias().includes(a));
+export const NO_PERM = (m) => toast(m || 'No tienes permiso para esta acción', 'err');
 
 /* área de la entidad a la que apunta una acción (d.id / d.ini / d.c …) */
 function areaDeAccion(d, el) {
@@ -969,7 +975,7 @@ guardar(Acts, ['go'], (n, d) => d.v === 'analisis' && !puedeVerAnalisis() ? 'La 
 
 /* formularios: se valida el área al GUARDAR (cubre iniciativas, hitos, riesgos, decisiones, eventos…) */
 const _openForm0 = openForm;
-openForm = function (o) {
+ENLACES.openForm = function (o) {
   const os = o && o.onSave, od = o && o.onDanger;
   if (od) o.onDanger = function () {   // N-U-01: eliminar (subfase, etc.) también exige permiso del área
     if (soloLectura()) { NO_PERM(chequeo('form', {}, null)); return; }
@@ -1007,3 +1013,55 @@ function matrizPermisosHTML() {
    (rectángulos, textos, círculos) en un lienzo de 720 x 405 pt. Esa lista se dibuja luego
    como HTML y como PowerPoint nativo con las mismas medidas.
    ============================================================ */
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  COLS_SIMPLE: { get: () => COLS_SIMPLE, enumerable: true, configurable: true },
+  NAV_GRP: { get: () => NAV_GRP, enumerable: true, configurable: true },
+  NAV_SIMPLE: { get: () => NAV_SIMPLE, enumerable: true, configurable: true },
+  NO_PERM: { get: () => NO_PERM, enumerable: true, configurable: true },
+  PERM_ROLES: { get: () => PERM_ROLES, enumerable: true, configurable: true },
+  PERS_KEYS: { get: () => PERS_KEYS, enumerable: true, configurable: true },
+  PRES_MIO: { get: () => PRES_MIO, set: v => { PRES_MIO = v; }, enumerable: true, configurable: true },
+  STAR_SVG: { get: () => STAR_SVG, enumerable: true, configurable: true },
+  _alertCache: { get: () => _alertCache, set: v => { _alertCache = v; }, enumerable: true, configurable: true },
+  ampliable: { get: () => ampliable, enumerable: true, configurable: true },
+  areaVisible: { get: () => areaVisible, enumerable: true, configurable: true },
+  areasPermitidas: { get: () => areasPermitidas, enumerable: true, configurable: true },
+  celebrar: { get: () => celebrar, set: v => { celebrar = v; }, enumerable: true, configurable: true },
+  cfgI: { get: () => cfgI, enumerable: true, configurable: true },
+  cfgMi: { get: () => cfgMi, enumerable: true, configurable: true },
+  cfgSet: { get: () => cfgSet, enumerable: true, configurable: true },
+  cfgUOf: { get: () => cfgUOf, enumerable: true, configurable: true },
+  chkInsignias: { get: () => chkInsignias, enumerable: true, configurable: true },
+  cieloOn: { get: () => cieloOn, enumerable: true, configurable: true },
+  cocFit: { get: () => cocFit, set: v => { cocFit = v; }, enumerable: true, configurable: true },
+  congelarBase: { get: () => congelarBase, enumerable: true, configurable: true },
+  controlHTML: { get: () => controlHTML, enumerable: true, configurable: true },
+  decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
+  decMaxDias: { get: () => decMaxDias, enumerable: true, configurable: true },
+  esAdministra: { get: () => esAdministra, enumerable: true, configurable: true },
+  escalarSync: { get: () => escalarSync, enumerable: true, configurable: true },
+  estrellasOn: { get: () => estrellasOn, enumerable: true, configurable: true },
+  filtrosHTML: { get: () => filtrosHTML, enumerable: true, configurable: true },
+  guardAcceso: { get: () => guardAcceso, enumerable: true, configurable: true },
+  guardAdmin: { get: () => guardAdmin, enumerable: true, configurable: true },
+  hoyW: { get: () => hoyW, enumerable: true, configurable: true },
+  insightsFor: { get: () => insightsFor, enumerable: true, configurable: true },
+  insignias: { get: () => insignias, set: v => { insignias = v; }, enumerable: true, configurable: true },
+  menuRolCard: { get: () => menuRolCard, enumerable: true, configurable: true },
+  michelinSync: { get: () => michelinSync, enumerable: true, configurable: true },
+  modoUI: { get: () => modoUI, enumerable: true, configurable: true },
+  motorAlertas: { get: () => motorAlertas, enumerable: true, configurable: true },
+  msN: { get: () => msN, enumerable: true, configurable: true },
+  proyActivos: { get: () => proyActivos, enumerable: true, configurable: true },
+  puedeEditarIni: { get: () => puedeEditarIni, enumerable: true, configurable: true },
+  puedeVerAnalisis: { get: () => puedeVerAnalisis, enumerable: true, configurable: true },
+  riesgoSinMit: { get: () => riesgoSinMit, enumerable: true, configurable: true },
+  rolActual: { get: () => rolActual, set: v => { rolActual = v; }, enumerable: true, configurable: true },
+  simplify: { get: () => simplify, enumerable: true, configurable: true },
+  soloLectura: { get: () => soloLectura, enumerable: true, configurable: true },
+  starsMini: { get: () => starsMini, enumerable: true, configurable: true },
+  starsOf: { get: () => starsOf, enumerable: true, configurable: true },
+  verComoHTML: { get: () => verComoHTML, enumerable: true, configurable: true },
+});

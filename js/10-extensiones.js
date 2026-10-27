@@ -1,4 +1,11 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
+import { AuthService, SB, SBLogin } from './02-datos.js';
+import { Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
+import { faseTag, pasosDe, planFichaHTML, subfasesDe } from './05-vistas.js';
+import { ADM_TABS, cut } from './06-administracion.js';
+import { NIV, NO_PERM, actSemana, areaVisible, areasDe, areasPermitidas, areasPropias, cfgI, cieloOn, cieloPersona, cocFit, esAdministra, hoyW, insignias, modoUI, proyActivos, puedeEditarIni, puedeGobernar, puedeVerAnalisis, rolActual, soloLectura, starsOf, starsRow, vencidosA } from './07-gobierno.js';
+import { GUIA, presLayout } from './09-presentaciones.js';
 (function () {
   const V = window.V22 = {};
   const sr = (s, p = document) => p.querySelector(s), sra = (s, p = document) => [...p.querySelectorAll(s)];
@@ -444,7 +451,7 @@
   document.addEventListener('dblclick', e => { const el = e.target.closest('[data-act="sel"][data-t="ini"]'); if (el && !e.target.closest('input,button:not([data-act="sel"]),select,textarea')) Acts.ficha({ id: el.dataset.id }); });
 
   /* botón «Ficha completa» en el panel contextual + estado vacío de hitos en el panel */
-  panelIni = function (i) {
+  ENLACES.panelIni = function (i) {
     let h = panelIni0(i);
     h = h.replace('<div class="pn-a">', `<div class="pn-a"><button class="btn sm" data-act="ficha" data-id="${esc(i.id)}" title="Ver todo en una sola página">${icon('full', 14)}<span>Ficha</span></button>`);
     /* panel: acciones principales visibles (Actualizar / Ficha) y el resto en «Herramientas»; la fase como tarjeta con barra */
@@ -467,7 +474,7 @@
   };
   /* la ficha usa toda la página: no se «encajan» sus bloques en cajas con scroll */
   const fitMain0 = fitMain;
-  fitMain = function () { if (UI.view === 'ficha') return; const r = fitMain0.apply(this, arguments); const m = document.getElementById('v22-mis'); if (m) m.classList.remove('fit'); return r; };
+  ENLACES.fitMain = function () { if (UI.view === 'ficha') return; const r = fitMain0.apply(this, arguments); const m = document.getElementById('v22-mis'); if (m) m.classList.remove('fit'); return r; };
 
   /* ======================= Acción principal por pantalla ======================= */
   const PRIM = {
@@ -523,7 +530,7 @@
   V.version = VER;
   const verCss = document.createElement('style'); verCss.textContent = '.top .b-t.app small.v22-ver{display:block!important;font-size:11px;letter-spacing:.2px;opacity:.85}'; document.head.appendChild(verCss);
   const renderChrome0 = renderChrome;
-  renderChrome = function () {
+  ENLACES.renderChrome = function () {
     renderChrome0.apply(this, arguments);
     const vs = sr('.top .b-t.app small'); if (vs) { vs.textContent = VER.v + ' · ' + VER.b; vs.classList.add('v22-ver'); vs.title = 'APIH ' + VER.v + ' · compilada el ' + VER.b; }
     const tr = sr('.top-r');
@@ -573,7 +580,7 @@
   Acts.rail = () => { UI.rail = !UI.rail; lsSet('apih_rail', UI.rail ? '1' : '0'); const sd = $('#side'); if (UI.rail && sd) sd.classList.add('nohov'); renderChrome(); const b = sr('#side .rail-t'); if (b) b.focus(); };
   document.addEventListener('mousemove', e => { const sd = $('#side'); if (sd && sd.classList.contains('nohov') && !(e.target.closest && e.target.closest('#side'))) sd.classList.remove('nohov'); });   /* tras contraer, no se re-expande hasta que el mouse salga del menú */
   const side0 = renderChrome;
-  renderChrome = function () {
+  ENLACES.renderChrome = function () {
     side0.apply(this, arguments);
     const sd = sr('#side'); if (!sd) return;
     const gs = menuGroups(), cur = grupoDe(UI.view, gs); if (cur) { lastTabs[cur.k] = UI.view === 'ficha' ? lastTabs[cur.k] : UI.view; }
@@ -596,7 +603,7 @@
     m.insertAdjacentHTML('afterbegin', h);
   }
   const go0 = go;
-  go = function (v) { if (rolActual() === 'Colaborador' && ['decisiones', 'compromisos'].includes(v) && !UI.pmSet) { UI.pmSet = 1; FL.mine = true; try { ppInval(); } catch (e) { } } return go0(v); };
+  ENLACES.go = function (v) { if (rolActual() === 'Colaborador' && ['decisiones', 'compromisos'].includes(v) && !UI.pmSet) { UI.pmSet = 1; FL.mine = true; try { ppInval(); } catch (e) { } } return go0(v); };
   /* Encabezado compacto: acciones secundarias en «Más», y filtros + búsqueda en una sola fila */
   function compactar() {
     const m = sr('#main'); if (!m || innerWidth < 700) return;
@@ -627,9 +634,9 @@
     }
   }
   const presLayout0 = presLayout;
-  presLayout = function () { presLayout0.apply(this, arguments); const b = sr('.p2-bar [data-act=pdrawer] span'); if (b) b.textContent = 'Diapositivas'; const t = sr('.p2-bar input[data-k=titulo]'); if (t) { t.placeholder = 'Título de la presentación'; t.setAttribute('aria-label', 'Título'); } };
+  ENLACES.presLayout = function () { presLayout0.apply(this, arguments); const b = sr('.p2-bar [data-act=pdrawer] span'); if (b) b.textContent = 'Diapositivas'; const t = sr('.p2-bar input[data-k=titulo]'); if (t) { t.placeholder = 'Título de la presentación'; t.setAttribute('aria-label', 'Título'); } };
   const render0 = render;
-  render = function () {
+  ENLACES.render = function () {
     /* compactar() mueve los filtros a otra fila y eso quita el foco del campo que se está escribiendo: se restaura al final */
     const act = document.activeElement, key = act && act.dataset ? act.dataset.key : null, ss = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
     render0.apply(this, arguments);
@@ -669,7 +676,7 @@
     });
   }
   const banner0 = banner;
-  banner = function () {
+  ENLACES.banner = function () {
     let h = banner0.apply(this, arguments);
     return h;
   };
@@ -912,7 +919,7 @@
     return (k >= 0 ? out.slice(0, k) + misionStrip(me) + out.slice(k) : out) + misionPanel(me);
   };
   const cocFit0 = cocFit;
-  cocFit = function () {
+  ENLACES.cocFit = function () {
     cocFit0.apply(this, arguments);
     const o = document.getElementById('csout'), s = document.getElementById('v22-mstrip'); if (!o) return;
     const p = o.parentElement, cs = getComputedStyle(p), w = p.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0) - 4, top = o.getBoundingClientRect().top, sc = Math.max(.34, w / 1500); if (s && o.nextElementSibling !== s) o.insertAdjacentElement('afterend', s);
@@ -963,7 +970,7 @@
     toast('Confirmado: presupuesto al día'); refresh();
   };
   const insignias0 = insignias;
-  insignias = function (me) {
+  ENLACES.insignias = function (me) {
     const B = insignias0.apply(this, arguments), R = mesResumen(me);
     B.push({ k: 'mm', n: 'Mes completo', d: 'Completa todas las misiones del mes en tus proyectos. Son opcionales y se reinician cada mes.', ic: 'cal', c: '#038387', v: Math.min(R.done, R.of), of: Math.max(R.of, 1), ok: R.of > 0 && R.done >= R.of });
     return B;
@@ -975,7 +982,7 @@
     return out + misionesMes(miUsuario());
   };
   const fitMain1 = fitMain;
-  fitMain = function () { const r = fitMain1.apply(this, arguments); const m = document.getElementById('v22-mes'); if (m) m.classList.remove('fit'); return r; };
+  ENLACES.fitMain = function () { const r = fitMain1.apply(this, arguments); const m = document.getElementById('v22-mes'); if (m) m.classList.remove('fit'); return r; };
 
   /* ======================= Documentación del proyecto (enlaces a OneDrive / SharePoint) ======================= */
   const DOC_TIPOS = ['Acta', 'Contrato', 'RFP', 'Especificación', 'Informe', 'Presupuesto', 'Otro'];

@@ -1,27 +1,29 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, gates, gatesAprobar, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
+import { AuthService, DataService, SP_SCHEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
    ============================================================ */
-const UI = { view: 'dashboard', sel: null, tab: 'resumen', panel: innerWidth > 980, f: {}, pop: null };
-const Views = {}, Acts = {}, Chg = {};
+export const UI = { view: 'dashboard', sel: null, tab: 'resumen', panel: innerWidth > 980, f: {}, pop: null };
+export const Views = {}, Acts = {}, Chg = {};
 /* V4: preferencias de UI solo en memoria de la sesión (sin localStorage) */
-function loadUI() { UI.theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; applyTheme(); }
+export function loadUI() { UI.theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; applyTheme(); }
 function saveUI() { }
-const F = (k, def) => (UI.f[k] = Object.assign({}, def, UI.f[k] || {}));
+export const F = (k, def) => (UI.f[k] = Object.assign({}, def, UI.f[k] || {}));
 
 /* ---------- componentes pequeños ---------- */
-const ragPill = r => `<span class="rag" style="--c:${RAG_C[r] || '#8A8886'}"><i></i>${esc(r || '—')}</span>`;
-const fasePill = f => `<span class="pill" style="--c:${FASE_COLOR[f] || '#8A8886'}">${esc(f)}</span>`;
-const prioPill = p => `<span class="prio p-${esc(p)}">${p === 'Alta' ? '▲' : p === 'Baja' ? '▼' : '■'} ${esc(p || '—')}</span>`;
-const estPill = e => `<span class="pill" style="--c:${EST_C[e] || '#605E5C'}">${esc(e)}</span>`;
-const tipoPill = i => `<span class="pill tp ${esProp(i) ? 'prop' : 'prj'}">${esProp(i) ? 'Propuesta' : 'Proyecto'}</span>`;
-const prog = (v, rag, h = 6) => `<span class="prog" style="height:${h}px"><b style="width:${Math.max(0, Math.min(100, v))}%;background:${RAG_C[rag] || 'var(--pri)'}"></b></span>`;
-const estTag = (i, f) => (i.est && (i.est.includes(f) || i.est.includes('all'))) ? `<sup class="est" title="Valor estimado/demo — completar con datos reales">est.</sup>` : '';
-const empty = (t, ic = 'search') => (window.V22 && V22.empty ? V22.empty(t, ic) : `<div class="empty">${icon(ic, 28)}<p>${esc(t)}</p></div>`);
-const iniLink = (id, txt) => id ? `<a class="lnk" data-act="sel" data-t="ini" data-id="${esc(id)}">${esc(txt || nameOf(id))}</a>` : '<span class="mut">—</span>';
-function pageHead(t, sub, actions = '') { if (['hitos', 'gantt', 'proyectos'].includes(UI.view)) actions += `<span class="edit-only">${btn('Cargar Excel', 'cargaxl', { ic: 'up', title: 'Cargar planificación e hitos desde Excel (con plantilla descargable)' })}</span>`; return `<div class="ph"><div><h1>${esc(t)}</h1>${sub ? `<p>${sub}</p>` : ''}</div><div class="ph-act">${actions}</div></div>`; }
-const btn = (txt, act, o = {}) => `<button class="btn ${o.cls || ''}" data-act="${act}" ${Object.entries(o.d || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} ${o.title ? `title="${esc(o.title)}"` : ''}>${o.ic ? icon(o.ic, 15) : ''}${txt ? `<span>${txt}</span>` : ''}</button>`;
-function selOpts(list, cur, all) { return (all ? `<option value="">${esc(all)}</option>` : '') + list.filter(o => all ? (typeof o === 'object' ? o.v !== '' && o.v != null : o !== '' && o != null) : true).map(o => { const v = typeof o === 'object' ? o.v : o, t = typeof o === 'object' ? o.t : o; return `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(t)}</option>`; }).join(''); }
+export const ragPill = r => `<span class="rag" style="--c:${RAG_C[r] || '#8A8886'}"><i></i>${esc(r || '—')}</span>`;
+export const fasePill = f => `<span class="pill" style="--c:${FASE_COLOR[f] || '#8A8886'}">${esc(f)}</span>`;
+export const prioPill = p => `<span class="prio p-${esc(p)}">${p === 'Alta' ? '▲' : p === 'Baja' ? '▼' : '■'} ${esc(p || '—')}</span>`;
+export const estPill = e => `<span class="pill" style="--c:${EST_C[e] || '#605E5C'}">${esc(e)}</span>`;
+export const tipoPill = i => `<span class="pill tp ${esProp(i) ? 'prop' : 'prj'}">${esProp(i) ? 'Propuesta' : 'Proyecto'}</span>`;
+export const prog = (v, rag, h = 6) => `<span class="prog" style="height:${h}px"><b style="width:${Math.max(0, Math.min(100, v))}%;background:${RAG_C[rag] || 'var(--pri)'}"></b></span>`;
+export const estTag = (i, f) => (i.est && (i.est.includes(f) || i.est.includes('all'))) ? `<sup class="est" title="Valor estimado/demo — completar con datos reales">est.</sup>` : '';
+export const empty = (t, ic = 'search') => (window.V22 && V22.empty ? V22.empty(t, ic) : `<div class="empty">${icon(ic, 28)}<p>${esc(t)}</p></div>`);
+export const iniLink = (id, txt) => id ? `<a class="lnk" data-act="sel" data-t="ini" data-id="${esc(id)}">${esc(txt || nameOf(id))}</a>` : '<span class="mut">—</span>';
+export function pageHead(t, sub, actions = '') { if (['hitos', 'gantt', 'proyectos'].includes(UI.view)) actions += `<span class="edit-only">${btn('Cargar Excel', 'cargaxl', { ic: 'up', title: 'Cargar planificación e hitos desde Excel (con plantilla descargable)' })}</span>`; return `<div class="ph"><div><h1>${esc(t)}</h1>${sub ? `<p>${sub}</p>` : ''}</div><div class="ph-act">${actions}</div></div>`; }
+export const btn = (txt, act, o = {}) => `<button class="btn ${o.cls || ''}" data-act="${act}" ${Object.entries(o.d || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')} ${o.title ? `title="${esc(o.title)}"` : ''}>${o.ic ? icon(o.ic, 15) : ''}${txt ? `<span>${txt}</span>` : ''}</button>`;
+export function selOpts(list, cur, all) { return (all ? `<option value="">${esc(all)}</option>` : '') + list.filter(o => all ? (typeof o === 'object' ? o.v !== '' && o.v != null : o !== '' && o != null) : true).map(o => { const v = typeof o === 'object' ? o.v : o, t = typeof o === 'object' ? o.t : o; return `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(t)}</option>`; }).join(''); }
 
 /* ---------- gráficos SVG ---------- */
 function donut(segs, o = {}) {
@@ -29,24 +31,24 @@ function donut(segs, o = {}) {
   const arcs = segs.filter(s => s.v > 0).map(s => { const len = s.v / tot * C, g = segs.filter(x => x.v > 0).length > 1 ? 2 : 0; const el = `<circle cx="${S / 2}" cy="${S / 2}" r="${r}" fill="none" stroke="${s.c}" stroke-width="${th}" stroke-dasharray="${Math.max(0, len - g)} ${C - len + g}" stroke-dashoffset="${-off}" transform="rotate(-90 ${S / 2} ${S / 2})"><title>${esc(s.l)}: ${s.v}</title></circle>`; off += len; return el; }).join('');
   return `<svg class="donut" width="${S}" height="${S}" viewBox="0 0 ${S} ${S}" role="img" aria-label="${esc(o.label || 'Distribución')}"><circle cx="${S / 2}" cy="${S / 2}" r="${r}" fill="none" stroke="#EDEBE9" stroke-width="${th}"/>${arcs}<text x="50%" y="${o.sub ? '48%' : '52%'}" text-anchor="middle" dominant-baseline="middle" class="d-big">${esc(o.center ?? tot)}</text>${o.sub ? `<text x="50%" y="63%" text-anchor="middle" class="d-sub">${esc(o.sub)}</text>` : ''}</svg>`;
 }
-function spark(pts, w = 80, h = 22, c = 'var(--pri)') {
+export function spark(pts, w = 80, h = 22, c = 'var(--pri)') {
   if (!pts || pts.length < 2) return `<span class="mut" style="font-size:11px">—</span>`;
   const mn = Math.min(...pts), mx = Math.max(...pts), rg = (mx - mn) || 1;
   const xy = pts.map((v, i) => [i / (pts.length - 1) * (w - 4) + 2, h - 3 - (v - mn) / rg * (h - 6)]);
   return `<svg width="${w}" height="${h}" class="spark"><polyline points="${xy.map(p => p.join(',')).join(' ')}" fill="none" stroke="${c}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${xy[xy.length - 1][0]}" cy="${xy[xy.length - 1][1]}" r="2.4" fill="${c}"/></svg>`;
 }
-function stackBar(segs, h = 14) { const t = sum(segs, s => s.v) || 1; return `<div class="stk" style="height:${h}px">${segs.filter(s => s.v > 0).map(s => `<i style="flex:${s.v};background:${s.c}" title="${esc(s.l)}: ${s.v}"></i>`).join('')}</div>`; }
-function hbars(rows, max, fmt = v => v) { const m = max || Math.max(1, ...rows.map(r => r.v)); return rows.map(r => `<div class="hb"><span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t"><b style="width:${r.v / m * 100}%;background:${r.c || 'var(--pri)'}"></b></span><span class="hb-v">${fmt(r.v)}</span></div>`).join(''); }
+export function stackBar(segs, h = 14) { const t = sum(segs, s => s.v) || 1; return `<div class="stk" style="height:${h}px">${segs.filter(s => s.v > 0).map(s => `<i style="flex:${s.v};background:${s.c}" title="${esc(s.l)}: ${s.v}"></i>`).join('')}</div>`; }
+export function hbars(rows, max, fmt = v => v) { const m = max || Math.max(1, ...rows.map(r => r.v)); return rows.map(r => `<div class="hb"><span class="hb-l" title="${esc(r.l)}">${esc(r.l)}</span><span class="hb-t"><b style="width:${r.v / m * 100}%;background:${r.c || 'var(--pri)'}"></b></span><span class="hb-v">${fmt(r.v)}</span></div>`).join(''); }
 
 /* ---------- toasts ---------- */
-function toast(msg, type = 'ok') {
+export function toast(msg, type = 'ok') {
   const el = document.createElement('div'); el.className = 'toast ' + type; el.innerHTML = `${icon(type === 'err' ? 'warn' : 'check', 16)}<span>${esc(msg)}</span>`;
   $('#toasts').appendChild(el); const d = type === 'err' ? 6000 : 2700;   // U-10: los errores duran más
   setTimeout(() => el.classList.add('out'), d); setTimeout(() => el.remove(), d + 500);
 }
 
 /* ---------- modal + formularios ---------- */
-const Modal = {
+export const Modal = {
   open(o) {
     const ret = $('#modal') ? this._ret : document.activeElement; this.close(); this._ret = ret;
     const m = document.createElement('div'); m.className = 'modal-bg'; m.id = 'modal';
@@ -79,7 +81,7 @@ function fieldHTML(f, v) {
   else inp = `<input id="${id}" name="${f.k}" type="${f.t || 'text'}" value="${esc(v ?? '')}" ${f.ph ? `placeholder="${esc(f.ph)}"` : ''} ${f.step ? `step="${f.step}"` : ''} ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''} ${f.list ? `list="dl_${f.k}"` : ''}>${f.list ? `<datalist id="dl_${f.k}">${f.list.map(x => `<option value="${esc(x)}">`).join('')}</datalist>` : ''}`;
   return `<div class="${cls}"><label for="${id}">${esc(f.l || '')}${req}</label>${inp}${f.hint ? `<small>${f.hint}</small>` : ''}</div>`;
 }
-function openForm(o) {
+export function openForm(o) {
   if (o.pres) { o.fields = [...o.fields.filter(f => f.k !== 'inPres'), { k: 'inPres', l: 'Presentación', t: 'check', lbl: 'Incluir en presentación', w: 3 }]; o.values = Object.assign({}, o.values, { inPres: (o.values || {}).inPres !== false }); }   // {title, fields:[{k,l,t,opts,req,w,...}], values, onSave(vals) -> false para no cerrar, saveLabel, wide, extra, tabs:[{k,t,secs}], tabExtra:{k:html}}
   const vals = o.values || {};
   let body = '';
@@ -108,45 +110,45 @@ function readForm() {
   });
   return { out, errs };
 }
-function confirmBox(msg, onYes, label = 'Confirmar', danger) {
+export function confirmBox(msg, onYes, label = 'Confirmar', danger) {
   Modal.open({ title: 'Confirmación', body: `<p style="margin:4px 0 8px;line-height:1.5">${msg}</p>`, footer: `<button class="btn" data-act="mclose">Cancelar</button><button class="btn ${danger ? 'danger' : 'pri'}" data-act="mconfirm">${esc(label)}</button>` });
   Modal.cur.yes = onYes;
 }
 
 /* ---------- popovers ---------- */
 function popToggle(id) { const was = UI.pop === id; closePops(); if (!was) { const el = $('#' + id); if (el) { el.classList.add('open'); UI.pop = id; } } syncPop(); }
-function closePops() { $$('.pop.open').forEach(p => p.classList.remove('open')); UI.pop = null; syncPop(); }
-function syncPop() { $$('[data-act=pop][data-id]').forEach(b => { const t = document.getElementById(b.dataset.id); b.setAttribute('aria-expanded', t && t.classList.contains('open') ? 'true' : 'false'); if (!b.hasAttribute('aria-haspopup')) b.setAttribute('aria-haspopup', 'true'); if (t && !b.hasAttribute('aria-controls')) b.setAttribute('aria-controls', b.dataset.id); }); }
+export function closePops() { $$('.pop.open').forEach(p => p.classList.remove('open')); UI.pop = null; syncPop(); }
+export function syncPop() { $$('[data-act=pop][data-id]').forEach(b => { const t = document.getElementById(b.dataset.id); b.setAttribute('aria-expanded', t && t.classList.contains('open') ? 'true' : 'false'); if (!b.hasAttribute('aria-haspopup')) b.setAttribute('aria-haspopup', 'true'); if (t && !b.hasAttribute('aria-controls')) b.setAttribute('aria-controls', b.dataset.id); }); }
 
 /* ---------- descarga/exportación ---------- */
-function download(name, text, mime = 'text/plain') { const b = new Blob([text], { type: mime + ';charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
-function toCSV(rows, cols) { const q = v => { const txt0 = typeof v === 'string'; v = v == null ? '' : String(v).replace(/\r?\n/g, ' '); if (txt0 && /^[=+\-@\t\r]/.test(v)) v = "'" + v;   // F-26: evita fórmulas al abrir en Excel
+export function download(name, text, mime = 'text/plain') { const b = new Blob([text], { type: mime + ';charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+export function toCSV(rows, cols) { const q = v => { const txt0 = typeof v === 'string'; v = v == null ? '' : String(v).replace(/\r?\n/g, ' '); if (txt0 && /^[=+\-@\t\r]/.test(v)) v = "'" + v;   // F-26: evita fórmulas al abrir en Excel
       return /[",;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }; return '﻿' + [cols.map(c => q(c.h)).join(';'), ...rows.map(r => cols.map(c => q(c.f(r))).join(';'))].join('\r\n'); }
-function copyText(t) { try { navigator.clipboard.writeText(t).then(() => toast('Copiado al portapapeles')); } catch (e) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Copiado al portapapeles'); } catch (e2) { toast('No se pudo copiar', 'err'); } ta.remove(); } }
+export function copyText(t) { try { navigator.clipboard.writeText(t).then(() => toast('Copiado al portapapeles')); } catch (e) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Copiado al portapapeles'); } catch (e2) { toast('No se pudo copiar', 'err'); } ta.remove(); } }
 
 /* ---------- navegación ---------- */
-const NAV = [
+export const NAV = [
   ['dashboard', 'Dashboard', 'dashboard'], ['cielo', 'Mi cocina', 'fork'], ['portfolio', 'Portfolio', 'portfolio'], ['proyectos', 'Proyectos', 'list'], ['propuestas', 'Propuestas', 'bulb'], ['hitos', 'Hitos', 'flag'], ['riesgos', 'Riesgos', 'shield'],
   ['roadmap', 'Roadmap', 'road'], ['gantt', 'Gantt', 'gantt'], ['fases', 'Fases', 'flag'], ['comite', 'Comité', 'users'], ['decisiones', 'Decisiones', 'gavel'], ['compromisos', 'Compromisos', 'check'], ['cambios', 'Cambios', 'refresh'], ['bitacora', 'Bitácora', 'book'], ['calendario', 'Calendario', 'cal'], ['capacidad', 'Capacidad', 'users'], ['personas', 'Personas', 'person'],
   ['presentaciones', 'Presentaciones', 'slides'], ['miconfig', 'Mi configuración', 'settings'], ['admin', 'Administración', 'settings'], ['analisis', 'Análisis', 'spark'], ['proposito', 'Para qué sirve', 'help']
 ];
 const NAV_GRUPO = ['proyectos', 'propuestas', 'hitos', 'riesgos'];   // «Iniciativas»: un solo bloque de menú
-function navBadge(k) {
+export function navBadge(k) {
   const L = scope();
   if (k === 'propuestas') return scopeP().filter(isLive).length;
   if (k === 'riesgos') return riesgosCriticos().length;
   if (k === 'hitos') return HITOS().filter(h => !h.completado && h.fecha < hoy() && (!byId(h.ini) || inArea(byId(h.ini)))).length;
-  if (k === 'compromisos') return typeof acuVencidos === 'function' ? acuVencidos() : 0;
+  if (k === 'compromisos') return typeof ENLACES.acuVencidos === 'function' ? (0, ENLACES.acuVencidos)() : 0;
   if (k === 'cambios') return St.cambios ? CAMBIOS().filter(c => c.estado === 'Solicitado').length : 0;
   if (k === 'decisiones') return DECS().filter(d => d.estado === 'Pendiente').length;
-  if (k === 'analisis') return typeof motorAlertas === 'function' ? motorAlertas().filter(a => a.sev === 3).length : 0;
+  if (k === 'analisis') return typeof ENLACES.motorAlertas === 'function' ? (0, ENLACES.motorAlertas)().filter(a => a.sev === 3).length : 0;
   return 0;
 }
-function go(v) { if (!Views[v]) return; UI.view = v; if (location.hash !== '#/' + v) { try { history.pushState(null, '', '#/' + v); } catch (e) { } } /* sin historial en vistas previas aisladas */ closePops(); { const ap = $('#app'); if (ap) ap.classList.remove('side-open'); const tp = $('.top'); if (tp) tp.classList.remove('gs-open'); } render(); $('#main').scrollTop = 0; }
+export function go(v) { if (!Views[v]) return; UI.view = v; if (location.hash !== '#/' + v) { try { history.pushState(null, '', '#/' + v); } catch (e) { } } /* sin historial en vistas previas aisladas */ closePops(); { const ap = $('#app'); if (ap) ap.classList.remove('side-open'); const tp = $('.top'); if (tp) tp.classList.remove('gs-open'); } render(); $('#main').scrollTop = 0; }
 window.addEventListener('popstate', () => { const v = (location.hash || '').replace('#/', ''); if (Views[v] && v !== UI.view) { UI.view = v; render(); } });
 
 /* ---------- shell ---------- */
-function shell() {
+export function shell() {
   $('#app').innerHTML = `
   <a class="skip" href="#main" data-act="skipmain">Saltar al contenido</a>
   <header class="top" role="banner">
@@ -180,23 +182,23 @@ function shell() {
   <main id="main" tabindex="-1"></main>
   <aside id="panel" aria-label="Panel contextual"></aside>`;
 }
-function renderChrome() {
+export function renderChrome() {
   const navItem = ([k, t, ic], sub) => { const b = navBadge(k); return `<a class="nav ${sub ? 'nsub' : ''} ${UI.view === k ? 'on' : ''}" data-act="go" data-v="${k}" href="#/${k}" title="${t}"${UI.view === k ? ' aria-current="page"' : ''}>${sub ? '' : icon(ic, 18)}<span>${t}</span>${b ? `<em class="${k === 'riesgos' || k === 'hitos' || k === 'analisis' ? 'red' : ''}">${b}</em>` : ''}</a>`; };
   const navG = NAV_GRUPO.map(k => NAV.find(n => n[0] === k)), gAct = NAV_GRUPO.includes(UI.view), gOpen = UI.navOpen !== false || gAct;
   const gBadge = navG.reduce((a, n) => a + (+navBadge(n[0]) || 0), 0);
-  let _ng = ''; $('#side').innerHTML = NAV.filter(n => (n[0] !== 'personas' || esAdministra()) && (n[0] !== 'admin' || esAdmin()) && (n[0] !== 'analisis' || puedeVerAnalisis()) && (n[0] !== 'cielo' || cieloOn()) && (modoUI() !== 'simple' || UI.sx || NAV_SIMPLE.includes(n[0]))).map(n => {
-    const tg = NAV_GRP[n[0]] !== _ng ? (_ng = NAV_GRP[n[0]], '<div class="nav-t">' + _ng + '</div>') : '';
+  let _ng = ''; $('#side').innerHTML = NAV.filter(n => (n[0] !== 'personas' || (0, ENLACES.esAdministra)()) && (n[0] !== 'admin' || esAdmin()) && (n[0] !== 'analisis' || (0, ENLACES.puedeVerAnalisis)()) && (n[0] !== 'cielo' || (0, ENLACES.cieloOn)()) && ((0, ENLACES.modoUI)() !== 'simple' || UI.sx || ENLACES.NAV_SIMPLE.includes(n[0]))).map(n => {
+    const tg = ENLACES.NAV_GRP[n[0]] !== _ng ? (_ng = ENLACES.NAV_GRP[n[0]], '<div class="nav-t">' + _ng + '</div>') : '';
     if (NAV_GRUPO.includes(n[0])) return tg + n[0] === NAV_GRUPO[0] ? `<div class="nav-g ${gOpen ? 'open' : ''}"><button class="nav nav-gh ${gAct ? 'act' : ''}" data-act="navg" aria-expanded="${gOpen}">${icon('list', 18)}<span>Iniciativas</span>${!gOpen && gBadge ? `<em class="red">${gBadge}</em>` : ''}<i class="chv">${icon('chev', 12)}</i></button>${gOpen ? `<div class="nav-gb">${navG.map(x => navItem(x, true)).join('')}</div>` : ''}</div>` : '';
     return tg + navItem(n);
   }).join('') +
     `<div class="side-f"><img class="side-logo" src="${LOGO.bwdw}" alt="Be Well. Do Well."><div id="sideSync"></div></div>`;
-  const vc = $('#vcBox'); if (vc) vc.innerHTML = verComoHTML();
-  const ms = $('#modeSeg'); if (ms) ms.innerHTML = ['simple', 'pro'].map(m => `<button class="${modoUI() === m ? 'on' : ''}" data-act="modo" data-m="${m}">${m === 'simple' ? 'Simple' : 'Profesional'}</button>`).join('');
-  $('#app').classList.toggle('simple', modoUI() === 'simple'); $('#app').classList.toggle('sx', !!UI.sx);
-  const as = $('#areaG'); if (as) as.innerHTML = selOpts(['Todas', ...areasPermitidas()], St.cfg.areaGlobal);
-  bellPop();
+  const vc = $('#vcBox'); if (vc) vc.innerHTML = (0, ENLACES.verComoHTML)();
+  const ms = $('#modeSeg'); if (ms) ms.innerHTML = ['simple', 'pro'].map(m => `<button class="${(0, ENLACES.modoUI)() === m ? 'on' : ''}" data-act="modo" data-m="${m}">${m === 'simple' ? 'Simple' : 'Profesional'}</button>`).join('');
+  $('#app').classList.toggle('simple', (0, ENLACES.modoUI)() === 'simple'); $('#app').classList.toggle('sx', !!UI.sx);
+  const as = $('#areaG'); if (as) as.innerHTML = selOpts(['Todas', ...(0, ENLACES.areasPermitidas)()], St.cfg.areaGlobal);
+  (0, ENLACES.bellPop)();
   $('#app').classList.toggle('nopanel', !UI.panel || (UI.view === 'presentaciones' && !UI.sel));
-  $('#app').classList.toggle('ro', soloLectura());
+  $('#app').classList.toggle('ro', (0, ENLACES.soloLectura)());
 }
 /* A-01/A-02: elementos clicables no nativos (divs/spans con data-act) reciben foco y Enter/Espacio */
 const KB_ACT_TAGS = 'div,span,i,g,rect,path,text,label';
@@ -205,23 +207,23 @@ function scrollHints() {   /* N-U-09: avisa cuando un tablero se desplaza horizo
 }
 function kbFocusables() { $$('#main [data-act]').forEach(el => { if (el.matches('button,a,input,select,textarea,tr,td,th') || el.tabIndex >= 0 && el.hasAttribute('tabindex')) return; if (!el.matches(KB_ACT_TAGS) || el.dataset.act === 'noop') return; el.setAttribute('tabindex', '0'); if (!el.getAttribute('role')) el.setAttribute('role', 'button'); }); }
 document.addEventListener('keydown', e => { if ((e.key !== 'Enter' && e.key !== ' ') || !e.target || e.target.matches('button,a,input,select,textarea') || !e.target.dataset || !e.target.dataset.act || !e.target.closest('#main')) return; if (e.target.getAttribute('role') !== 'button') return; e.preventDefault(); e.target.click(); });
-function render() {
-  syncFases(); ppInval(); try { michelinSync(); } catch (e) { console.error(e); } try { escalarSync(); } catch (e) { console.error(e); } try { if (typeof chkInsignias === 'function' && !UI.bdPrev) chkInsignias(); } catch (e) { } guardAdmin(); guardAcceso();
+export function render() {
+  syncFases(); ppInval(); try { (0, ENLACES.michelinSync)(); } catch (e) { console.error(e); } try { (0, ENLACES.escalarSync)(); } catch (e) { console.error(e); } try { if (typeof ENLACES.chkInsignias === 'function' && !UI.bdPrev) (0, ENLACES.chkInsignias)(); } catch (e) { } (0, ENLACES.guardAdmin)(); (0, ENLACES.guardAcceso)();
   const v = Views[UI.view]; if (!v) return;
   const act = document.activeElement, key = act && act.dataset ? act.dataset.key : null, ss = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
   const keep = {}; $$('[data-keep]').forEach(e => keep[e.dataset.keep] = [e.scrollLeft, e.scrollTop]);
   const mn = $('#main'), sc = mn.scrollTop;
-  try { mn.innerHTML = (FL.verComo ? '<div class="note" role="status" style="margin:0 0 8px;position:sticky;top:0;z-index:5;background:#FFF4CE;border:1px solid #E0C060;color:#4A3600"><span>Viendo como <b>' + esc(FL.verComo) + '</b> (simulación) · <button class="lnk" data-act="vercomo" data-n="">Volver a mi usuario</button></span></div>' : '') + crumbs() + '<div id="bannerBox">' + banner() + '</div>' + filtrosHTML() + guiaHTML() + v.render();  kbFocusables(); scrollHints(); } catch (e) { console.error(e); mn.innerHTML = `<div class="empty">${icon('warn', 28)}<p>Error al renderizar la vista: ${esc(e.message)}</p></div>`; }
+  try { mn.innerHTML = (FL.verComo ? '<div class="note" role="status" style="margin:0 0 8px;position:sticky;top:0;z-index:5;background:#FFF4CE;border:1px solid #E0C060;color:#4A3600"><span>Viendo como <b>' + esc(FL.verComo) + '</b> (simulación) · <button class="lnk" data-act="vercomo" data-n="">Volver a mi usuario</button></span></div>' : '') + crumbs() + '<div id="bannerBox">' + banner() + '</div>' + (0, ENLACES.filtrosHTML)() + (0, ENLACES.guiaHTML)() + v.render();  kbFocusables(); scrollHints(); } catch (e) { console.error(e); mn.innerHTML = `<div class="empty">${icon('warn', 28)}<p>Error al renderizar la vista: ${esc(e.message)}</p></div>`; }
   mn.scrollTop = sc;
   $$('[data-keep]').forEach(e => { const k = keep[e.dataset.keep]; if (k) { e.scrollLeft = k[0]; e.scrollTop = k[1]; } });
-  fitMain(); try { simplify(); } catch (e) { console.error(e); } try { incMarks(); } catch (e) { console.error(e); } try { presLayout(); } catch (e) { console.error(e); } try { cocFit(); } catch (e) { console.error(e); }
+  fitMain(); try { (0, ENLACES.simplify)(); } catch (e) { console.error(e); } try { (0, ENLACES.incMarks)(); } catch (e) { console.error(e); } try { (0, ENLACES.presLayout)(); } catch (e) { console.error(e); } try { (0, ENLACES.cocFit)(); } catch (e) { console.error(e); }
   try { v.after && v.after(); } catch (e) { console.error(e); }
   if (key) { const el = $(`[data-key="${key}"]`); if (el && el !== document.activeElement) { el.focus(); if (ss && el.setSelectionRange) try { el.setSelectionRange(ss[0], ss[1]); } catch (e) { } } }
   document.title = 'APIH · ' + (NAV.find(n => n[0] === UI.view) || [0, ''])[1];
-  renderChrome(); renderPanel(); updateSyncUI(); try { ampliable(); } catch (e) { }
+  renderChrome(); renderPanel(); updateSyncUI(); try { (0, ENLACES.ampliable)(); } catch (e) { }
 }
 /* páginas cortas: el bloque más alto de la vista se desplaza dentro de su caja en vez de alargar la página */
-function fitMain() {
+export function fitMain() {
   const mn = $('#main'); if (!mn) return;
   const skip = e => e.id === 'bannerBox' || /\b(crumbs|ph|flt-bar|guia|guia-min|kpis|strip|banner|fit)\b/.test(e.className || '');
   [...mn.children].filter(e => !skip(e) && e.offsetHeight > 0).forEach(e => { if (e.offsetHeight > 220) e.classList.add('fit'); });
@@ -242,11 +244,11 @@ function sanRow(r) { if (!r || typeof r !== 'object' || Array.isArray(r)) return
     else if (k === 'deps' && Array.isArray(v)) r[k] = v.map(d => typeof d === 'string' ? sanId(d) : d);
     else if (k === 'subfases' && Array.isArray(v)) v.forEach(sanRow); });
   return r; }
-function sanSt(S) { ['ini', 'hitos', 'riesgos', 'decisiones', 'comites', 'compromisos', 'cambios', 'bitacora', 'notas', 'eventos'].forEach(k => { if (Array.isArray(S[k])) S[k].forEach(sanRow); }); return S; }
-function refresh() { sanSt(St); save(); render(); try { if (typeof chkInsignias === 'function') chkInsignias(); } catch (e) { } }
+export function sanSt(S) { ['ini', 'hitos', 'riesgos', 'decisiones', 'comites', 'compromisos', 'cambios', 'bitacora', 'notas', 'eventos'].forEach(k => { if (Array.isArray(S[k])) S[k].forEach(sanRow); }); return S; }
+export function refresh() { sanSt(St); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
 
 /* ---------- panel contextual ---------- */
-function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); }
+export function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); }
 function renderPanel() {
   const p = $('#panel'); if (!p) return; const s = UI.sel; let h = '';
   try {
@@ -260,22 +262,22 @@ function renderPanel() {
   p.innerHTML = h; const b = $('.pn-b', p); if (b) b.scrollTop = sc;
 }
 function pnHead(kicker, title, pills, actions) { return `<div class="pn-h"><div class="pn-k">${kicker}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><h3>${title}</h3><div class="pn-p">${pills || ''}</div><div class="pn-a">${actions || ''}</div></div>`; }
-const kv = (k, v) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
+export const kv = (k, v) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
 function panelHome() {
   const me = miUsuario(), mine = St.ini.filter(i => i.lider === me && isLive(i) && FASES_ACT.includes(i.fase));
-  const al = typeof motorAlertas === 'function' ? motorAlertas().slice(0, 5) : [];
+  const al = typeof ENLACES.motorAlertas === 'function' ? (0, ENLACES.motorAlertas)().slice(0, 5) : [];
   return `<div class="pn-h"><div class="pn-k">Panel contextual<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><h3>Resumen del portafolio</h3><p class="mut" style="margin:4px 0 0;font-size:12px">Selecciona un proyecto, propuesta, riesgo, hito o decisión para ver su detalle aquí.</p></div>
   <div class="pn-b"><div class="pn-sec"><h4>Alertas de reglas</h4>${al.map(a => `<button class="al" data-act="alertgo" data-id="${esc(a.ini || '')}"><span class="sev s-${a.sev}"></span><span><b>${esc(a.titulo)}</b><small>${esc(a.grupo)}${a.ini ? ' · ' + esc(nameOf(a.ini)) : ''}</small></span></button>`).join('') || '<p class="mut">Sin alertas.</p>'}</div>
   <div class="pn-sec"><h4>Mis proyectos activos (${mine.length})</h4>${mine.slice(0, 6).map(i => `<button class="al" data-act="sel" data-t="ini" data-id="${i.id}">${ragPill(i.rag)}<span><b>${esc(i.titulo)}</b><small>${pct(i.avance)} · fin ${fmtD(forecast(i))}</small></span></button>`).join('') || '<p class="mut">—</p>'}</div>
   <div class="pn-sec"><h4>Atajos</h4><div class="chips">${btn('Nuevo riesgo', 'new', { d: { t: 'risk' }, ic: 'shield' })}${btn('Nueva decisión', 'new', { d: { t: 'dec' }, ic: 'gavel' })}${btn('Ver análisis', 'go', { d: { v: 'analisis' }, ic: 'spark' })}</div></div></div>`;
 }
-function panelIni(i) {
+export function panelIni(i) {
   const PR = esProp(i);
   const tabs = [['resumen', 'Resumen'], ['hitos', 'Hitos (' + hitosDe(i.id).length + ')'], ['riesgos', 'Riesgos (' + riesgosDe(i.id).length + ')'], ['actividad', 'Actividad'], ['alertas', 'Alertas']];
   if (APIH_CONFIG.analisis === false) tabs.splice(tabs.findIndex(t => t[0] === 'alertas'), 1);
   const t = tabs.some(x => x[0] === UI.tab) ? UI.tab : 'resumen';
   let b = '';
-  if (t === 'resumen' && PR) { b = propResumen(i); }
+  if (t === 'resumen' && PR) { b = (0, ENLACES.propResumen)(i); }
   else if (t === 'resumen') {
     const sug = ragSugerido(i), c = completitud(i), r = roi(i), f = forecast(i), d = desv(i);
     const idx = FASES_PRJ.indexOf(i.fase), nxt = FASES_PRJ[idx + 1];
@@ -284,7 +286,7 @@ function panelIni(i) {
     <div class="pn-sec"><div class="kvs mxk"><div class="mx-g"><h5>Avance</h5><div class="mx-t"><div><span>Real</span><b>${pct(i.avance)}</b>${prog(i.avance, i.rag, 5)}</div><div><span>Esperado</span><b>${FASES_ACT.includes(i.fase) ? pct(esperado(i)) : '—'}</b><small>según plan</small></div></div></div>
     <div class="mx-g"><h5>Finanzas</h5><div class="mx-t"><div><span>Presupuesto</span><b>${fmtMon(i.presupuesto, monOf(i)) + estTag(i, 'presupuesto')}</b></div><div><span>Consumido</span><b>${fmtMon(i.gastado, monOf(i))}</b><small>${i.presupuesto ? Math.round(i.gastado / i.presupuesto * 100) : 0}% del presupuesto</small></div><div><span>Beneficio esperado</span><b>${fmtMon(i.beneficio, monOf(i)) + estTag(i, 'beneficio')}</b></div><div><span>ROI</span><b>${r == null ? '—' : Math.round(r) + '%'}</b></div></div></div>
     <div class="mx-g"><h5>Plazos<em>${(St.cambios || []).filter(c => c.ini === i.id && c.estado === 'Aprobado').length} cambios aprobados</em></h5><div class="mx-t"><div><span>Inicio plan</span><b>${fmtD(i.inicioPlan)}</b></div><div><span>Fin plan</span><b>${fmtD(i.finPlan)}</b></div><div><span>Fin proyectado</span><b>${fmtD(f)}</b></div><div><span>Desviación</span><b>${d ? `<span style="color:var(--red)">+${d} d</span>` : '0 d'}</b></div></div></div></div></div>
-    ${controlHTML(i)}<div class="pn-sec"><div class="kvs">${i.tipoIni ? kv('Tipo', esc(i.tipoIni)) : ''}${kv('Sponsor', esc(i.sponsor || '—') + estTag(i, 'sponsor'))}${kv('Líder', esc(i.lider || '—'))}${kv('Resp. negocio', esc(i.negocio || '—'))}${kv('Área', esc(i.area))}${kv('Categoría', esc(i.categoria))}${kv('Clasificación', esc(i.clasif) + ' · ' + esc(i.gasto))}${kv('Proveedor', esc(i.proveedor || '—'))}${kv('Origen', i.origen === 'real' ? 'Gene (real)' : i.origen === 'propuesta' ? 'Gene (propuesta)' : 'Demo / contexto')}</div></div>
+    ${(0, ENLACES.controlHTML)(i)}<div class="pn-sec"><div class="kvs">${i.tipoIni ? kv('Tipo', esc(i.tipoIni)) : ''}${kv('Sponsor', esc(i.sponsor || '—') + estTag(i, 'sponsor'))}${kv('Líder', esc(i.lider || '—'))}${kv('Resp. negocio', esc(i.negocio || '—'))}${kv('Área', esc(i.area))}${kv('Categoría', esc(i.categoria))}${kv('Clasificación', esc(i.clasif) + ' · ' + esc(i.gasto))}${kv('Proveedor', esc(i.proveedor || '—'))}${kv('Origen', i.origen === 'real' ? 'Gene (real)' : i.origen === 'propuesta' ? 'Gene (propuesta)' : 'Demo / contexto')}</div></div>
     <div class="pn-sec"><h4>Salud (RAG)</h4><div class="rag-cmp">${ragPill(i.rag)} <span class="mut">actual</span> ${icon('chev', 13)} ${ragPill(sug.rag)} <span class="mut">sugerido</span></div>${sug.why.length ? `<small class="mut">Por: ${esc(sug.why.join(', '))}</small>` : '<small class="mut">Sin señales de alerta.</small>'}${sug.rag !== i.rag ? `<div style="margin-top:6px">${btn('Aplicar RAG sugerido', 'applyrag', { d: { id: i.id, rag: sug.rag }, cls: 'sm' })}</div>` : ''}</div>
     ${i.deps.length ? `<div class="pn-sec"><h4>Dependencias</h4>${i.deps.map(d => { const x = byId(d); return x ? `<button class="al" data-act="sel" data-t="ini" data-id="${x.id}">${ragPill(x.rag)}<span><b>${esc(x.titulo)}</b><small>${x.fase} · fin ${fmtD(forecast(x))}</small></span></button>` : ''; }).join('')}</div>` : ''}
     ${(() => { const dn = St.ini.filter(x => x.deps.includes(i.id)); return dn.length ? `<div class="pn-sec"><h4>Habilita a</h4>${dn.map(x => `<button class="al" data-act="sel" data-t="ini" data-id="${x.id}">${ragPill(x.rag)}<span><b>${esc(x.titulo)}</b><small>${x.fase}</small></span></button>`).join('')}</div>` : ''; })()}
@@ -292,32 +294,32 @@ function panelIni(i) {
     ${i.rec ? `<div class="pn-sec"><h4>Recomendación del último ciclo</h4><div class="note"><b style="color:${DEC_C[i.rec.accion]}">${i.rec.accion}</b> — ${esc(i.rec.motivo)}</div></div>` : ''}
     <div class="pn-sec"><h4>Calidad de datos · ${c.pct}%</h4>${prog(c.pct, c.pct > 80 ? 'Verde' : c.pct > 60 ? 'Ámbar' : 'Rojo', 5)}<small class="mut">${c.crit.length ? 'Críticos: ' + esc(c.crit.join(', ')) + '. ' : ''}${c.rec.length ? 'Recomendados: ' + esc(c.rec.join(', ')) + '.' : ''}</small></div>`;
   } else if (t === 'hitos') {
-    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo hito', 'new', { d: { t: 'hito', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${hitosDe(i.id).sort(by('fecha')).map(h => { const e = hitoEstado(h); return `<div class="hrow"><input type="checkbox" ${h.completado ? 'checked' : ''} data-chg="hitotoggle" data-id="${h.id}" aria-label="Completado"><div><b class="${h.completado ? 'strike' : ''}">${esc(h.nombre)}</b><small style="color:${e.c}">${fmtD(h.fecha)} · ${e.t}</small></div>${incChk('hito', h.id)}<button class="icon-btn sm" data-act="edit" data-t="hito" data-id="${h.id}" aria-label="Editar">${icon('edit', 14)}</button></div>`; }).join('') || '<p class="mut">Sin hitos.</p>'}</div>`;
+    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo hito', 'new', { d: { t: 'hito', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${hitosDe(i.id).sort(by('fecha')).map(h => { const e = hitoEstado(h); return `<div class="hrow"><input type="checkbox" ${h.completado ? 'checked' : ''} data-chg="hitotoggle" data-id="${h.id}" aria-label="Completado"><div><b class="${h.completado ? 'strike' : ''}">${esc(h.nombre)}</b><small style="color:${e.c}">${fmtD(h.fecha)} · ${e.t}</small></div>${(0, ENLACES.incChk)('hito', h.id)}<button class="icon-btn sm" data-act="edit" data-t="hito" data-id="${h.id}" aria-label="Editar">${icon('edit', 14)}</button></div>`; }).join('') || '<p class="mut">Sin hitos.</p>'}</div>`;
   } else if (t === 'riesgos') {
-    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo riesgo', 'new', { d: { t: 'risk', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${riesgosDe(i.id).sort(by(r => -expo(r))).map(r => { const n = nivelRiesgo(expo(r)); return `<div class="al-w"><button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>${incChk('rsk', r.id)}</div>`; }).join('') || '<p class="mut">Sin riesgos registrados.</p>'}</div>`;
+    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo riesgo', 'new', { d: { t: 'risk', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${riesgosDe(i.id).sort(by(r => -expo(r))).map(r => { const n = nivelRiesgo(expo(r)); return `<div class="al-w"><button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>${(0, ENLACES.incChk)('rsk', r.id)}</div>`; }).join('') || '<p class="mut">Sin riesgos registrados.</p>'}</div>`;
   } else if (t === 'actividad') {
     b = `<div class="pn-sec"><div class="composer"><input id="cmt" placeholder="Agregar comentario…" data-key="cmt"><button class="btn pri sm" data-act="comment" data-id="${i.id}">${icon('send', 13)}</button></div>${St.bitacora.filter(x => x.ini === i.id).slice(0, 25).map(x => `<div class="act"><span class="adot" style="background:${BIT_C[x.tipo]}"></span><div style="flex:1"><b>${esc(x.tipo)}</b> <small>${fmtTS(x.ts)} · ${esc(x.autor)}</small><label class="chk inc-l edit-only" title="Incluir esta nota en las presentaciones"><input type="checkbox" data-chg="bitpres" data-id="${esc(x.id)}" ${x.inPres === false ? '' : 'checked'}> <span>En presentación</span></label><p>${esc(x.texto)}</p></div></div>`).join('') || '<p class="mut">Sin actividad.</p>'}</div>`;
   } else if (t === 'alertas') {
-    const fs = typeof insightsFor === 'function' ? insightsFor(i) : [];
+    const fs = typeof ENLACES.insightsFor === 'function' ? (0, ENLACES.insightsFor)(i) : [];
     b = `<div class="pn-sec"><h4>Hallazgos de reglas</h4>${fs.map(f => `<div class="note ${f.sev === 3 ? 'bad' : f.sev === 2 ? 'warn' : ''}"><b>${esc(f.grupo)}:</b> ${esc(f.titulo)}<br><small>${esc(f.detalle)}</small></div>`).join('') || '<p class="mut">Sin hallazgos: cumple las reglas.</p>'}</div>
     <div class="pn-sec"><h4>Historial de avance</h4><div style="margin:6px 0">${spark(i.hist.map(x => x[1]), 300, 46)}</div><small class="mut">${i.hist.length} registros de ciclo</small></div>`;
   }
   const fin = isDone(i), canAprobar = PR && !fin && i.fase === 'Aprobación' && i.estado === 'Vigente';   // (Stand By no aprueba)
-  return pnHead(`${tipoLbl(i)} ${i.id} · ${esc(i.area)}`, esc(i.titulo), `${PR ? '' : ragPill(i.rag)} ${faseTag(i)} ${estPill(i.estado)} ${prioPill(i.prioridad)} ${PR ? '' : starsMini(i)}`,
+  return pnHead(`${tipoLbl(i)} ${i.id} · ${esc(i.area)}`, esc(i.titulo), `${PR ? '' : ragPill(i.rag)} ${(0, ENLACES.faseTag)(i)} ${estPill(i.estado)} ${prioPill(i.prioridad)} ${PR ? '' : (0, ENLACES.starsMini)(i)}`,
     `${!PR ? btn('1 a 1', 'reporte', { d: { id: i.id }, ic: 'slides', cls: 'sm', title: 'Reporte de avance 1 a 1 (forma A o B; guardar como PNG, PDF o HTML)' }) : ''}${btn('Informe', 'informe', { d: { id: i.id }, ic: 'slides', cls: 'sm', title: 'Informe de estado listo para copiar' })}<span class="edit-only">${!PR && !fin && !esSB(i) ? btn('Actualizar', 'wk', { d: { id: i.id }, ic: 'refresh', cls: 'sm pri', title: 'Actualización semanal en 60 segundos' }) : ''}${canAprobar ? btn('Aprobar', 'aprobar', { d: { id: i.id }, ic: 'check', cls: 'sm pri' }) : ''}${btn('Con archivo', 'proyarch', { d: { id: i.id }, ic: 'spark', cls: 'sm', title: 'Descargar este proyecto para completarlo con un archivo y subir lo completado' })}${btn('Editar', 'edit', { d: { t: 'ini', id: i.id }, ic: 'edit', cls: 'sm' })}${fin ? '' : (esSB(i) ? '' : btn('Fase', 'advance', { d: { id: i.id }, ic: 'chev', cls: 'sm', title: 'Cambiar de fase / compuertas' })) + btn(esSB(i) ? 'Reactivar' : 'Estado', 'estado', { d: { id: i.id }, ic: 'pause2', cls: 'sm', title: esSB(i) ? 'Stand By: fuera de indicadores. Reactívala cambiando el estado' : 'Cambiar estado' })}${fin && !PR ? btn('Reabrir', 'reabrirPrj', { d: { id: i.id }, ic: 'refresh', cls: 'sm', title: 'Solo Administra: vuelve el proyecto a En curso' }) : ''}${PR && ['Rechazada', 'Retirada'].includes(i.estado) ? btn('Reabrir', 'reopen', { d: { id: i.id }, ic: 'undo', cls: 'sm' }) : ''}</span>${PR ? '' : btn('Gantt', 'ganttfocus', { d: { id: i.id }, ic: 'gantt', cls: 'sm' })}${btn('Presentar', 'presentar', { d: { id: i.id }, ic: 'slides', cls: 'sm' })}`) +
     `<div class="tabs sm">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="ptab" data-tab="${k}">${n}</button>`).join('')}</div><div class="pn-b">${b}</div>`;
 }
-function panelRisk(r) {
+export function panelRisk(r) {
   const n = nivelRiesgo(expo(r)), i = byId(r.ini);
   return pnHead('Riesgo · ' + r.id, esc(r.desc), `<span class="pill" style="--c:${n.c}">${n.n} · ${expo(r)}</span> <span class="pill soft">${r.estado}</span> <span class="pill soft">${esc(r.cat)}</span>`, `<span class="edit-only">${btn('Editar', 'edit', { d: { t: 'risk', id: r.id }, ic: 'edit', cls: 'sm' })}</span>`) +
     `<div class="pn-b"><div class="pn-sec"><div class="kvs">${kv('Iniciativa', iniLink(r.ini))}${kv('Probabilidad', r.prob + ' / 5')}${kv('Impacto', r.imp + ' / 5')}${kv('Exposición', `<span style="color:${n.c}">${expo(r)}</span>`)}${kv('Dueño', esc(r.dueno || '—'))}${kv('Identificado', fmtD(r.fIdent))}${kv('Próxima revisión', fmtD(r.fRev))}</div></div><div class="pn-sec"><h4>Plan de mitigación</h4><p class="desc">${esc(r.mit || 'Sin plan de mitigación definido.')}</p></div></div>`;
 }
-function panelHito(h) {
+export function panelHito(h) {
   const e = hitoEstado(h);
   return pnHead('Hito · ' + h.id, esc(h.nombre), `<span class="pill" style="--c:${e.c}">${e.t}</span>`, `<span class="edit-only">${btn('Editar', 'edit', { d: { t: 'hito', id: h.id }, ic: 'edit', cls: 'sm' })}${btn(h.completado ? 'Reabrir' : 'Completar', 'hitotoggle', { d: { id: h.id }, ic: 'check', cls: 'sm' })}</span>`) +
     `<div class="pn-b"><div class="pn-sec"><div class="kvs">${kv('Iniciativa', iniLink(h.ini))}${kv('Fecha plan', fmtD(h.fecha))}${kv('Fecha real', fmtD(h.fechaReal))}${kv('Responsable', esc(h.resp || '—'))}</div></div></div>`;
 }
-function panelDec(d) {
+export function panelDec(d) {
   return pnHead('Decisión · ' + d.id, esc(d.titulo), `<span class="pill" style="--c:${DEC_C[d.tipo]}">${d.tipo}</span> <span class="pill soft">${d.estado}</span>`, `<span class="edit-only">${d.estado === 'Pendiente' ? btn('Resolver', 'resolvedec', { d: { id: d.id }, ic: 'check', cls: 'sm pri' }) : ''}${btn('Editar', 'edit', { d: { t: 'dec', id: d.id }, ic: 'edit', cls: 'sm' })}</span>`) +
     `<div class="pn-b"><div class="pn-sec"><div class="kvs">${kv('Iniciativa', iniLink(d.ini))}${kv('Fecha límite', fmtD(d.limite) + (d.estado === 'Pendiente' && d.limite < hoy() ? ' <span style="color:var(--red)">vencida</span>' : ''))}${kv('Solicitada por', esc(d.solicita))}${kv('Comité', esc(d.comite || '—'))}${kv('Resolución', fmtD(d.fResol))}</div></div><div class="pn-sec"><h4>Recomendación</h4><p class="desc">${esc(d.recomendacion || '—')}</p></div>${d.resolucion ? `<div class="pn-sec"><h4>Resolución</h4><p class="desc">${esc(d.resolucion)}</p></div>` : ''}</div>`;
 }
@@ -389,7 +391,7 @@ Acts.navg = () => { UI.navOpen = UI.navOpen === false; renderChrome(); };
    ===================================================================== */
 
 /* ---------- tema ---------- */
-function applyTheme() {
+export function applyTheme() {
   document.documentElement.dataset.theme = UI.theme || 'light';
   const b = $('#themeBtn'); if (b) b.innerHTML = icon(UI.theme === 'dark' ? 'sun' : 'moon', 18);
 }
@@ -409,7 +411,7 @@ function crumbs() {
 }
 
 /* ---------- estado de sincronización ---------- */
-function syncInfo() {
+export function syncInfo() {
   const d = DataService, s = d.st;
   if (d.svc && s.state === 'syncing') return { c: 'sy', t: 'Guardando' + (s.pending ? ' · ' + s.pending : '') + '…', tip: s.msg };
   if (d.svc && s.state === 'error') return { c: 'er', t: 'Error de sync' + (s.pending ? ' · ' + s.pending : ''), tip: s.err };
@@ -428,7 +430,7 @@ function updateSyncUI() {
 Acts.syncgo = () => { F('adm', {}).tab = 'sp'; go('admin'); };
 
 /* ---------- banner contextual ---------- */
-function banner() {
+export function banner() {
   const d = DataService, s = d.st, out = [];
   if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su cuenta Microsoft para cargar los datos desde SharePoint.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
   else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Trabajando en modo demo (memoria): los cambios no se guardan.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
@@ -446,18 +448,18 @@ Acts.login = async () => {
 Acts.spretry = async () => {
   const d = DataService;
   if (d.svc) { await d.flush(); return d.refresh(false, false); }
-  const S = await d.init(); St = S; UI.sel = null; shell(); render(); toast(d.svc ? 'Conectado a ' + BK() : 'Sigue sin conexión: ' + (d.offlineWhy || d.st.err), d.svc ? 'ok' : 'err');
+  const S = await d.init(); ENLACES.St = S; UI.sel = null; shell(); render(); toast(d.svc ? 'Conectado a ' + BK() : 'Sigue sin conexión: ' + (d.offlineWhy || d.st.err), d.svc ? 'ok' : 'err');
 };
-function BK() { return (typeof DataService !== 'undefined' && DataService.svc && DataService.svc.mode === 'supabase') ? 'Supabase' : 'SharePoint'; }
+export function BK() { return (typeof DataService !== 'undefined' && DataService.svc && DataService.svc.mode === 'supabase') ? 'Supabase' : 'SharePoint'; }
 /* Avance de la fase activa: manual (1-100) > % hitos de la fase > avance general */
-function avFase(i) {
+export function avFase(i) {
   const m = +i.avanceFase;
   if (m > 0) return { v: Math.min(100, Math.round(m)), src: 'manual' };
   const hs = hitosDe(i.id).filter(h => h.fase === i.fase);
   if (hs.length) { const d = hs.filter(h => h.completado).length; return { v: Math.round(d / hs.length * 100), src: 'hitos', d, n: hs.length }; }
   return { v: Math.round(i.avance || 0), src: 'general' };
 }
-const avFaseTip = i => { const a = avFase(i); return a.src === 'manual' ? 'Fase ' + i.fase + ': valor manual' : a.src === 'hitos' ? 'Fase ' + i.fase + ': ' + a.d + ' de ' + a.n + ' hitos cerrados' : 'Fase ' + i.fase + ': sin hitos en la fase, se usa el avance general'; };
+export const avFaseTip = i => { const a = avFase(i); return a.src === 'manual' ? 'Fase ' + i.fase + ': valor manual' : a.src === 'hitos' ? 'Fase ' + i.fase + ': ' + a.d + ' de ' + a.n + ' hitos cerrados' : 'Fase ' + i.fase + ': sin hitos en la fase, se usa el avance general'; };
 Acts.spseed = () => confirmBox('Se crearán en ' + BK() + ' ~' + (seedState().ini.length + seedState().hitos.length + seedState().riesgos.length + seedState().bitacora.length) + ' elementos (datos del archivo original) en las listas APIH_*. ¿Continuar?', async () => {
   try { await DataService.seedRemote(); delete St.empty; toast('Datos cargados en ' + BK()); render(); } catch (e) { toast(e.message, 'err'); }
 }, 'Cargar');
@@ -513,7 +515,7 @@ document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.ke
 /* ---------- escritor .xlsx nativo (ZIP sin compresión, sin librerías) ---------- */
 const CRC_T = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
-function zipStore(files, mime) {
+export function zipStore(files, mime) {
   const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
   const u16 = n => [n & 255, n >>> 8 & 255], u32 = n => [n & 255, n >>> 8 & 255, n >>> 16 & 255, n >>> 24 & 255];
   files.forEach(f => {
@@ -527,7 +529,7 @@ function zipStore(files, mime) {
   const end = new Uint8Array([0x50, 0x4b, 5, 6, 0, 0, 0, 0, ...u16(files.length), ...u16(files.length), ...u32(cl), ...u32(off), 0, 0]);
   return new Blob([...parts, ...cen, end], { type: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 }
-function xlsxBlob(sheets) {   // sheets: [{name, rows:[[...]]}] (fila 0 = encabezados)
+export function xlsxBlob(sheets) {   // sheets: [{name, rows:[[...]]}] (fila 0 = encabezados)
   const X = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const col = n => { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
   const names = sheets.map((s, i) => X(s.name.replace(/[\\\/\?\*\[\]:]/g, '').slice(0, 31) || 'Hoja' + (i + 1)));
@@ -553,7 +555,7 @@ function xlsxBlob(sheets) {   // sheets: [{name, rows:[[...]]}] (fila 0 = encabe
   ];
   return zipStore(files);
 }
-function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+export function downloadBlob(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
 /* Hoja con el diseño exacto de la lista SharePoint (sin DatosJSON) */
 function listSheet(ent) {
   const S = SP_SCHEMA[ent], arr = (St[S.coll] || []).filter(S.filter || (() => true));
@@ -606,7 +608,7 @@ async function readXlsx(buf) {
 }
 const CX_PLAN = ['ID Iniciativa', 'Nombre (referencia)', 'Inicio plan', 'Fin plan', 'Inicio real', 'Fin real', 'Avance %', 'Presupuesto', 'Gastado'];
 const CX_HITO = ['ID Iniciativa', 'Hito', 'Fase', 'Fecha plan', 'Fecha real', 'Responsable', 'Completado (Sí/No)'];
-function cxEditables() { return St.ini.filter(i => puedeEditarIni(i) && !soloLectura()).slice().sort(by('id')); }
+function cxEditables() { return St.ini.filter(i => (0, ENLACES.puedeEditarIni)(i) && !(0, ENLACES.soloLectura)()).slice().sort(by('id')); }
 function cxTemplate(conDatos) {
   const L = cxEditables(), ex = !conDatos || !L.length;
   const plan = [CX_PLAN, ...(ex ? [['PRJ-001', 'Ejemplo: nombre del proyecto', '2026-03-01', '2026-09-30', '2026-03-05', '', 35, 120, 40]] : L.map(i => [i.id, i.titulo, i.inicioPlan || '', i.finPlan || '', i.inicioReal || '', i.finReal || '', Math.round(i.avance || 0), i.presupuesto || '', i.gastado || '']))];
@@ -641,7 +643,7 @@ function cxTable(sh, cols) {   // mapea encabezados (tolerante a tildes/mayúscu
   return sh.rows.slice(hi + 1).map((r, k) => ({ n: hi + k + 2, g: c => idx[c] == null ? undefined : r[idx[c]] })).filter(x => cols.some(c => { const v = x.g(c); return v != null && v !== ''; }));
 }
 function cxParse(sheets) {
-  const R = { plan: [], hitos: [], errs: [], warns: [], vacio: false }, ok = i => i && puedeEditarIni(i);
+  const R = { plan: [], hitos: [], errs: [], warns: [], vacio: false }, ok = i => i && (0, ENLACES.puedeEditarIni)(i);
   const sp = cxSheet(sheets, ['planificacion', 'plan']), sh = cxSheet(sheets, ['hitos', 'hito']);
   const tp = cxTable(sp, CX_PLAN), th = cxTable(sh, CX_HITO);
   if (!tp && !th) { R.errs.push('No se encontraron las hojas «Planificación» u «Hitos» con la columna «ID Iniciativa». Use la plantilla.'); return R; }
@@ -695,7 +697,7 @@ function cxPreview() {
       ].join('')}</tbody></table></div>` : '<p class="mut">El archivo no trae cambios respecto de lo que ya está cargado.</p>');
 }
 Acts.cargaxl = () => {
-  if (soloLectura()) return toast('Modo solo lectura: no se puede cargar', 'err');
+  if ((0, ENLACES.soloLectura)()) return toast('Modo solo lectura: no se puede cargar', 'err');
   CX.res = null;
   Modal.open({ title: 'Cargar planificación e hitos desde Excel', wide: true,
     body: `<p class="desc" style="margin:0 0 8px"><b>Actualiza planificación e hitos de proyectos que ya existen (no crea proyectos nuevos).</b> 1) Descarga la plantilla, 2) complétala (o edita la que trae tus datos actuales) y 3) súbela: verás una vista previa antes de aplicar. Solo se cargan iniciativas que usted puede editar; las celdas vacías no modifican nada.</p>
@@ -725,21 +727,21 @@ Acts.cxapply = () => {
 };
 
 Acts.pxlsx = () => {
-  const f = F('portfolio', {}), rows = portfolioRows(), cols = pcols();
+  const f = F('portfolio', {}), rows = (0, ENLACES.portfolioRows)(), cols = (0, ENLACES.pcols)();
   const strip = v => typeof v === 'string' ? v.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').trim() : v;
   downloadBlob('APIH_portfolio_' + hoy() + '.xlsx', xlsxBlob([{ name: 'Portfolio', rows: [cols.map(c => c.h), ...rows.map(r => cols.map(c => strip(c.f(r))))] }])); toast(rows.length + ' filas exportadas a Excel');
 };
 Acts.pjson = () => {
-  const f = F('portfolio', {}), rows = portfolioRows(), cols = pcols();
+  const f = F('portfolio', {}), rows = (0, ENLACES.portfolioRows)(), cols = (0, ENLACES.pcols)();
   download('APIH_portfolio_' + hoy() + '.json', JSON.stringify(rows.map(r => Object.fromEntries(cols.map(c => [c.h, c.f(r)]))), null, 1), 'application/json'); toast(rows.length + ' filas exportadas a JSON');
 };
 
 /* ============================================================
    APIH · Acciones: formularios y CRUD con bitácora automática
    ============================================================ */
-const people = () => uniq([...St.usuarios.map(u => u.n), ...St.ini.flatMap(i => [i.lider, i.sponsor, i.negocio]).filter(Boolean)]).sort();
-const iniOpts = tipo => St.ini.filter(i => !tipo || i.tipo === tipo).slice().sort(by('id')).map(i => ({ v: i.id, t: i.id + ' · ' + i.titulo }));
-const iniOptsF = tipo => iniOpts(tipo).filter(o => !esSB(byId(o.v)));   /* filtros de pantallas de gestión: sin Stand By (los formularios sí lo conservan para no perder vínculos) */
+export const people = () => uniq([...St.usuarios.map(u => u.n), ...St.ini.flatMap(i => [i.lider, i.sponsor, i.negocio]).filter(Boolean)]).sort();
+export const iniOpts = tipo => St.ini.filter(i => !tipo || i.tipo === tipo).slice().sort(by('id')).map(i => ({ v: i.id, t: i.id + ' · ' + i.titulo }));
+export const iniOptsF = tipo => iniOpts(tipo).filter(o => !esSB(byId(o.v)));   /* filtros de pantallas de gestión: sin Stand By (los formularios sí lo conservan para no perder vínculos) */
 function hasCycle(id, deps) {   // ¿agregar deps a id crea ciclo?
   const seen = new Set(); const st = [...deps];
   while (st.length) { const x = st.pop(); if (x === id) return true; if (seen.has(x)) continue; seen.add(x); const i = byId(x); if (i) st.push(...i.deps); }
@@ -803,7 +805,7 @@ function iniForm(i, isPropArg) {
         if (!PR && patch.avance !== i.avance) i.hist.push([hoy(), patch.avance]);
         if (patch.fase !== i.fase) patch.faseDesde = hoy();
         if (patch.tipoIni && patch.tipoIni !== i.tipoIni && !hitosDe(i.id).length) { const nh = aplicarPlantilla(i, patch.tipoIni, fasesDe(i), (PR ? hoy() : i.inicioPlan) || hoy()); if (nh) toast(nh + ' hitos precargados del tipo «' + patch.tipoIni + '»'); }
-        Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); snapFases(i);
+        Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i);
         log(diffs.some(d => d.startsWith('Avance')) ? 'Actualización' : 'Cambio', i.id, diffs.length ? 'Actualizada: ' + diffs.join('; ') : 'Ficha actualizada', null); toast('Cambios guardados');
       }
       refresh();
@@ -811,20 +813,20 @@ function iniForm(i, isPropArg) {
   });
 }
 Acts.new = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const t = d.t; closePops();
   if (t === 'prop') iniForm(null, true); else if (t === 'ini' || t === 'prj') iniForm(null, false);
   else if (t === 'risk') riskForm(null, d.ini); else if (t === 'hito') hitoForm(null, d.ini); else if (t === 'dec') decForm(null, d.ini); else if (t === 'com') comForm(null);
 };
 Acts.edit = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   if (d.t === 'ini') iniForm(byId(d.id)); else if (d.t === 'risk') riskForm(St.riesgos.find(r => r.id === d.id)); else if (d.t === 'hito') hitoForm(St.hitos.find(r => r.id === d.id));
   else if (d.t === 'dec') decForm(St.decisiones.find(r => r.id === d.id)); else if (d.t === 'com') comForm(St.comites.find(r => r.id === d.id));
 };
 
 /* ---------- avanzar / cambiar fase con compuertas ---------- */
 Acts.advance = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const i = byId(d.id); if (isDone(i)) return toast(tipoLbl(i) + ' en estado final (' + i.estado + ')', 'err');
   const F = fasesDe(i), idx = F.indexOf(i.fase);
   if (esProp(i) && idx === F.length - 1) return Acts.aprobar({ id: i.id });      // última fase de la propuesta → aprobar
@@ -838,19 +840,19 @@ Acts.advance = d => {
 };
 Chg.advto = el => {
   const i = byId(el.dataset.id), to = el.value, g = gates(i, to), miss = g.filter(x => !x.ok);
-  $('#advg').innerHTML = (to === i.fase ? `<p class="mut">La ${tipoLbl(i).toLowerCase()} ya está en esta fase.</p>` : `<div class="gates">${g.map(x => `<div class="${x.ok ? 'ok' : 'no'}">${icon(x.ok ? 'check' : 'x', 14)}<span>${esc(x.t)}</span>${x.ok ? '' : ` <a class="lnk" data-act="gfix" data-id="${i.id}">Corregir</a>`}</div>`).join('') || '<p class="mut">Sin compuertas para esta fase.</p>'}</div>${miss.length && esAdministra() ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="advforce"> <span>Forzar cambio pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado en bitácora)</span></label><div class="fld" id="advmotw" style="display:none;margin-top:8px"><label for="advmot">Motivo del cambio forzado (obligatorio)</label><input id="advmot" type="text" maxlength="200"></div>` : ''}`);
+  $('#advg').innerHTML = (to === i.fase ? `<p class="mut">La ${tipoLbl(i).toLowerCase()} ya está en esta fase.</p>` : `<div class="gates">${g.map(x => `<div class="${x.ok ? 'ok' : 'no'}">${icon(x.ok ? 'check' : 'x', 14)}<span>${esc(x.t)}</span>${x.ok ? '' : ` <a class="lnk" data-act="gfix" data-id="${i.id}">Corregir</a>`}</div>`).join('') || '<p class="mut">Sin compuertas para esta fase.</p>'}</div>${miss.length && (0, ENLACES.esAdministra)() ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="advforce"> <span>Forzar cambio pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado en bitácora)</span></label><div class="fld" id="advmotw" style="display:none;margin-top:8px"><label for="advmot">Motivo del cambio forzado (obligatorio)</label><input id="advmot" type="text" maxlength="200"></div>` : ''}`);
   const fc = $('#advforce'); if (fc) fc.addEventListener('change', () => { const w = $('#advmotw'); if (w) w.style.display = fc.checked ? '' : 'none'; });   // U-12: motivo al forzar
 };
 Acts.advgo = d => {
   const i = byId(d.id), to = $('#adv_to').value; if (to === i.fase) return Modal.close();
   const miss = gates(i, to).filter(x => !x.ok), force = $('#advforce') && $('#advforce').checked;
-  if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
+  if (miss.length && !(0, ENLACES.esAdministra)()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');   // U-12
   const motivo = miss.length ? String(($('#advmot') && $('#advmot').value) || '').trim() : '';
   if (miss.length && !motivo) return toast('Indica el motivo del cambio forzado', 'err');   // U-12
   const from = i.fase; i.fase = to; i.faseDesde = hoy(); i.actualizada = hoy();
   if (to === 'Ejecución' && !i.inicioReal) i.inicioReal = hoy();
-  if (to === 'Ejecución' && !i.base && i.inicioPlan && i.finPlan) congelarBase(i, false);
+  if (to === 'Ejecución' && !i.base && i.inicioPlan && i.finPlan) (0, ENLACES.congelarBase)(i, false);
   log('Cambio', i.id, `Cambio de fase: ${from} → ${to}` + (miss.length ? ` (forzado: ${motivo}; faltaba: ${miss.map(m => m.t).join(', ')})` : ''));
   Modal.close(); toast('Fase actualizada a ' + to); refresh();
 };
@@ -858,21 +860,21 @@ Acts.advgo = d => {
 /* ---------- RAG / comentarios / hitos ---------- */
 Acts.applyrag = d => { const i = byId(d.id); log('Cambio', i.id, `RAG ${i.rag} → ${d.rag} (sugerido por reglas automáticas)`); i.rag = d.rag; i.actualizada = hoy(); toast('RAG actualizado'); refresh(); };
 Acts.comment = d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; log('Comentario', d.id, t); toast('Comentario agregado'); refresh(); setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
-function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; if (conServidor()) return hitoEnServidor(id, !h.completado); h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) i.actualizada = hoy(); log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
+export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; if ((0, ENLACES.conServidor)()) return (0, ENLACES.hitoEnServidor)(id, !h.completado); h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) i.actualizada = hoy(); log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
 Chg.hitotoggle = el => toggleHito(el.dataset.id); Acts.hitotoggle = d => toggleHito(d.id);
 
 /* ---------- Hito ---------- */
-function hitoForm(h, ini) {
+export function hitoForm(h, ini) {
   const nw = !h, v = h ? clone(h) : { ini: ini || (UI.sel && UI.sel.t === 'ini' ? UI.sel.id : ''), fecha: addD(hoy(), 14), completado: false, resp: '', subfase: '' }, hi = byId(v.ini);
   openForm({ pres: true,
     title: nw ? 'Nuevo hito' : 'Editar hito', values: v, danger: nw ? null : 'Eliminar', saveLabel: nw ? 'Crear' : 'Guardar',
-    fields: [{ k: 'ini', l: 'Iniciativa', t: 'select', opts: [{ v: '', t: '— Elige la iniciativa —' }, ...iniOpts()], req: true, w: 3 }, { k: 'nombre', l: 'Hito', req: true, w: 3 }, { k: 'fase', l: 'Fase', t: 'select', opts: ['', ...FASES.map(x => { const w = hi && ventanaDe(hi, x); return { v: x, t: x + (w && w.ini ? ' · ' + rangoTx(w.ini, w.fin) : '') }; })], hint: 'Opcional: al avanzar de fase se exige cerrar los hitos de la fase' }, { k: 'subfase', l: 'Subfase', t: 'select', opts: [{ v: '', t: '— sin subfase —' }, ...subfasesDe(hi).map(x => ({ v: x.id, t: x.fase + ' › ' + x.nombre + ' · ' + rangoTx(x.inicio, x.fin) }))], hint: hi && subfasesDe(hi).length ? 'Opcional. Debe ser de la misma fase del hito' : 'Este proyecto aún no tiene subfases' }, { k: 'fecha', l: 'Fecha plan', t: 'date', req: true }, { k: 'cat', l: 'Categoría', t: 'select', opts: [{ v: '', t: '— sin categoría —' }, ...hitoCats()] }, { k: 'desc', l: 'Descripción / instrucciones', t: 'textarea', w: 3, rows: 3, hint: 'Opcional. Recordatorio del hito; se ve en Mi cocina.' }, { k: 'peso', l: 'Peso en el reporte (%)', t: 'number', min: 0, max: 100, hint: 'Opcional. Si todos los hitos del proyecto lo tienen y suman 100 %, el reporte los ubica por peso; si no, en partes iguales.' }, { k: 'resp', l: 'Responsable', list: people() }, { k: 'completado', l: 'Estado', t: 'check', lbl: 'Completado' }, { k: 'fechaReal', l: 'Fecha real', t: 'date' }],
+    fields: [{ k: 'ini', l: 'Iniciativa', t: 'select', opts: [{ v: '', t: '— Elige la iniciativa —' }, ...iniOpts()], req: true, w: 3 }, { k: 'nombre', l: 'Hito', req: true, w: 3 }, { k: 'fase', l: 'Fase', t: 'select', opts: ['', ...FASES.map(x => { const w = hi && (0, ENLACES.ventanaDe)(hi, x); return { v: x, t: x + (w && w.ini ? ' · ' + (0, ENLACES.rangoTx)(w.ini, w.fin) : '') }; })], hint: 'Opcional: al avanzar de fase se exige cerrar los hitos de la fase' }, { k: 'subfase', l: 'Subfase', t: 'select', opts: [{ v: '', t: '— sin subfase —' }, ...(0, ENLACES.subfasesDe)(hi).map(x => ({ v: x.id, t: x.fase + ' › ' + x.nombre + ' · ' + (0, ENLACES.rangoTx)(x.inicio, x.fin) }))], hint: hi && (0, ENLACES.subfasesDe)(hi).length ? 'Opcional. Debe ser de la misma fase del hito' : 'Este proyecto aún no tiene subfases' }, { k: 'fecha', l: 'Fecha plan', t: 'date', req: true }, { k: 'cat', l: 'Categoría', t: 'select', opts: [{ v: '', t: '— sin categoría —' }, ...hitoCats()] }, { k: 'desc', l: 'Descripción / instrucciones', t: 'textarea', w: 3, rows: 3, hint: 'Opcional. Recordatorio del hito; se ve en Mi cocina.' }, { k: 'peso', l: 'Peso en el reporte (%)', t: 'number', min: 0, max: 100, hint: 'Opcional. Si todos los hitos del proyecto lo tienen y suman 100 %, el reporte los ubica por peso; si no, en partes iguales.' }, { k: 'resp', l: 'Responsable', list: people() }, { k: 'completado', l: 'Estado', t: 'check', lbl: 'Completado' }, { k: 'fechaReal', l: 'Fecha real', t: 'date' }],
     onDanger: () => confirmBox('¿Eliminar este hito?', () => { St.hitos = St.hitos.filter(x => x.id !== h.id); log('Cambio', h.ini, 'Hito eliminado: ' + h.nombre); toast('Hito eliminado'); UI.sel = null; refresh(); }, 'Eliminar', true),
     onSave(o) { if (o.completado && !o.fechaReal) o.fechaReal = hoy(); if (!o.completado) o.fechaReal = null;
       if (o.peso === '' || o.peso == null || isNaN(+o.peso)) { delete o.peso; if (h) delete h.peso; } else { o.peso = +o.peso; if (o.peso < 0 || o.peso > 100) { toast('El peso va de 0 a 100', 'err'); return false; } }
-      if (o.subfase) { const sx = subfasesDe(byId(o.ini)).find(x => x.id === o.subfase); if (!sx) { toast('La subfase elegida no es de esta iniciativa', 'err'); return false; } if (!o.fase) o.fase = sx.fase; if (o.fase !== sx.fase) { toast('La subfase «' + sx.nombre + '» es de ' + sx.fase + ': el hito debe estar en esa fase', 'err'); return false; } if (o.fecha < sx.inicio || o.fecha > sx.fin) toast('Aviso: la fecha del hito queda fuera de la subfase «' + sx.nombre + '» (' + rangoTx(sx.inicio, sx.fin) + ')', 'warn'); } else delete o.subfase;
+      if (o.subfase) { const sx = (0, ENLACES.subfasesDe)(byId(o.ini)).find(x => x.id === o.subfase); if (!sx) { toast('La subfase elegida no es de esta iniciativa', 'err'); return false; } if (!o.fase) o.fase = sx.fase; if (o.fase !== sx.fase) { toast('La subfase «' + sx.nombre + '» es de ' + sx.fase + ': el hito debe estar en esa fase', 'err'); return false; } if (o.fecha < sx.inicio || o.fecha > sx.fin) toast('Aviso: la fecha del hito queda fuera de la subfase «' + sx.nombre + '» (' + (0, ENLACES.rangoTx)(sx.inicio, sx.fin) + ')', 'warn'); } else delete o.subfase;
       if (!nw && !o.subfase) delete h.subfase;
-      if ((o.desc || '').length > DESC_MAX) { toast('La descripción no puede superar ' + DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = cutDesc(o.desc.trim()); else delete o.desc;
+      if ((o.desc || '').length > ENLACES.DESC_MAX) { toast('La descripción no puede superar ' + ENLACES.DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = (0, ENLACES.cutDesc)(o.desc.trim()); else delete o.desc;
       if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); } const i = byId(o.ini); if (i) i.actualizada = hoy(); refresh(); }
   });
   /* N-U-04/05: al cambiar Iniciativa o Fase se recalculan las opciones de Fase y Subfase */
@@ -881,9 +883,9 @@ function hitoForm(h, ini) {
     const op = (v, t, sel) => '<option value="' + esc(v) + '"' + (sel ? ' selected' : '') + '>' + esc(t) + '</option>';
     const rebuild = (cambioIni) => {
       const x = byId(fi.value), f0 = ff.value, s0 = fs.value;
-      if (cambioIni) ff.innerHTML = op('', '', !f0) + FASES.map(k => { const w = x && ventanaDe(x, k); return op(k, k + (w && w.ini ? ' · ' + rangoTx(w.ini, w.fin) : ''), k === f0); }).join('');
-      const sf = subfasesDe(x).filter(y => !ff.value || y.fase === ff.value);
-      fs.innerHTML = op('', '— sin subfase —', true) + sf.map(y => op(y.id, y.fase + ' › ' + y.nombre + ' · ' + rangoTx(y.inicio, y.fin), y.id === s0)).join('');
+      if (cambioIni) ff.innerHTML = op('', '', !f0) + FASES.map(k => { const w = x && (0, ENLACES.ventanaDe)(x, k); return op(k, k + (w && w.ini ? ' · ' + (0, ENLACES.rangoTx)(w.ini, w.fin) : ''), k === f0); }).join('');
+      const sf = (0, ENLACES.subfasesDe)(x).filter(y => !ff.value || y.fase === ff.value);
+      fs.innerHTML = op('', '— sin subfase —', true) + sf.map(y => op(y.id, y.fase + ' › ' + y.nombre + ' · ' + (0, ENLACES.rangoTx)(y.inicio, y.fin), y.id === s0)).join('');
     };
     fi.addEventListener('change', () => rebuild(true));
     ff.addEventListener('change', () => rebuild(false));
@@ -891,47 +893,47 @@ function hitoForm(h, ini) {
 }
 
 /* ---------- Riesgo ---------- */
-function riskForm(r, ini, pre) {
+export function riskForm(r, ini, pre) {
   const nw = !r, v = r ? clone(r) : { ini: ini || (UI.sel && UI.sel.t === 'ini' ? UI.sel.id : ''), cat: 'Técnico', prob: 3, imp: 3, estado: 'Abierto', dueno: St.cfg.usuario, fIdent: hoy(), fRev: addD(hoy(), 30), mit: '', ...(pre || {}) };
   openForm({ pres: true,
     title: nw ? 'Nuevo riesgo' : 'Editar riesgo ' + r.id, values: v, danger: nw ? null : 'Eliminar', saveLabel: nw ? 'Registrar' : 'Guardar',
     fields: [{ k: 'ini', l: 'Proyecto / iniciativa', t: 'select', opts: [{ v: '', t: '— Elige la iniciativa —' }, ...iniOpts()], req: true, w: 3 }, { k: 'desc', l: 'Descripción del riesgo', req: true, t: 'textarea', w: 3 }, { k: 'cat', l: 'Categoría', t: 'select', opts: RISK_CATS }, { k: 'estado', l: 'Estado', t: 'select', opts: RISK_ESTADOS }, { k: 'dueno', l: 'Dueño', list: people() },
       { k: 'prob', l: 'Probabilidad (1–5)', t: 'range', min: 1, max: 5 }, { k: 'imp', l: 'Impacto (1–5)', t: 'range', min: 1, max: 5 }, { k: 'mit', l: 'Plan de mitigación', t: 'textarea', w: 3 }, { k: 'fIdent', l: 'Identificado', t: 'date' }, { k: 'fRev', l: 'Próxima revisión', t: 'date' }],
     onDanger: () => confirmBox('¿Eliminar este riesgo?', () => { St.riesgos = St.riesgos.filter(x => x.id !== r.id); log('Riesgo', r.ini, 'Riesgo eliminado: ' + r.desc); UI.sel = null; toast('Riesgo eliminado'); refresh(); }, 'Eliminar', true),
-    onSave(o) { if (riesgoAbierto(o) && expo(o) >= cfgI(byId(o.ini), 'umbralCritico') && !String(o.mit || '').trim()) { toast('Un riesgo crítico requiere plan de mitigación', 'err'); return false; }
+    onSave(o) { if (riesgoAbierto(o) && expo(o) >= (0, ENLACES.cfgI)(byId(o.ini), 'umbralCritico') && !String(o.mit || '').trim()) { toast('Un riesgo crítico requiere plan de mitigación', 'err'); return false; }
       if (nw) { const n = { id: nextId('RSK', St.riesgos), ...o }; St.riesgos.push(n); log('Riesgo', o.ini, 'Riesgo identificado: ' + o.desc, 'Exposición ' + o.prob * o.imp); toast('Riesgo registrado'); } else { const prev = expo(r); Object.assign(r, o); log('Riesgo', r.ini, 'Riesgo actualizado: ' + r.desc + ' (' + r.estado + ')', 'Exposición ' + prev + ' → ' + expo(r)); toast('Riesgo guardado'); } refresh(); }
   });
 }
 
 /* ---------- Decisión ---------- */
-function decForm(d, ini, pre) {
+export function decForm(d, ini, pre) {
   const nw = !d, v = d ? clone(d) : { ini: ini || '', tipo: 'Iniciar', estado: 'Pendiente', limite: addD(hoy(), 14), solicita: St.cfg.usuario, area: 'BISE', ...(pre || {}) };
   openForm({ pres: true,
     title: nw ? 'Nueva decisión' : 'Editar decisión ' + d.id, values: v, danger: nw ? null : 'Eliminar', saveLabel: nw ? 'Registrar' : 'Guardar',
     fields: [{ k: 'tipo', l: 'Tipo de decisión', t: 'select', opts: DEC_TIPOS }, { k: 'ini', l: 'Proyecto / propuesta', t: 'select', opts: iniOpts(), blank: '— Sin proyecto ni propuesta —', w: 2 }, { k: 'titulo', l: 'Pregunta / decisión', req: true, w: 3 }, { k: 'recomendacion', l: 'Recomendación', t: 'textarea', w: 3 },
       { k: 'limite', l: 'Fecha límite', t: 'date' }, { k: 'solicita', l: 'Solicitada por', list: people() }, { k: 'comite', l: 'Comité', t: 'select', opts: St.comites.map(c => ({ v: c.id, t: c.id + ' · ' + fmtD(c.fecha) })), blank: '—' }],
     onDanger: () => confirmBox('¿Eliminar esta decisión?', () => { St.decisiones = St.decisiones.filter(x => x.id !== d.id); St.comites.forEach(c => c.decisiones = c.decisiones.filter(x => x !== d.id)); toast('Decisión eliminada'); UI.sel = null; refresh(); }, 'Eliminar', true),
-    onSave(o) { if (!o.limite) { toast('La fecha límite es obligatoria', 'err'); return false; } if (o.limite > addD(hoy(), decMaxDias())) { toast('El plazo máximo de una decisión es de ' + decMaxDias() + ' días', 'err'); return false; } const tg = byId(o.ini); if (tg && o.tipo === 'Iniciar' && !esProp(tg)) { toast('“Iniciar” aplica solo a propuestas', 'err'); return false; } if (tg && o.tipo === 'Acelerar' && esProp(tg)) { toast('“Acelerar” aplica solo a proyectos', 'err'); return false; }
+    onSave(o) { if (!o.limite) { toast('La fecha límite es obligatoria', 'err'); return false; } if (o.limite > addD(hoy(), (0, ENLACES.decMaxDias)())) { toast('El plazo máximo de una decisión es de ' + (0, ENLACES.decMaxDias)() + ' días', 'err'); return false; } const tg = byId(o.ini); if (tg && o.tipo === 'Iniciar' && !esProp(tg)) { toast('“Iniciar” aplica solo a propuestas', 'err'); return false; } if (tg && o.tipo === 'Acelerar' && esProp(tg)) { toast('“Acelerar” aplica solo a proyectos', 'err'); return false; }
       if (nw) { const n = { id: nextId('DEC', St.decisiones), estado: 'Pendiente', resolucion: '', fResol: null, aplicada: false, area: 'BISE', ...o }; St.decisiones.push(n); if (o.comite) { const c = St.comites.find(x => x.id === o.comite); if (c) c.decisiones.push(n.id); } log('Decisión', o.ini, `Decisión solicitada (${o.tipo}): ${o.titulo}`); toast('Decisión registrada'); } else { const oldC = d.comite; Object.assign(d, o); if (oldC !== d.comite) { (St.comites || []).forEach(c => { if (Array.isArray(c.decisiones)) c.decisiones = c.decisiones.filter(x => x !== d.id); }); const nc = d.comite && St.comites.find(c => c.id === d.comite); if (nc) { nc.decisiones = nc.decisiones || []; if (!nc.decisiones.includes(d.id)) nc.decisiones.push(d.id); } } toast('Decisión guardada'); } refresh(); }
   });
 }
 const EFECTO = (tipo, t) => ({ Iniciar: 'La propuesta se aprueba y se crea el proyecto en Planificación.', Acelerar: 'Prioridad → Alta (y el proyecto pausado vuelve a En curso).', Mantener: 'Sin cambios de estado.', Pausar: t && esProp(t) ? 'La propuesta pasa a En espera (revisión en 30 días).' : 'El proyecto pasa a Pausado (revisión en 30 días).', Cancelar: t && esProp(t) ? 'La propuesta pasa a Rechazada.' : 'El proyecto pasa a Cancelado.' }[tipo]);
 Acts.resolvedec = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const x = St.decisiones.find(y => y.id === d.id);
   openForm({
     title: 'Resolver decisión ' + x.id, saveLabel: 'Registrar resolución', values: { estado: 'Aprobada', resolucion: '', fResol: hoy(), aplicar: true },
     fields: [{ k: 'estado', l: 'Resultado', t: 'select', opts: ['Aprobada', 'Rechazada', 'Diferida'] }, { k: 'fResol', l: 'Fecha', t: 'date' }, { k: 'resolucion', l: 'Resolución / comentario de cierre', t: 'textarea', w: 3 }, { k: 'aplicar', l: 'Efecto', t: 'check', lbl: 'Aplicar efecto: ' + EFECTO(x.tipo, byId(x.ini)), w: 3 }],
     extra: `<p class="mut" style="margin-top:8px"><b>${esc(x.tipo)}</b> · ${esc(x.titulo)}</p>`,
     onSave(o) {
-      if (conServidor()) return resolverEnServidor(x, o);
+      if ((0, ENLACES.conServidor)()) return (0, ENLACES.resolverEnServidor)(x, o);
       if (o.estado === 'Diferida') { x.limite = addD(x.limite && x.limite > hoy() ? x.limite : hoy(), 14); x.resolucion = o.resolucion; log('Decisión', x.ini, `Decisión diferida: ${x.titulo}`, 'Nueva fecha ' + fmtD(x.limite)); toast('Decisión diferida 14 días'); return refresh(); }
       x.estado = o.estado; x.resolucion = o.resolucion; x.fResol = o.fResol; x.aplicada = false;
       const i = byId(x.ini);
       if (i && isDone(i) && ['Pausar', 'Cancelar'].includes(x.tipo)) toast('El proyecto ya está cerrado: no se aplica el efecto', 'err');
       if (o.estado === 'Aprobada' && o.aplicar && i) {
         const mot = o.resolucion || 'Decisión de comité ' + (x.comite || '');
-        if (x.tipo === 'Iniciar' && esProp(i) && i.estado !== 'Aprobada' && !isDone(i)) { const falta = gatesAprobar(i).filter(g => !g.ok).map(g => g.t); if (falta.length) toast('No se crea el proyecto. Falta: ' + falta.join('; '), 'err'); else { i.fase = 'Aprobación'; const n = aprobarPropuesta(i, mot); toast('Proyecto ' + n.id + ' creado desde ' + i.id); x.aplicada = true; } }   // F-15c
+        if (x.tipo === 'Iniciar' && esProp(i) && i.estado !== 'Aprobada' && !isDone(i)) { const falta = gatesAprobar(i).filter(g => !g.ok).map(g => g.t); if (falta.length) toast('No se crea el proyecto. Falta: ' + falta.join('; '), 'err'); else { i.fase = 'Aprobación'; const n = (0, ENLACES.aprobarPropuesta)(i, mot); toast('Proyecto ' + n.id + ' creado desde ' + i.id); x.aplicada = true; } }   // F-15c
         else if (x.tipo === 'Acelerar' && !esProp(i)) { i.prioridad = 'Alta'; if (i.estado === 'Pausado') { i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; } x.aplicada = true; }
         else if (x.tipo === 'Pausar' && !isDone(i)) { i.estado = esProp(i) ? 'En espera' : 'Pausado'; i.estadoMotivo = mot; i.estadoRev = addD(hoy(), 30); x.aplicada = true; }
         else if (x.tipo === 'Cancelar' && !isDone(i)) { i.estado = esProp(i) ? 'Rechazada' : 'Cancelado'; i.estadoMotivo = mot; i.estadoRev = null; x.aplicada = true; }
@@ -968,3 +970,27 @@ function iniTabExtra(i) {
   };
 }
 
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  Modal: { get: () => Modal, enumerable: true, configurable: true },
+  UI: { get: () => UI, enumerable: true, configurable: true },
+  banner: { get: () => banner, set: v => { banner = v; }, enumerable: true, configurable: true },
+  btn: { get: () => btn, enumerable: true, configurable: true },
+  fitMain: { get: () => fitMain, set: v => { fitMain = v; }, enumerable: true, configurable: true },
+  go: { get: () => go, set: v => { go = v; }, enumerable: true, configurable: true },
+  hitoForm: { get: () => hitoForm, set: v => { hitoForm = v; }, enumerable: true, configurable: true },
+  openForm: { get: () => openForm, set: v => { openForm = v; }, enumerable: true, configurable: true },
+  pageHead: { get: () => pageHead, enumerable: true, configurable: true },
+  panelDec: { get: () => panelDec, set: v => { panelDec = v; }, enumerable: true, configurable: true },
+  panelHito: { get: () => panelHito, set: v => { panelHito = v; }, enumerable: true, configurable: true },
+  panelIni: { get: () => panelIni, set: v => { panelIni = v; }, enumerable: true, configurable: true },
+  panelRisk: { get: () => panelRisk, set: v => { panelRisk = v; }, enumerable: true, configurable: true },
+  refresh: { get: () => refresh, set: v => { refresh = v; }, enumerable: true, configurable: true },
+  render: { get: () => render, set: v => { render = v; }, enumerable: true, configurable: true },
+  renderChrome: { get: () => renderChrome, set: v => { renderChrome = v; }, enumerable: true, configurable: true },
+  selOpts: { get: () => selOpts, enumerable: true, configurable: true },
+  shell: { get: () => shell, enumerable: true, configurable: true },
+  toast: { get: () => toast, set: v => { toast = v; }, enumerable: true, configurable: true },
+  updateSyncUI: { get: () => updateSyncUI, enumerable: true, configurable: true },
+});

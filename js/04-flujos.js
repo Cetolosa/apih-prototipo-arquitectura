@@ -1,4 +1,7 @@
-'use strict';
+import { ENLACES } from './00-registro.js';
+import { $, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esc, estadosDe, fmtD, fmtMon, gates, gatesAprobar, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
+import { DataService } from './02-datos.js';
+import { Acts, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
 /* =====================================================================
    V5 · Flujo Propuesta → Proyecto
    migración de datos V3/V4, aprobación (crea el proyecto), cambio de estado
@@ -6,7 +9,7 @@
    ===================================================================== */
 
 /* Convierte el modelo anterior (una sola entidad INI-xxx) al modelo V5 (PROP-/PRJ-) */
-function migrateV5(S) {
+export function migrateV5(S) {
   if (!S || !S.ini || S.ini.every(i => i.tipo)) return S;
   const OLDP = ['Propuesta', 'Recepción', 'Evaluación', 'Caso Negocio', 'Caso de Negocio', 'Aprobación'];
   const map = {}, meta = []; let np = 0, nj = 0; const p3 = n => String(n).padStart(3, '0');
@@ -25,8 +28,8 @@ function migrateV5(S) {
   });
   return T;
 }
-const diasEnFase = i => diffD(hoy(), i.faseDesde || i.actualizada || i.creada || hoy());
-function semFase(i) { const d = diasEnFase(i), a = cfgI(i,'propDiasAmb') || 30, r = cfgI(i,'propDiasRojo') || 60; return d > r ? { c: '#D13438', d } : d > a ? { c: '#F2A100', d } : { c: '#107C10', d }; }
+export const diasEnFase = i => diffD(hoy(), i.faseDesde || i.actualizada || i.creada || hoy());
+export function semFase(i) { const d = diasEnFase(i), a = (0, ENLACES.cfgI)(i,'propDiasAmb') || 30, r = (0, ENLACES.cfgI)(i,'propDiasRojo') || 60; return d > r ? { c: '#D13438', d } : d > a ? { c: '#F2A100', d } : { c: '#107C10', d }; }
 
 /* Aprobar una propuesta: crea el proyecto (PRJ-xxx) y cierra la propuesta como Aprobada */
 function aprobarPropuesta(p, nota) {
@@ -46,12 +49,12 @@ function aprobarPropuesta(p, nota) {
   return n;
 }
 Acts.aprobar = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const p = byId(d.id), g = gatesAprobar(p), miss = g.filter(x => !x.ok);
   Modal.open({
     title: 'Aprobar propuesta · ' + p.titulo,
     body: `<p class="desc">Al aprobar, la propuesta se cierra como <b>Aprobada</b> y se crea un <b>proyecto nuevo</b> en fase Planificación. Sus riesgos y datos pasan al proyecto.</p><div class="gates" style="margin-top:8px">${g.map(x => `<div class="${x.ok ? 'ok' : 'no'}">${icon(x.ok ? 'check' : 'x', 14)}<span>${esc(x.t)}</span></div>`).join('')}</div>
-    ${miss.length && esAdministra() ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="advforce"> <span>Aprobar pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado)</span></label>` : ''}
+    ${miss.length && (0, ENLACES.esAdministra)() ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="advforce"> <span>Aprobar pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado)</span></label>` : ''}
     <div class="fgrid one" style="margin-top:10px"><div class="fld"><label for="apr_nota">Nota de aprobación (opcional)</label><textarea id="apr_nota" rows="2"></textarea></div></div>`,
     footer: `<button class="btn" data-act="mclose">Cancelar</button><button class="btn pri" data-act="aprobargo" data-id="${p.id}">Aprobar y crear proyecto</button>`
   });
@@ -60,7 +63,7 @@ Acts.aprobargo = d => {
   const p = byId(d.id), miss = gatesAprobar(p).filter(x => !x.ok), force = $('#advforce') && $('#advforce').checked;
   const nota0 = ($('#apr_nota') || {}).value || '';
   if (DataService.svc && DataService.svc.rpc) return aprobarEnServidor(p, miss, force, nota0);   // con servidor: transacción única en la base
-  if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
+  if (miss.length && !(0, ENLACES.esAdministra)()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');   // U-12
   const nota = ($('#apr_nota') || {}).value || '';
   const n = aprobarPropuesta(p, (miss.length ? '[forzado: ' + miss.map(m => m.t).join(', ') + '] ' : '') + nota.trim());
@@ -69,12 +72,12 @@ Acts.aprobargo = d => {
 
 /* Comandos del servidor: antes de pedirlos, el servidor debe tener lo último que editaste; después se recarga el estado */
 async function esperarSync() { for (let k = 0; k < 40 && (DataService.busy || DataService.dirty); k++) { if (!DataService.busy) DataService.flush(); await new Promise(r => setTimeout(r, 250)); } }
-const conServidor = () => !!(DataService.svc && DataService.svc.rpc);
+export const conServidor = () => !!(DataService.svc && DataService.svc.rpc);
 async function hitoEnServidor(id, completado) {
   try { await esperarSync(); await DataService.svc.rpc('apih_hito_estado', { p_id: id, p_completado: completado }); await DataService.refresh(false, true); toast(completado ? 'Hito completado' : 'Hito reabierto'); }
   catch (e) { errorServidor(e); }
 }
-async function resolverEnServidor(x, o) {
+export async function resolverEnServidor(x, o) {
   try {
     await esperarSync();
     const r = await DataService.svc.rpc('apih_resolver_decision', { p_id: x.id, p_estado: o.estado, p_resolucion: o.resolucion || '', p_fecha: o.fResol || null, p_aplicar: !!o.aplicar });
@@ -84,7 +87,7 @@ async function resolverEnServidor(x, o) {
   } catch (e) { errorServidor(e); }
 }
 /* Comando genérico del servidor: pide, recarga y avisa; el error de la base se muestra sin el prefijo interno */
-async function cmdServidor(nombre, params, msg, enForm) {
+export async function cmdServidor(nombre, params, msg, enForm) {
   try { await esperarSync(); const r = await DataService.svc.rpc(nombre, params); await DataService.refresh(false, true); if (msg) toast(msg); return r === null || r === undefined ? {} : r; }
   catch (e) { errorServidor(e, enForm); return null; }
 }
@@ -95,8 +98,8 @@ function errorServidor(e, enForm) {
   if (enForm && e && e.campo) { const el = $('#f_' + e.campo); if (el) { el.classList.add('bad'); const tp = el.closest('.ftab'); if (tp && !tp.classList.contains('on')) Acts.ftab({ t: tp.dataset.t }); el.focus(); } }
 }
 /* Con servidor (Supabase): la aprobación es un comando transaccional en la base (apih_aprobar_propuesta); aquí solo se pide y se recarga */
-async function aprobarEnServidor(p, miss, force, nota) {
-  if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
+export async function aprobarEnServidor(p, miss, force, nota) {
+  if (miss.length && !(0, ENLACES.esAdministra)()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');
   try {
     await esperarSync();
@@ -107,7 +110,7 @@ async function aprobarEnServidor(p, miss, force, nota) {
 }
 /* Cambio de estado con motivo y fecha de revisión */
 Acts.estado = d => {
-  if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
+  if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const i = byId(d.id); if (isDone(i)) return;
   const opts = estadosDe(i).filter(e => e !== 'Aprobada' && (e !== 'Completado' || i.fase === 'Cierre'));
   openForm({
@@ -128,7 +131,7 @@ Acts.estado = d => {
   });
 };
 Acts.reabrirPrj = d => {   // N-F-07
-  const i = byId(d.id); if (!i || esProp(i) || !isDone(i) || !esAdministra()) return NO_PERM('Solo Administra puede reabrir un proyecto cerrado');
+  const i = byId(d.id); if (!i || esProp(i) || !isDone(i) || !(0, ENLACES.esAdministra)()) return (0, ENLACES.NO_PERM)('Solo Administra puede reabrir un proyecto cerrado');
   openForm({
     title: 'Reabrir proyecto · ' + i.titulo, saveLabel: 'Reabrir', values: { nota: '' }, fields: [{ k: 'nota', l: 'Motivo de la reapertura (queda en la bitácora)', t: 'textarea', req: true, w: 3 }],
     onSave(o) { if (conServidor()) { return cmdServidor('apih_reabrir', { p_id: i.id, p_nota: o.nota }, 'Proyecto reabierto', true).then(r => r !== null); } const prev = i.estado; i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; i.finReal = null; i.actualizada = hoy(); log('Cambio', i.id, `Proyecto reabierto (era ${prev}): ${o.nota}`); toast('Proyecto reabierto'); refresh(); }
@@ -162,16 +165,27 @@ function propResumen(i) {
 /* ============================================================
    APIH · Vistas 1: Dashboard, Portfolio, Iniciativas, Propuestas
    ============================================================ */
-const nextHito = i => hitosDe(i.id).filter(h => !h.completado).sort(by('fecha'))[0] || null;
-const priorScore = i => { if (!i.score) return 0; const s = i.score, r = roi(i), fr = r == null ? 0 : Math.max(0, Math.min(1, r / 200)) * 5, cap = Math.max(1, +St.cfg.capacidadMax || 5), n = St.ini.filter(x => !esProp(x) && isLive(x) && x.lider && x.lider === i.lider).length, fc = i.lider ? Math.max(0, Math.min(1, 1 - n / cap)) * 5 : 0; return Math.round((s.valor * .30 + s.estrategia * .25 + fr * .15 + (6 - s.esfuerzo) * .15 + fc * .10 + (6 - s.riesgo) * .05) / 5 * 100); };   // sin evaluación = 0 (antes valía 50 por defecto)
-function myWork() {
+export const nextHito = i => hitosDe(i.id).filter(h => !h.completado).sort(by('fecha'))[0] || null;
+export const priorScore = i => { if (!i.score) return 0; const s = i.score, r = roi(i), fr = r == null ? 0 : Math.max(0, Math.min(1, r / 200)) * 5, cap = Math.max(1, +St.cfg.capacidadMax || 5), n = St.ini.filter(x => !esProp(x) && isLive(x) && x.lider && x.lider === i.lider).length, fc = i.lider ? Math.max(0, Math.min(1, 1 - n / cap)) * 5 : 0; return Math.round((s.valor * .30 + s.estrategia * .25 + fr * .15 + (6 - s.esfuerzo) * .15 + fc * .10 + (6 - s.riesgo) * .05) / 5 * 100); };   // sin evaluación = 0 (antes valía 50 por defecto)
+export function myWork() {
   const me = miUsuario(), items = [], L = d => diffD(d, hoy());
   HITOS().forEach(h => { const i = byId(h.ini); if (!i || i.lider !== me || h.completado || !isLive(i) || !inArea(i)) return; if (L(h.fecha) <= 14) items.push({ k: 'hito', id: h.id, t: h.nombre, s: i.titulo, when: h.fecha, over: L(h.fecha) < 0, ic: 'flag' }); });
   RIESGOS().forEach(r => { if (r.dueno === me && riesgoAbierto(r) && r.fRev && L(r.fRev) <= 14) items.push({ k: 'risk', id: r.id, t: 'Revisar riesgo: ' + r.desc, s: nameOf(r.ini), when: r.fRev, over: L(r.fRev) < 0, ic: 'shield' }); });
   DECS().forEach(d => { if (d.estado === 'Pendiente' && d.solicita === me && d.limite && L(d.limite) <= 14) items.push({ k: 'dec', id: d.id, t: 'Decisión: ' + d.titulo, s: d.ini ? nameOf(d.ini) : '', when: d.limite, over: L(d.limite) < 0, ic: 'gavel' }); });
   St.comites.forEach(c => [...(c.acciones || []).map(a => ({ ...a, tp: 'Acción' })), ...(c.compromisos || []).map(a => ({ ...a, tp: 'Compromiso' }))].forEach(a => { if (a.resp === me && ['Abierta', 'Abierto'].includes(a.estado) && a.limite && L(a.limite) <= 14) items.push({ k: 'acc', id: a.id, t: a.tp + ': ' + a.texto, s: a.ini ? nameOf(a.ini) : c.nombre, when: a.limite, over: L(a.limite) < 0, ic: 'check' }); }));
   ACUERDOS().forEach(a => { if (a.resp === me && a.estado === 'Abierto' && a.limite && L(a.limite) <= 14) items.push({ k: 'acu', id: a.id, t: 'Compromiso: ' + a.texto, s: a.ini ? nameOf(a.ini) : (a.tema || 'General'), when: a.limite, over: L(a.limite) < 0, ic: 'check' }); });
-  St.ini.forEach(i => { if (i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > cfgI(i,'diasSinUpdate') && inArea(i)) items.push({ k: 'upd', id: i.id, t: 'Actualizar avance (hace ' + diasSinUpd(i) + ' d)', s: i.titulo, when: addD(i.actualizada, cfgI(i,'diasSinUpdate')), over: true, ic: 'refresh' }); });
+  St.ini.forEach(i => { if (i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > (0, ENLACES.cfgI)(i,'diasSinUpdate') && inArea(i)) items.push({ k: 'upd', id: i.id, t: 'Actualizar avance (hace ' + diasSinUpd(i) + ' d)', s: i.titulo, when: addD(i.actualizada, (0, ENLACES.cfgI)(i,'diasSinUpdate')), over: true, ic: 'refresh' }); });
   return items.sort(by('when'));
 }
 
+
+// Enlaces para módulos anteriores (ver 00-registro.js)
+Object.defineProperties(ENLACES, {
+  aprobarPropuesta: { get: () => aprobarPropuesta, enumerable: true, configurable: true },
+  conServidor: { get: () => conServidor, enumerable: true, configurable: true },
+  diasEnFase: { get: () => diasEnFase, enumerable: true, configurable: true },
+  hitoEnServidor: { get: () => hitoEnServidor, enumerable: true, configurable: true },
+  migrateV5: { get: () => migrateV5, enumerable: true, configurable: true },
+  propResumen: { get: () => propResumen, enumerable: true, configurable: true },
+  resolverEnServidor: { get: () => resolverEnServidor, enumerable: true, configurable: true },
+});
