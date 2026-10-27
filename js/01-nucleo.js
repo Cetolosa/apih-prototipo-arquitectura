@@ -429,16 +429,21 @@ export function kpis() {
 /* Compuertas de gobierno por transición */
 export function gates(i, to) {
   const g = [], ok = (c, t) => g.push({ ok: !!c, t });
-  const hs = hitosDe(i.id);
+  const hs = hitosDe(i.id), av = (0, ENLACES.avanceCalc)(i);   /* V23: las compuertas leen el avance CALCULADO, nunca el ajuste manual */
+  /* con servidor rige el umbral de la organización (el servidor no conoce los ajustes personales) */
+  const umbral = () => (0, ENLACES.conServidor)() ? +St.cfg.umbralCritico : (0, ENLACES.cfgI)(i, 'umbralCritico'), sinMit = r => riesgoAbierto(r) && expo(r) >= umbral() && !String(r.mit || '').trim();
   if (to === 'Evaluación') { ok(i.problema || i.desc, 'Problema/objetivo descrito'); ok(i.sponsor, 'Sponsor identificado'); }
   if (to === 'Caso de Negocio') { ok(i.sponsor, 'Sponsor identificado'); ok(i.score, 'Evaluación de valor/esfuerzo completada'); ok(i.lider, 'Líder asignado'); }
   if (to === 'Aprobación') { ok(i.presupuesto > 0, 'Presupuesto estimado'); ok(i.beneficio > 0 || i.categoria === 'Transversal', 'Beneficio esperado'); ok(i.bc, 'Business case redactado'); }
   
-  if (to === 'Ejecución') { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.presupuesto > 0 || i.categoria === 'Transversal', 'Presupuesto asignado'); ok(hs.length >= 2, 'Al menos 2 hitos planificados'); ok(!riesgosDe(i.id).some(r => (0, ENLACES.riesgoSinMit)(i, r)), 'Riesgos críticos con plan de mitigación'); ok(i.lider, 'Líder asignado'); }
-  if (to === 'Transición') { ok(i.avance >= 80, 'Avance ≥ 80%'); ok(!hs.some(h => !h.completado && h.fecha < hoy()), 'Sin hitos vencidos'); ok(!riesgosDe(i.id).some(r => (0, ENLACES.riesgoSinMit)(i, r)), 'Riesgos críticos con plan de mitigación'); }
+  if (to === 'Ejecución') { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.presupuesto > 0 || i.categoria === 'Transversal', 'Presupuesto asignado'); ok(hs.length >= 2, 'Al menos 2 hitos planificados'); ok(!riesgosDe(i.id).some(sinMit), 'Riesgos críticos con plan de mitigación'); ok(i.lider, 'Líder asignado'); }
+  if (to === 'Transición') {   /* V23: antes «Avance ≥ 80 %» (número manual); ahora un hecho verificable */
+    ok(hs.filter(h => fasesDe(i).indexOf(h.fase) < fasesDe(i).indexOf(to)).every(h => h.completado), 'Hitos de las fases anteriores completados');
+    ok(!hs.some(h => !h.completado && h.fecha < hoy()), 'Sin hitos vencidos'); ok(!riesgosDe(i.id).some(sinMit), 'Riesgos críticos con plan de mitigación');
+  }
   if (!['Evaluación', 'Caso de Negocio', 'Aprobación', 'Ejecución', 'Transición', 'Cierre'].includes(to) && FASES_PRJ.includes(to) && to !== FASES_PRJ[0]) { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.lider, 'Líder asignado'); }
-  { const F_ = fasesDe(i), a = F_.indexOf(i.fase), b = F_.indexOf(to); if (b > a && a >= 0) { const pend = hs.filter(h => h.fase === i.fase && !h.completado); if (hs.some(h => h.fase === i.fase)) ok(!pend.length, 'Hitos de la fase ' + i.fase + ' completados' + (pend.length ? ' (faltan ' + pend.length + ')' : '')); } }
-  if (to === 'Cierre') { ok(i.avance >= 100, 'Avance al 100%'); ok(hs.filter(h => h.fase !== to).every(h => h.completado), 'Todos los hitos completados'); ok(!riesgosDe(i.id).some(r => riesgoAbierto(r) && expo(r) >= (0, ENLACES.cfgI)(i,'umbralCritico')), 'Sin riesgos críticos abiertos'); }   /* F-06, F-07 */
+  { const F_ = fasesDe(i), a = F_.indexOf(i.fase), b = F_.indexOf(to); if (b > a && a >= 0 && to !== 'Transición') { const pend = hs.filter(h => h.fase === i.fase && !h.completado); if (hs.some(h => h.fase === i.fase)) ok(!pend.length, 'Hitos de la fase ' + i.fase + ' completados' + (pend.length ? ' (faltan ' + pend.length + ')' : '')); } }
+  if (to === 'Cierre') { ok(av >= 100, 'Avance al 100%'); ok(hs.filter(h => h.fase !== to).every(h => h.completado), 'Todos los hitos completados'); ok(!riesgosDe(i.id).some(r => riesgoAbierto(r) && expo(r) >= umbral()), 'Sin riesgos críticos abiertos'); }   /* F-06, F-07 */
   return g;
 }
 /* compuertas para APROBAR una propuesta y convertirla en proyecto */

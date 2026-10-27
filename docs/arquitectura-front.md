@@ -16,3 +16,6 @@
 - `ESQUEMA`/`MapaDatos`: esquema de entidades y mapeo de dominio ↔ columnas. La lista lógica (`lista`) coincide con los valores que usan las políticas SQL.
 - Administración → **Conexión**: estado, prueba de conexión, recarga, sincronización y cierre de sesión. Las tablas se crean con `supabase/migrations`.
 - Prueba: `tests/e2e/servidor-ficticio.js` (sesión + PostgREST emulados) cubre conexión, alta, edición, lectura ajena, conflicto, baja y prueba de conexión.
+
+## Ciclo de vida (V23)
+Cambio de etapa único, avance calculado y fechas por fase: ver [ciclo-de-vida.md](ciclo-de-vida.md). La lógica vive en `js/05-vistas.js` (avance, fechas) y `js/04-flujos.js` (diálogo), con espejo en SQL (`20261027001100_ciclo_de_vida.sql`) verificado por contratos compartidos.
