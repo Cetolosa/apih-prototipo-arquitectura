@@ -6,7 +6,7 @@ const fs = require('fs'), path = require('path'), assert = require('assert');
 const raiz = path.join(__dirname, '..', '..');
 const G = require(path.join(raiz, 'tools', 'generar-motor-notif.js'));
 const M = require(path.join(raiz, 'packages', 'core', 'notif-motor.js'));
-const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 
 // 1) el código extraído es idéntico en la SPA corporativa y en el Prototipo
 const ext = f => G.extraer(fs.readFileSync(path.join(raiz, f), 'utf8'), ['notifPara', 'notifPref', 'NOTIF_GRUPOS', 'NOTIF_DEST']).filter(p => p.n !== 'esAdminReal').map(p => p.n + '\n' + p.codigo).join('\n');   // esAdminReal diverge a propósito (S-17: en el Prototipo con sesión solo vale el correo)

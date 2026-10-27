@@ -1,6 +1,6 @@
-// V22.53 · Vista Fases: 4 miradas con el plan de APIH Corporativo (docs/APIH_Corporativo_plan_acelerado_C1.3.json)
+// V22.53 · Vista Fases: 4 miradas con datos sintéticos (docs/seed/iniciativas-sinteticas.json)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));

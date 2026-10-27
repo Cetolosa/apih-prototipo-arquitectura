@@ -1,6 +1,6 @@
 // C2.28 · «Tus siguientes pasos» por importancia, ajuste propio persistente y pendientes personales (Mi cocina)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
