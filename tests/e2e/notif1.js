@@ -1,12 +1,12 @@
 // C2.8 · Motor de notificaciones (packages/core/notif-motor.js) ≡ campana del Prototipo (V22.54, solo lectura).
 // Requiere: prototipo en http://localhost:8765/demo/index.html (ver README). Compara notifPara(usuario) del navegador con el motor en Node
 // para varios usuarios y fechas, con datos que disparan los 15 tipos de aviso.
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const raiz = path.join(__dirname, '..', '..');
 const G = require(path.join(raiz, 'tools', 'generar-motor-notif.js'));
 const M = require(path.join(raiz, 'packages', 'core', 'notif-motor.js'));
-const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 
 // 1) el código extraído es idéntico en la SPA corporativa y en el Prototipo
 const ext = f => G.extraer(fs.readFileSync(path.join(raiz, f), 'utf8'), ['notifPara', 'notifPref', 'NOTIF_GRUPOS', 'NOTIF_DEST']).filter(p => p.n !== 'esAdminReal').map(p => p.n + '\n' + p.codigo).join('\n');   // esAdminReal diverge a propósito (S-17: en el Prototipo con sesión solo vale el correo)
@@ -14,7 +14,7 @@ assert.strictEqual(ext('apps/corporativo/index.html'), ext('index.html'), 'funci
 const gen = require('child_process').spawnSync('node', [path.join(raiz, 'tools', 'generar-motor-notif.js'), '--check']); assert.strictEqual(gen.status, 0, 'motor desactualizado');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const b = await chromium.launch(launchOpts);
   const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1'));
   await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);
@@ -23,7 +23,7 @@ const gen = require('child_process').spawnSync('node', [path.join(raiz, 'tools',
     const H = '2026-10-16', d = n => addD(H, n);
     St.usuarios.push({ n: 'Ana Pérez', rol: 'Colaborador', area: 'BISE', correo: 'ana@ejemplo.cl', veTodo: false },
       { n: 'Beto Ruiz', rol: 'Colaborador', area: 'Finanzas', correo: 'beto@ejemplo.cl', veTodo: false },
-      { n: 'Carla Soto', rol: 'Gasto', area: 'BISE', correo: 'carla@ejemplo.cl', veTodo: true });
+      { n: 'Carla Soto', rol: 'Administra', area: 'BISE', correo: 'carla@ejemplo.cl', veTodo: true });
     const base = Object.assign({ legacy: '', creada: '2026-08-20', faseDesde: '2026-09-01', origen: 'usuario', est: [], hist: [['2026-08-20', 0]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, propuestaOrigen: null, estadoMotivo: '', estadoRev: null, gastado: 0, proyecto: null, deps: [] }, x);
     delete base.hitos; delete base.riesgos;
     const p1 = Object.assign({}, base, { id: 'PRJ-050', lider: 'Ana Pérez', sponsor: 'Carla Soto', area: 'BISE', fase: 'Ejecución', estado: 'En curso', inicioPlan: '2026-08-01', finPlan: d(-20), avance: 40, actualizada: d(-40) });

@@ -20,7 +20,7 @@
 --   notas_insertar INSERT en APIH_Notas para cualquier perfil (comentarios por área)
 --   claves_insertar / claves_cambiar: cada persona solo su fila de APIH_Claves (en retiro, ver C)
 -- Restricción de dominio en el alta de usuarios: trigger apih_dominio sobre auth.users (solo @aramark.cl).
--- Nota: los roles de la app (Gasto, áreas, etc.) viven en la lista APIH_Roles, que solo escribe 'admin'.
+-- Nota: los roles de la app (Administra, áreas, etc.) viven en la lista APIH_Roles, que solo escribe 'admin'.
 
 -- ---------------------------------------------------------------------------
 -- B) ENDURECIMIENTO (ejecutar una vez; se puede repetir sin problema)

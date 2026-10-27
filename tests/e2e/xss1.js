@@ -1,8 +1,8 @@
 // V22.60 · Revisión de seguridad: textos con HTML en subfases, categorías, nombres e importaciones no se ejecutan en ninguna vista nueva
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => { localStorage.setItem('apih_tour22', '1'); localStorage.setItem('apih_ptipo', '"><img src=x onerror=window.__x=1>'); }); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1500);
   const r = await p.evaluate(async () => { celebrar = () => {}; UI.uiOv = 'pro'; const X = '<img src=x onerror="window.__x=1">';
@@ -17,7 +17,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     selectEntity('ini', 'PRJ-901', 'hitos'); await new Promise(r => setTimeout(r, 150)); selectEntity('ini', 'PROP-901', 'resumen'); await new Promise(r => setTimeout(r, 150));
     Acts.sfedit({ id: 'PRJ-901', s: 'PRJ-901-SF1' }); await new Promise(r => setTimeout(r, 150)); Modal.close && Modal.close();
     Acts.edit({ t: 'hito', id: 'HIT-901' }); await new Promise(r => setTimeout(r, 150)); Modal.close && Modal.close();
-    const ex = iapExport(byId('PRJ-901')); Chg.proyiaf({ files: [new File([JSON.stringify({ formato: 'apih-proyecto-ia', v: 1, proyecto_id: 'PRJ-901', subfases: [{ nombre: X, fase: 'Ejecución' }, { nombre: { a: 1 }, fase: 'Ejecución' }], hitos: [{ id: 'HIT-901', cat: X }] })], 'r.json')], value: '', dataset: { id: 'PRJ-901' } }); await new Promise(r => setTimeout(r, 300));
+    const ex = archExport(byId('PRJ-901')); Chg.proyarchf({ files: [new File([JSON.stringify({ formato: 'apih-proyecto-archivo', v: 1, proyecto_id: 'PRJ-901', subfases: [{ nombre: X, fase: 'Ejecución' }, { nombre: { a: 1 }, fase: 'Ejecución' }], hitos: [{ id: 'HIT-901', cat: X }] })], 'r.json')], value: '', dataset: { id: 'PRJ-901' } }); await new Promise(r => setTimeout(r, 300));
     out.ejecutado = !!window.__x; out.imgs = document.querySelectorAll('img[src="x"]').length; return out; });
   r.errores = errs; console.log(JSON.stringify(r));
   const ok = r.tipo === 'all' && !r.ejecutado && r.imgs === 0 && !errs.length; console.log(ok ? 'OK xss1' : 'FALLA xss1'); await b.close(); process.exit(ok ? 0 : 1);

@@ -1,8 +1,8 @@
-// V22.59 · Exportar e importar subfases y categorías: archivo de iniciativas (plantilla) y «Con IA» (ida y vuelta)
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+// V22.59 · Exportar e importar subfases y categorías: archivo de iniciativas (plantilla) y «Con archivo» (ida y vuelta)
+const { chromium, launchOpts } = require('./_pw');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1800);
   const r = await p.evaluate(async () => { celebrar = () => {}; const out = {}, espera = ms => new Promise(r => setTimeout(r, ms)), clic = t => [...document.querySelectorAll('button')].find(x => x.textContent.trim() === t).click();
@@ -15,13 +15,13 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     out.hitosSub = hitosDe(i.id).filter(h => h.subfase).map(h => h.nombre + '@' + subfasesDe(i).find(s => s.id === h.subfase).nombre).join(',');
     out.cats = hitosDe(i.id).map(h => h.cat || '-').join(',');
     out.toast = [...document.querySelectorAll('.toast span')].map(x => x.textContent).filter(t => /importada/.test(t)).pop() || '';
-    // 2) «Con IA»: exporta subfases y ventanas
-    const ex = iapExport(i); out.exporta = ['subfases', 'ventanas_de_fase'].every(k => Array.isArray(ex[k])) && ex.subfases.length === 2 && ex.hitos.some(h => h.subfase);
+    // 2) «Con archivo»: exporta subfases y ventanas
+    const ex = archExport(i); out.exporta = ['subfases', 'ventanas_de_fase'].every(k => Array.isArray(ex[k])) && ex.subfases.length === 2 && ex.hitos.some(h => h.subfase);
     // 3) Vuelta: cambia una subfase, crea otra, recategoriza y reasigna hitos; incluye errores que deben omitirse
     const api = ex.hitos.find(h => h.nombre === 'API lista'), plan = ex.hitos.find(h => h.nombre === 'Plan aprobado'), ej = ex.ventanas_de_fase.find(v => v.fase === 'Ejecución');
-    const back = { formato: 'apih-proyecto-ia', v: 1, proyecto_id: i.id, subfases: [...ex.subfases, { nombre: 'Estabilización', fase: 'Ejecución', inicio: ej.fin, fin: ej.fin }, { nombre: 'Mala', fase: 'Ejecución', fin: addD(ej.fin, 30) }],
+    const back = { formato: 'apih-proyecto-archivo', v: 1, proyecto_id: i.id, subfases: [...ex.subfases, { nombre: 'Estabilización', fase: 'Ejecución', inicio: ej.fin, fin: ej.fin }, { nombre: 'Mala', fase: 'Ejecución', fin: addD(ej.fin, 30) }],
       hitos: [{ id: api.id, cat: 'Gobierno', subfase: 'Estabilización' }, { id: plan.id, subfase: 'Piloto' }, { id: plan.id, cat: 'Inventada' }, { nombre: 'Demo', fase: 'Ejecución', fecha: ej.fin, cat: 'Entregable', subfase: 'Estabilización' }] };
-    Chg.proyiaf({ files: [new File([JSON.stringify(back)], 'r.json')], value: '', dataset: { id: i.id } }); await espera(500);
+    Chg.proyarchf({ files: [new File([JSON.stringify(back)], 'r.json')], value: '', dataset: { id: i.id } }); await espera(500);
     out.resumen = (document.querySelector('.modal p, .modal-b, .mbody') || {}).textContent || ''; out.cambios = (out.resumen.match(/(\d+) cambio/) || [])[1];
     clic([...document.querySelectorAll('.modal button, [data-act=mconfirm]')].map(x => x.textContent.trim()).find(t => /Aplicar|Confirmar/.test(t)) || 'Aplicar'); await espera(400);
     const g = id => St.hitos.find(h => h.id === id), sn = h => (subfasesDe(i).find(s => s.id === h.subfase) || {}).nombre || '';

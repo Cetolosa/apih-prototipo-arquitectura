@@ -1,8 +1,8 @@
 // V22.55 · Subfases por proyecto (ADR-012): heredan fechas de la fase, no salen de ella, se muestran en ficha, Fases, tablero y hito
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').iniciativas[0];
+const { chromium, launchOpts } = require('./_pw');
+const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);
   await p.evaluate(x => { celebrar = () => {}; UI.uiOv = 'pro';
@@ -16,17 +16,17 @@ const plan = require('../../docs/APIH_Corporativo_plan_acelerado_C1.3.json').ini
   await p.evaluate(() => Acts.sfnew({ id: 'PRJ-050', f: 'Ejecución' })); await p.waitForTimeout(200);
   r.hereda = await p.evaluate(() => $('#f_inicio').value + '|' + $('#f_fin').value);
   // 2) fuera de la fase: no se guarda
-  await p.fill('#f_nombre', 'C2 · API y datos'); await p.fill('#f_fin', '2026-11-30'); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.fill('#f_nombre', 'C2 · API y datos'); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').fin, 30))); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
   r.bloquea = await p.evaluate(() => !!$('#mform') && subfasesDe(byId('PRJ-050')).length === 0); r.msg = await txt('.toast.err:last-child span');
   // 3) dentro: se guarda
-  await p.fill('#f_inicio', '2026-10-24'); await p.fill('#f_fin', '2026-11-05'); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.fill('#f_inicio', await p.evaluate(() => ventanaDe(byId('PRJ-050'), 'Ejecución').ini)); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').ini, 14))); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
   // 4) vacía: hereda
   await p.evaluate(() => Acts.sfnew({ id: 'PRJ-050', f: 'Transición' })); await p.waitForTimeout(200);
   await p.fill('#f_nombre', 'UAT'); await p.fill('#f_inicio', ''); await p.fill('#f_fin', ''); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
   r.subs = await p.evaluate(() => subfasesDe(byId('PRJ-050')).map(s => s.fase + ':' + s.nombre + ':' + s.inicio + '>' + s.fin).join(' | '));
   r.uatHereda = await p.evaluate(() => { const s = subfasesDe(byId('PRJ-050'))[1], v = ventanaDe(byId('PRJ-050'), 'Transición'); return s.inicio === v.ini && s.fin === v.fin; });
   // 5) hito con subfase de otra fase: rechazado; de la misma: aceptado
-  const h = await p.evaluate(() => St.hitos.find(x => x.ini === 'PRJ-050' && /^C2.0/.test(x.nombre)).id);
+  const h = await p.evaluate(() => St.hitos.find(x => x.ini === 'PRJ-050' && x.fase === 'Ejecución').id);
   await p.evaluate(id => Acts.edit({ t: 'hito', id }), h); await p.waitForTimeout(200);
   r.optsSub = await p.$$eval('#f_subfase option', a => a.length);
   await p.selectOption('#f_subfase', 'PRJ-050-SF2'); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);

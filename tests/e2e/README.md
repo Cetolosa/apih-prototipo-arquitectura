@@ -1,15 +1,25 @@
 # Pruebas e2e (Playwright, modo demo)
 
-Preparación (cada sesión nueva):
+## Cómo correr
 ```
-mkdir -p /tmp/t/demo && cp index.html /tmp/t/demo/index.html && cp apih-config.js /tmp/t/ 
-python3 -m http.server 8765 -d /tmp/t &
+node tools/correr-e2e.js            # suite oficial (lista PRUEBAS en el script); levanta y apaga el servidor demo
+node tools/servir-demo.js &         # solo servidor (puerto 8765, PORT=… para cambiarlo); guardar el PID para detenerlo
+node tests/e2e/<prueba>.js          # una prueba suelta con el servidor ya levantado
 ```
-Ejecutar desde cualquier carpeta: `node tests/e2e/t10.js` (usa chromium en /opt/pw-browsers/chromium y el módulo /opt/npm-tools/node_modules/playwright).
-Copiar `index.html` a `/tmp/t/demo/` antes de cada corrida. La demo no trae iniciativas: los scripts agregan una plantilla (ver h1.js).
+`tools/servir-demo.js` sirve `/demo/index.html`, `/js`, `/css`, `/apih-config.js` y `/out/` (fixtures de `docs/seed`).
+La SPA usa **módulos ES reales**: no abre desde `file://` (hay que servirla por HTTP). Las pruebas escriben nombres sueltos
+(`St`, `Acts`, `toast`…), que los módulos no exponen; el servidor demo agrega a su copia `/demo/puente-pruebas.js`
+(solo demo, nunca parte de la app publicada) que los publica en `window` usando los registros `ENLACES`.
 
-Fixture para imp2/ia1: `mkdir -p /tmp/t/out && cp docs/APIH_iniciativas_con_plan.json /tmp/t/out/`.
-Regresión mínima antes de publicar: xss1 (seguridad, V22.60), imp3 (importar/exportar subfases y categorías, V22.59), fin1 (versión final, V22.56), sf1 (subfases, V22.55), fz1 (vista Fases, V22.53), ps1 (Planificación en ficha y Siguientes pasos, V22.54), t10 (login, xlsx, CSP), t13 (a11y), t43 (historial), t44 (notificaciones), cap2 (capacidad), r1 (menú), c4 (panel), imp1/imp2 (importador), ia1 (Con IA).
-Falsos positivos conocidos: t10 requiere red hacia Supabase (falla en la nube también con V22.52); ROI NaN en demo, overlay de celebración en capturas.
+## Suite oficial
+sin-externos (CSP de scripts y estilos sin `unsafe-inline`, sin violaciones en consola, sin hosts externos, lint de términos),
+xss1, imp3, fin1, fz1, t13, t43, t44, cap2, r1, c4, imp1, imp2, cfgu1, aprob-srv, cmd-srv, gates-contract, campo-srv, servidor-ficticio (capa de datos con PostgREST emulado).
+ps1 y sf1 (planes sintéticos con fecha fija y datos construidos: no dependen de «hoy» ni de datos reales).
 
-Corporativo: `tests/e2e/correr-corporativo.sh` corre corp1/corp2/corp3 y fin1/sf1/fz1/ps1 contra la SPA corporativa, cada una con base nueva (C2.14).
+## Falsos positivos / fallas heredadas
+Fallan igual en la versión clásica anterior a la división en módulos (verificado con la línea base): ia1, notif1, sem1, standby1, t10
+(t10 pide red hacia Supabase). ROI NaN en demo; overlay de celebración en capturas.
+
+## Otras verificaciones estáticas
+`node tools/verificar-modulos.js` (orden y dependencias de `js/`), `node tools/lint-terminos.js` (términos vetados en código, CSS y UI),
+`tools/test-sql.sh` (Postgres local con el shim de Supabase: políticas, comandos del servidor y contrato de compuertas).

@@ -1,5 +1,5 @@
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});const p=await b.newPage({viewport:{width:1250,height:640}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const { chromium, launchOpts } = require('./_pw');
+(async()=>{const b=await chromium.launch(launchOpts);const p=await b.newPage({viewport:{width:1250,height:640}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('http://localhost:8765/demo/index.html');await p.waitForTimeout(1500);
 await p.screenshot({path:'rail0.png'});
 await p.click('[data-act=rail]');await p.waitForTimeout(400);

@@ -1,7 +1,7 @@
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
-(async()=>{const b=await chromium.launch({executablePath:'/opt/pw-browsers/chromium',args:['--no-sandbox']});const p=await b.newPage({viewport:{width:1440,height:1000}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
+const { chromium, launchOpts } = require('./_pw');
+(async()=>{const b=await chromium.launch(launchOpts);const p=await b.newPage({viewport:{width:1440,height:1000}});await p.addInitScript(()=>localStorage.setItem('apih_tour22','1'));const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.goto('http://localhost:8765/demo/index.html');await p.waitForTimeout(1500);
-const r=await p.evaluate(async()=>{celebrar=()=>{};const out={};out.admin=esAdmin();out.gasto=esGasto();
+const r=await p.evaluate(async()=>{celebrar=()=>{};const out={};out.admin=esAdmin();out.gasto=esAdministra();
  const pl=JSON.stringify(INI_PLANTILLA());const f=new File([pl],'x.json',{type:'application/json'});
  const el={files:[f],value:''};const n0=St.ini.length;Chg.impinifile(el);await new Promise(r=>setTimeout(r,400));
  out.confirm=!!document.querySelector('.modal,.cbox,[class*=confirm]');
