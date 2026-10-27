@@ -418,13 +418,14 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   }
   document.addEventListener('click', e => { if (e.target.closest('.v22-pop [data-act]') && !e.target.closest('[data-act="pop"]')) closePops(); }, true);
 
-  const VER = { v: 'V22.79', b: '21-10-2026 20:20' };
+  /* versión propia del prototipo de arquitectura; fecha y commit los inyecta el despliegue en apih-config.js (en local: «desarrollo») */
+  const BLD = window.APIH_BUILD || {}, VER = { v: BLD.v || 'A1.0', b: BLD.b || 'desarrollo', c: BLD.c || '' };
   V.version = VER;
  
   const renderChrome0 = renderChrome;
   ENLACES.renderChrome = function () {
     renderChrome0.apply(this, arguments);
-    const vs = sr('.top .b-t.app small'); if (vs) { vs.textContent = VER.v + ' · ' + VER.b; vs.classList.add('v22-ver'); vs.title = 'APIH ' + VER.v + ' · compilada el ' + VER.b; }
+    const vs = sr('.top .b-t.app small'); if (vs) { vs.textContent = VER.v + ' · ' + VER.b; vs.classList.add('v22-ver'); vs.title = 'APIH ' + VER.v + ' · ' + (VER.c ? 'commit ' + VER.c + ' · ' : '') + VER.b; }
     const tr = sr('.top-r');
     if (tr && !sr('#v22-help')) tr.insertAdjacentHTML('afterbegin', `<div class="popw"><button class="btn sm v22-help" id="v22-help" data-act="pop" data-id="pop-help" aria-label="Ayuda de esta pantalla">${icon('help', 16)}<span>Ayuda</span></button><div class="pop wide v22-pop" id="pop-help" style="right:0"></div></div>
       <div class="popw"><button class="icon-btn bell" id="v22-cmt" data-act="pop" data-id="pop-cmt" aria-label="Comentarios por área" title="Comentarios por área">${icon('comment', 18)}<b id="v22-cmtN"></b></button><div class="pop wide v22-pop" id="pop-cmt" style="right:0"></div></div>`);
