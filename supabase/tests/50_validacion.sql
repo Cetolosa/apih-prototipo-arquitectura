@@ -35,3 +35,16 @@ rollback;
 -- los índices existen y la consulta por iniciativa puede usarlos
 select pg_temp.ok((select count(*) from pg_indexes where indexname in ('registros_ini_idx','registros_estado_idx')) = 2, 'índices por iniciativa y estado creados');
 \echo PRUEBAS DE VALIDACION OK
+
+-- el servidor indica QUÉ campo rechazó (HINT) para que la app lo marque
+create or replace function pg_temp.hint_de(sql text) returns text language plpgsql as
+$$ declare h text; begin begin execute sql; exception when others then get stacked diagnostics h = pg_exception_hint; return h; end; return null; end $$;
+begin; set local role authenticated; select pg_temp.como('colab-a@test.cl');
+select pg_temp.ok(pg_temp.hint_de($$insert into public.registros(lista,id,datos) values ('APIH_Hitos','HIT-1','p1.{"id":"HIT-1","ini":"PRJ-001","nombre":"h","fecha":"31/12/2026"}')$$) = 'fecha', 'hint: la fecha inválida señala «fecha»');
+select pg_temp.ok(pg_temp.hint_de($$insert into public.registros(lista,id,datos) values ('APIH_Riesgos','RSK-1','p1.{"id":"RSK-1","ini":"PRJ-001","desc":"r","prob":9}')$$) = 'prob', 'hint: riesgo fuera de rango señala «prob»');
+select pg_temp.ok(pg_temp.hint_de($$select public.apih_solicitar_cambio('PRJ-001','Fecha','','m','', '2027-01-31')$$) = 'desc', 'hint: solicitud sin descripción señala «desc»');
+select pg_temp.ok(pg_temp.hint_de($$select public.apih_solicitar_cambio('PRJ-001','Fecha','d','','', '2027-01-31')$$) = 'motivo', 'hint: solicitud sin motivo señala «motivo»');
+select pg_temp.ok(pg_temp.hint_de($$select public.apih_solicitar_cambio('PRJ-001','Fecha','d','m','', '2026-12-31')$$) = 'fNue', 'hint: fecha igual señala «fNue»');
+select pg_temp.ok(pg_temp.hint_de($$select public.apih_reabrir('PRJ-001','')$$) = 'nota', 'hint: reapertura sin motivo señala «nota»');
+rollback;
+\echo PRUEBAS DE HINT OK
