@@ -6,4 +6,4 @@ await p.uncheck('input[data-r=Invitado][data-k=planificacion]');await p.waitForT
 console.log(await p.evaluate(()=>JSON.stringify(St.cfg.menuRol&&St.cfg.menuRol.Invitado)));
 await p.evaluate(()=>{rolActual=()=>'Invitado';go('dashboard')});await p.waitForTimeout(300);
 console.log(await p.evaluate(()=>[...document.querySelectorAll('#side a.nav')].map(a=>a.textContent.trim()).join('|')));
-await p.evaluate(()=>{rolActual=()=>'Gasto';go('miconfig')});await p.waitForTimeout(300);await p.evaluate(()=>document.querySelector('#main').scrollTo(0,900));await p.screenshot({path:'menu2.png'});console.log(JSON.stringify(errs));await b.close()})();
+await p.evaluate(()=>{rolActual=()=>'Administra';go('miconfig')});await p.waitForTimeout(300);await p.evaluate(()=>document.querySelector('#main').scrollTo(0,900));await p.screenshot({path:'menu2.png'});console.log(JSON.stringify(errs));await b.close()})();

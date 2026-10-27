@@ -23,7 +23,7 @@ const gen = require('child_process').spawnSync('node', [path.join(raiz, 'tools',
     const H = '2026-10-16', d = n => addD(H, n);
     St.usuarios.push({ n: 'Ana Pérez', rol: 'Colaborador', area: 'BISE', correo: 'ana@ejemplo.cl', veTodo: false },
       { n: 'Beto Ruiz', rol: 'Colaborador', area: 'Finanzas', correo: 'beto@ejemplo.cl', veTodo: false },
-      { n: 'Carla Soto', rol: 'Gasto', area: 'BISE', correo: 'carla@ejemplo.cl', veTodo: true });
+      { n: 'Carla Soto', rol: 'Administra', area: 'BISE', correo: 'carla@ejemplo.cl', veTodo: true });
     const base = Object.assign({ legacy: '', creada: '2026-08-20', faseDesde: '2026-09-01', origen: 'usuario', est: [], hist: [['2026-08-20', 0]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, propuestaOrigen: null, estadoMotivo: '', estadoRev: null, gastado: 0, proyecto: null, deps: [] }, x);
     delete base.hitos; delete base.riesgos;
     const p1 = Object.assign({}, base, { id: 'PRJ-050', lider: 'Ana Pérez', sponsor: 'Carla Soto', area: 'BISE', fase: 'Ejecución', estado: 'En curso', inicioPlan: '2026-08-01', finPlan: d(-20), avance: 40, actualizada: d(-40) });
