@@ -6,12 +6,12 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1500);
-  const VIEWS = ['dashboard', 'cielo', 'portfolio', 'proyectos', 'gantt', 'fases', 'roadmap', 'calendario', 'hitos', 'capacidad', 'riesgos', 'propuestas', 'comite', 'decisiones', 'compromisos', 'cambios', 'presentaciones', 'personas', 'admin', 'bitacora', 'miconfig', 'ia', 'proposito', 'ficha'];
+  const VIEWS = ['dashboard', 'cielo', 'portfolio', 'proyectos', 'gantt', 'fases', 'roadmap', 'calendario', 'hitos', 'capacidad', 'riesgos', 'propuestas', 'comite', 'decisiones', 'compromisos', 'cambios', 'presentaciones', 'personas', 'admin', 'bitacora', 'miconfig', 'analisis', 'proposito', 'ficha'];
   await p.evaluate(() => { UI.uiOv = 'pro'; celebrar = () => {}; let i = St.ini.find(x => x.tipo === 'Proyecto'); if (!i) { i = { id: 'PRJ-901', tipo: 'Proyecto', titulo: 'Para la guía', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', lider: 'Tester', area: 'BISE', avance: 0, presupuesto: 0, deps: [], tags: [], hist: [], est: [], creada: hoy(), faseDesde: hoy(), actualizada: hoy(), inicioPlan: hoy(), finPlan: addD(hoy(), 60), finEst: addD(hoy(), 60) }; St.ini.push(i); } window.__fid = i.id; });
   const res = [];
-  const hayIA = await p.evaluate(() => typeof puedeUsarIA !== 'function' || puedeUsarIA());   /* IA solo existe si está habilitada (en Corporativo aún no) */
+  const hayAnalisis = await p.evaluate(() => typeof puedeVerAnalisis !== 'function' || puedeVerAnalisis());   /* Análisis solo existe si está habilitada (en Corporativo aún no) */
   for (const v of VIEWS) {
-    if (v === 'ia' && !hayIA) continue;
+    if (v === 'analisis' && !hayAnalisis) continue;
     await p.evaluate(v => { UI.guiaOpen = {}; if (v === 'ficha') Acts.ficha({ id: window.__fid }); else go(v); }, v); await p.waitForTimeout(250);
     const antes = await p.evaluate(() => ({ view: UI.view, panel: !!document.querySelector('.guia'), flt: !!document.querySelector('.flt-guia'), min: !!document.querySelector('.guia-min') }));
     await p.click('#v22-help'); await p.waitForTimeout(150);

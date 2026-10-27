@@ -17,7 +17,7 @@ console.log(JSON.stringify(r));
 await p.evaluate(()=>{shell();render()});await p.click('[aria-label="Avisos y alertas"]');await p.waitForTimeout(300);
 console.log(await p.evaluate(()=>document.querySelector('#bellN').textContent+' | '+document.querySelector('#pop-bell').innerText.replace(/\n/g,' / ').slice(0,500)));
 await p.screenshot({path:'notif_bell.png'});
-if (await p.$('[data-act=belltab][data-t=ia]')) await p.click('[data-act=belltab][data-t=ia]');await p.waitForTimeout(200);console.log('open?',await p.evaluate(()=>getComputedStyle(document.querySelector('#pop-bell')).display));
+if (await p.$('[data-act=belltab][data-t=alertas]')) await p.click('[data-act=belltab][data-t=alertas]');await p.waitForTimeout(200);console.log('open?',await p.evaluate(()=>getComputedStyle(document.querySelector('#pop-bell')).display));
 await p.click('[data-act=belltab][data-t=avisos]');await p.click('[data-act=avisoleer]');await p.waitForTimeout(200);console.log(await p.evaluate(()=>document.querySelector('#bellN').textContent));
 await p.evaluate(()=>{closePops();UI.uiOv='pro';F('adm',{}).tab='not';go('admin')});await p.waitForTimeout(500);
 await p.screenshot({path:'notif_admin.png',fullPage:false});

@@ -26,7 +26,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   });
   const foto = () => p.evaluate(() => {
     const out = { kpis: JSON.stringify(kpis()), badges: {}, textos: {} };
-    ['propuestas', 'riesgos', 'hitos', 'compromisos', 'cambios', 'decisiones', 'ia'].forEach(k => { out.badges[k] = navBadge(k); });
+    ['propuestas', 'riesgos', 'hitos', 'compromisos', 'cambios', 'decisiones', 'analisis'].forEach(k => { out.badges[k] = navBadge(k); });
     out.alertas = computeAlerts().length; out.avisos = notifMias().length;
     out.n = [scope().length, scopeP().length, scopeAll().length, HITOS().length, riesgosCriticos().length, DECS().length, CAMBIOS().length, ACUERDOS().length, RIESGOS().length].join(',');
     out.pend = (typeof pendientes === 'function') ? JSON.stringify(pendientes().map(x => x.id + x.k)) : '';
