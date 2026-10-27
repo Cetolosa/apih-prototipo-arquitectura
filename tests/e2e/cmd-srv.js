@@ -13,10 +13,17 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     toggleHito('HIT-900'); await new Promise(r => setTimeout(r, 100));
     out.hito = ll[0]; out.hitoLocal = St.hitos.find(h => h.id === 'HIT-900').completado;
     await resolverEnServidor({ id: 'DEC-9', ini: 'PROP-9' }, { estado: 'Aprobada', resolucion: 'ok', fResol: '2026-10-27', aplicar: true });
-    out.dec = ll[1]; return out;
+    out.dec = ll[1];
+    St.cambios.push({ id: 'CHG-900', ini: 'PRJ-X', tipo: 'Fecha', desc: 'd', motivo: 'm', estado: 'Solicitado', fNue: '2027-01-01', pNue: 0 });
+    await cmdServidor('apih_solicitar_cambio', { p_ini: 'PRJ-X', p_tipo: 'Fecha' });
+    await cmdServidor('apih_resolver_cambio', { p_id: 'CHG-900', p_estado: 'Aprobado', p_nota: '' });
+    await cmdServidor('apih_reabrir', { p_id: 'PRJ-X', p_nota: 'n' });
+    out.cmds = ll.slice(2).map(x => x[0]); out.cambioLocal = St.cambios.find(c => c.id === 'CHG-900').estado;
+    return out;
   });
   console.log(JSON.stringify(r), err);
   const ok = !err.length && r.hito && r.hito[0] === 'apih_hito_estado' && r.hito[1].p_id === 'HIT-900' && r.hito[1].p_completado === true && r.hitoLocal === false
-    && r.dec && r.dec[0] === 'apih_resolver_decision' && r.dec[1].p_aplicar === true && r.dec[1].p_estado === 'Aprobada';
+    && r.dec && r.dec[0] === 'apih_resolver_decision' && r.dec[1].p_aplicar === true && r.dec[1].p_estado === 'Aprobada'
+    && r.cmds.join() === 'apih_solicitar_cambio,apih_resolver_cambio,apih_reabrir' && r.cambioLocal === 'Solicitado';
   console.log(ok ? 'OK cmd-srv' : 'FALLA cmd-srv'); await b.close(); process.exit(ok ? 0 : 1);
 })();

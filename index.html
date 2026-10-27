@@ -3260,6 +3260,11 @@ async function resolverEnServidor(x, o) {
     if (r && r.proyecto) toast('Proyecto ' + r.proyecto + ' creado desde ' + x.ini); else if (o.estado === 'Diferida') toast('Decisión diferida 14 días'); else toast('Decisión ' + o.estado.toLowerCase());
   } catch (e) { toast(String(e.message || e).replace(/^APIH:\s*/, ''), 'err'); }
 }
+/* Comando genérico del servidor: pide, recarga y avisa; el error de la base se muestra sin el prefijo interno */
+async function cmdServidor(nombre, params, msg) {
+  try { await esperarSync(); const r = await DataService.svc.rpc(nombre, params); await DataService.refresh(false, true); if (msg) toast(msg); return r; }
+  catch (e) { toast(String(e.message || e).replace(/^APIH:\s*/, ''), 'err'); return null; }
+}
 /* Con servidor (Supabase): la aprobación es un comando transaccional en la base (apih_aprobar_propuesta); aquí solo se pide y se recarga */
 async function aprobarEnServidor(p, miss, force, nota) {
   if (miss.length && !esAdministra()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
@@ -3297,14 +3302,14 @@ Acts.reabrirPrj = d => {   // N-F-07
   const i = byId(d.id); if (!i || esProp(i) || !isDone(i) || !esAdministra()) return NO_PERM('Solo Administra puede reabrir un proyecto cerrado');
   openForm({
     title: 'Reabrir proyecto · ' + i.titulo, saveLabel: 'Reabrir', values: { nota: '' }, fields: [{ k: 'nota', l: 'Motivo de la reapertura (queda en la bitácora)', t: 'textarea', req: true, w: 3 }],
-    onSave(o) { const prev = i.estado; i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; i.finReal = null; i.actualizada = hoy(); log('Cambio', i.id, `Proyecto reabierto (era ${prev}): ${o.nota}`); toast('Proyecto reabierto'); refresh(); }
+    onSave(o) { if (conServidor()) { cmdServidor('apih_reabrir', { p_id: i.id, p_nota: o.nota }, 'Proyecto reabierto'); return; } const prev = i.estado; i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; i.finReal = null; i.actualizada = hoy(); log('Cambio', i.id, `Proyecto reabierto (era ${prev}): ${o.nota}`); toast('Proyecto reabierto'); refresh(); }
   });
 };
 Acts.reopen = d => {
   const i = byId(d.id); if (!i || !esProp(i) || !['Rechazada', 'Retirada'].includes(i.estado)) return;
   openForm({
     title: 'Reabrir propuesta · ' + i.titulo, saveLabel: 'Reabrir', values: { nota: '' }, fields: [{ k: 'nota', l: 'Motivo de la reapertura (queda en la bitácora)', t: 'textarea', req: true, w: 3 }],
-    onSave(o) { const prev = i.estado; i.estado = 'Vigente'; i.estadoMotivo = ''; i.estadoRev = null; i.actualizada = hoy(); log('Cambio', i.id, `Propuesta reabierta (era ${prev}): ${o.nota}`); toast('Propuesta reabierta'); refresh(); }
+    onSave(o) { if (conServidor()) { cmdServidor('apih_reabrir', { p_id: i.id, p_nota: o.nota }, 'Propuesta reabierta'); return; } const prev = i.estado; i.estado = 'Vigente'; i.estadoMotivo = ''; i.estadoRev = null; i.actualizada = hoy(); log('Cambio', i.id, `Propuesta reabierta (era ${prev}): ${o.nota}`); toast('Propuesta reabierta'); refresh(); }
   });
 };
 
@@ -5060,6 +5065,7 @@ function chgForm(c, pre) {
       const i = byId(o.ini); if (!i) { toast('Elige un proyecto', 'err'); return false; }
       if (o.fNue && o.fNue === i.finPlan && !+o.pNue) { toast('La nueva fecha es igual a la actual', 'err'); return false; }
       if (o.fNue && i.inicioPlan && o.fNue < i.inicioPlan) { toast('La nueva fecha de fin no puede ser anterior al inicio plan (' + fmtD(i.inicioPlan) + ')', 'err'); return false; }   // N-F-05
+      if (nw && conServidor()) { cmdServidor('apih_solicitar_cambio', { p_ini: o.ini, p_tipo: o.tipo, p_desc: o.desc, p_motivo: o.motivo, p_impacto: o.impacto || '', p_fnue: o.fNue || null, p_pnue: +o.pNue || 0 }, 'Solicitud registrada: queda pendiente de aprobación'); return; }
       if (nw) { const n = { id: nextId('CHG', St.cambios), ...o, pNue: +o.pNue || 0, solicita: me, fAnt: i.finPlan || null, pAnt: i.presupuesto || 0, estado: 'Solicitado', aprobador: '', fDec: null, nota: '', creada: hoy() }; St.cambios.push(n); log('Cambio', n.ini, `Solicitud de cambio ${n.id} (${n.tipo}): ${n.desc}. ${chgEfecto(n)}`); toast('Solicitud registrada: queda pendiente de aprobación'); }
       else { Object.assign(c, o, { pNue: +o.pNue || 0, fAnt: i.finPlan || null, pAnt: i.presupuesto || 0 }); toast('Solicitud actualizada'); }
       refresh();
@@ -5077,6 +5083,7 @@ Acts.chgdec = d => {
     fields: [{ k: 'aprobador', l: 'Resuelve', list: people(), req: true }, { k: 'nota', l: ap ? 'Nota de aprobación' : 'Motivo del rechazo', t: 'textarea', req: !ap, w: 3 }],
     extra: `<div class="note ${ap ? '' : 'warn'}" style="margin-top:8px"><span><b>${esc(i.titulo)}</b> · ${esc(c.tipo)}: ${esc(c.desc)}<br>${ap ? '<b>Se aplicará:</b> ' : 'Efecto solicitado: '}${esc(chgEfecto(c))}</span></div>`,
     onSave(o) {
+      if (conServidor()) { cmdServidor('apih_resolver_cambio', { p_id: c.id, p_estado: d.e, p_nota: o.nota || '' }, 'Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado')); return; }
       c.estado = d.e; c.aprobador = o.aprobador; c.nota = o.nota; c.fDec = hoy();
       if (ap) { if (c.fNue) { i.finPlan = c.fNue; if (!i.finEst || i.finEst < c.fNue) i.finEst = c.fNue; } if (+c.pNue > 0) i.presupuesto = +c.pNue; i.actualizada = hoy(); }
       log('Decisión', c.ini, `Cambio ${c.id} ${ap ? 'aprobado' : 'rechazado'} por ${o.aprobador}${o.nota ? ': ' + o.nota : ''}${ap ? '. Línea base: ' + chgEfecto(c) : ''}`); toast('Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado')); refresh();
