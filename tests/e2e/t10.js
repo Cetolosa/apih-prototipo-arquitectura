@@ -3,7 +3,7 @@ const { chromium, launchOpts } = require('./_pw');
   const b = await chromium.launch(launchOpts); const ctx = await b.newContext({ viewport: { width: 1400, height: 850 } }); const p = await ctx.newPage();
   const errs = [], csp = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text().slice(0, 160)); });
   const jwt = 'x.' + Buffer.from(JSON.stringify({ email: 'tolosa-christian@aramark.cl' })).toString('base64') + '.y';
-  await ctx.route('https://hpsjzuqcijjwthrxgmeu.supabase.co/**', async r => {
+  await ctx.route('https://bjkuupynrylgfmzhyxgz.supabase.co/**', async r => {
     const u = r.request().url(), m = r.request().method(), h = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*', 'content-type': 'application/json' };
     if (m === 'OPTIONS') return r.fulfill({ status: 204, headers: h });
     if (u.includes('/auth/v1/token')) return r.fulfill({ status: 200, headers: h, body: JSON.stringify({ access_token: jwt, refresh_token: 'r', expires_in: 3600 }) });
