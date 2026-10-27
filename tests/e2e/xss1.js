@@ -1,8 +1,8 @@
 // V22.60 · Revisión de seguridad: textos con HTML en subfases, categorías, nombres e importaciones no se ejecutan en ninguna vista nueva
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => { localStorage.setItem('apih_tour22', '1'); localStorage.setItem('apih_ptipo', '"><img src=x onerror=window.__x=1>'); }); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1500);
   const r = await p.evaluate(async () => { celebrar = () => {}; UI.uiOv = 'pro'; const X = '<img src=x onerror="window.__x=1">';

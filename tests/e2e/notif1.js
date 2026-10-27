@@ -1,7 +1,7 @@
 // C2.8 · Motor de notificaciones (packages/core/notif-motor.js) ≡ campana del Prototipo (V22.54, solo lectura).
 // Requiere: prototipo en http://localhost:8765/demo/index.html (ver README). Compara notifPara(usuario) del navegador con el motor en Node
 // para varios usuarios y fechas, con datos que disparan los 15 tipos de aviso.
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const raiz = path.join(__dirname, '..', '..');
 const G = require(path.join(raiz, 'tools', 'generar-motor-notif.js'));
@@ -14,7 +14,7 @@ assert.strictEqual(ext('apps/corporativo/index.html'), ext('index.html'), 'funci
 const gen = require('child_process').spawnSync('node', [path.join(raiz, 'tools', 'generar-motor-notif.js'), '--check']); assert.strictEqual(gen.status, 0, 'motor desactualizado');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
+  const b = await chromium.launch(launchOpts);
   const p = await b.newPage(); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1'));
   await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);

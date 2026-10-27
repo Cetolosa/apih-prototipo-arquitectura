@@ -1,6 +1,6 @@
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const ctx = await b.newContext({ viewport: { width: 1400, height: 850 } }); const p = await ctx.newPage();
+  const b = await chromium.launch(launchOpts); const ctx = await b.newContext({ viewport: { width: 1400, height: 850 } }); const p = await ctx.newPage();
   const errs = [], csp = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (/Content Security Policy|Refused to/i.test(m.text())) csp.push(m.text().slice(0, 160)); });
   const jwt = 'x.' + Buffer.from(JSON.stringify({ email: 'tolosa-christian@aramark.cl' })).toString('base64') + '.y';
   await ctx.route('https://hpsjzuqcijjwthrxgmeu.supabase.co/**', async r => {

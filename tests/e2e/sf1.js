@@ -1,8 +1,8 @@
 // V22.55 · Subfases por proyecto (ADR-012): heredan fechas de la fase, no salen de ella, se muestran en ficha, Fases, tablero y hito
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto('http://localhost:8765/demo/index.html'); await p.waitForTimeout(1500);
   await p.evaluate(x => { celebrar = () => {}; UI.uiOv = 'pro';

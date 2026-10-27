@@ -2,11 +2,11 @@
 // la Tabla de iniciativas sí lo muestra; la presentación no lo incluye y solo cuenta su número en «Movimientos del ciclo».
 // Método: foto de indicadores/avisos/pantallas ANTES y DESPUÉS de agregar iniciativas en Stand By con todo lo que suele generar ruido
 // (retraso, riesgo crítico, hito vencido, decisión/cambio/compromiso vencidos, fase Aprobación): no debe cambiar nada.
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const assert = require('assert');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1500);
   await p.evaluate(() => { if (typeof DataService !== 'undefined' && DataService.svc) { clearInterval(DataService.poll); DataService.refresh = async () => {}; } });   // Corporativo: sin sondeo que pise los datos sembrados

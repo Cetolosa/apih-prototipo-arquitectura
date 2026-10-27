@@ -1,8 +1,8 @@
 // V22.59 · Exportar e importar subfases y categorías: archivo de iniciativas (plantilla) y «Con IA» (ida y vuelta)
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1800);
   const r = await p.evaluate(async () => { celebrar = () => {}; const out = {}, espera = ms => new Promise(r => setTimeout(r, ms)), clic = t => [...document.querySelectorAll('button')].find(x => x.textContent.trim() === t).click();

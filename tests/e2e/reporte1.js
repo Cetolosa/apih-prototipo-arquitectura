@@ -1,8 +1,8 @@
 // V22.66 · Reporte de avance de la ficha: Forma A (una fase) y Forma B (múltiples hitos / fases paralelas), armadas desde la ficha.
-const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const { chromium, launchOpts } = require('./_pw');
 const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] }); const p = await b.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+  const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(URL); await p.waitForTimeout(1500);
   await p.evaluate(() => { if (typeof DataService !== 'undefined' && DataService.svc) { clearInterval(DataService.poll); DataService.refresh = async () => {}; } });
