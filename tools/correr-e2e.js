@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Corre la regresión e2e contra la SPA (modo demo). Código de salida ≠ 0 si alguna prueba falla.
 const { spawn, spawnSync } = require('child_process'), path = require('path'), fs = require('fs');
-const { servir, PUERTO } = require('./servir-demo');
+process.env.CAPTURA_CLAVES = process.env.CAPTURA_CLAVES || '1';   // el puente informa las claves de cada lista: guarda del catálogo de campos del servidor
+const { servir, PUERTO, claves } = require('./servir-demo');
 const PRUEBAS = ['sin-externos', 'xss1', 'imp3', 'fin1', 'fz1', 't13', 't43', 't44', 'cap2', 'r1', 'c4', 'imp1', 'imp2', 'cfgu1', 'aprob-srv', 'cmd-srv', 'gates-contract', 'campo-srv', 'servidor-ficticio', 'ps1', 'sf1'];
 function correr(t) {   // asíncrono: el servidor de la demo vive en este mismo proceso
   return new Promise(ok => { let so = '', se = ''; const h = spawn('node', [path.join(__dirname, '..', 'tests', 'e2e', t + '.js')], { cwd: require('os').tmpdir(), env: Object.assign({}, process.env, { APIH_URL: 'http://localhost:' + PUERTO + '/demo/index.html' }) });
@@ -20,5 +21,10 @@ function correr(t) {   // asíncrono: el servidor de la demo vive en este mismo 
   const esc = x => String(x).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));   // reporte JUnit para la CI
   fs.mkdirSync(path.join(__dirname, '..', 'test-results'), { recursive: true });
   fs.writeFileSync(path.join(__dirname, '..', 'test-results', 'e2e-junit.xml'), '<?xml version="1.0" encoding="UTF-8"?>\n<testsuite name="e2e" tests="' + R.length + '" failures="' + fallas + '">\n' + R.map(x => '  <testcase classname="e2e" name="' + esc(x.t) + '" time="' + x.seg.toFixed(1) + '">' + (x.mal ? '<failure message="' + esc(x.msg) + '"/>' : '') + '</testcase>').join('\n') + '\n</testsuite>\n');
-  console.log(fallas ? 'FALLAS: ' + fallas : 'Suite completa OK'); srv.close(); process.exit(fallas ? 1 : 0);
+  if (process.env.CAPTURA_CLAVES !== '1') fs.writeFileSync(process.env.CAPTURA_CLAVES, JSON.stringify(claves()));
+  try { const cat = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'tests', 'contract', 'campos_permitidos.json'), 'utf8')), falta = [];
+    for (const [l, ks] of Object.entries(claves())) for (const k of Object.keys(ks)) if (k !== 'undefined' && k !== 'null' && !(cat[l] || []).includes(k)) falta.push(l + '.' + k);
+    if (falta.length) { fallas++; const m = 'campos fuera del catálogo del servidor: ' + falta.join(', ') + ' (regenera con tools/generar-campos.js)'; if (process.env.GITHUB_ACTIONS) console.log('::error title=campos-contract::' + m); console.log('FALLA campos-contract  ' + m); }
+    else console.log('OK    campos-contract'); } catch (e) { console.log('FALLA campos-contract  ' + e.message); fallas++; }
+    console.log(fallas ? 'FALLAS: ' + fallas : 'Suite completa OK'); srv.close(); process.exit(fallas ? 1 : 0);
 })();
