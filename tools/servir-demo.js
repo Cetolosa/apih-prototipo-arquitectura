@@ -6,7 +6,7 @@ const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '
 function ruta(url) {
   const p = decodeURIComponent(url.split('?')[0]);
   if (p === '/demo/index.html') return path.join(raiz, 'index.html');
-  const m = p.match(/^\/(?:demo\/)?(js|css)\/([\w.-]+)$/); if (m) return path.join(raiz, m[1], m[2]);
+  const m = p.match(/^\/(?:demo\/)?(js|css|img)\/([\w.-]+)$/); if (m) return path.join(raiz, m[1], m[2]);
   if (p === '/apih-config.js') return path.join(raiz, 'apih-config.js');
   if (p.startsWith('/out/')) return path.join(raiz, 'docs', 'seed', path.basename(p));
   return null;

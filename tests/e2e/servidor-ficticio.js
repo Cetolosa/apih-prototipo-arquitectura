@@ -13,6 +13,7 @@ const HOST = 'https://bjkuupynrylgfmzhyxgz.supabase.co';
     const ok = (body, status = 200, h = {}) => route.fulfill({ status, contentType: 'application/json', headers: h, body: body == null ? '' : JSON.stringify(body) });
     const eq = k => { const v = q.get(k); return v && v.startsWith('eq.') ? v.slice(3) : null; };
     log.push(m + ' ' + path);
+    if (path === 'rpc/apih_perfil' && m === 'POST') return ok({ email: 'tolosa-christian@aramark.cl', rol: 'admin', app_rol: 'Administra', areas: [], activo: true });
     if (path.startsWith('registros_v') && m === 'GET') {
       let rows = [...db.values()]; const l = eq('lista'); if (l) rows = rows.filter(r => r.lista === l);
       if (q.get('order') === 'actualizado.desc') { rows.sort((a, b) => a.actualizado < b.actualizado ? 1 : -1); return ok(rows.slice(0, 1).map(r => ({ actualizado: r.actualizado })), 200, { 'Content-Range': '0-0/' + db.size }); }

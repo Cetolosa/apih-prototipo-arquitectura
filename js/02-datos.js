@@ -201,6 +201,7 @@ export const DataService = {
   async connect() {
     this.mode = this.resolveMode();
     this.svc = newSvc();
+    if (AuthService.provider === 'supabase') await AuthService.cargarPerfil(this.svc);
     this.setStatus({ state: 'syncing', msg: 'Conectando con ' + backendName() + '…', err: '' });
     try {
       const t0 = performance.now(), S = await this.loadRemote(), raw = S._raw; delete S._raw;
@@ -405,6 +406,9 @@ export const AuthService = {
     const e = SB.sess.email;
     return { name: e.split('@')[0].split(/[._-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), email: e };
   },
+  perfil: null,   // perfil del servidor (apih_perfil): rol y áreas; la autorización real vive en la base
+  async cargarPerfil(svc) { try { const p = await svc.rpc('apih_perfil', {}); this.perfil = p && p.email ? p : null; } catch (e) { this.perfil = null; } },
+  esAdminServidor() { return !!(this.perfil && this.perfil.rol === 'admin'); },
   async init() {
     if (this.provider !== 'supabase') return;
     if (!(SB.cfg.url && SB.cfg.anonKey)) throw new Error('supabase.url / supabase.anonKey vacíos');
