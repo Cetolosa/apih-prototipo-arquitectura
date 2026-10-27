@@ -1,6 +1,6 @@
 # Anexo de arquitectura · APIH Prototipo (referencia de las decisiones de TI)
 
-Propósito: evidenciar, en un entorno de pruebas fuera de Aramark y con datos sintéticos, que las decisiones de la revisión de TI funcionan de punta a punta. Este documento describe el Prototipo; la traducción a Corporativo está en `02_mapa_portabilidad.md`.
+Propósito: evidenciar, en un entorno de pruebas fuera de Aramark y con datos anonimizados, que las decisiones de la revisión de TI funcionan de punta a punta. Este documento describe el Prototipo; la traducción a Corporativo está en `02_mapa_portabilidad.md`.
 
 ## 1. Decisiones de TI y dónde se cumplen
 | Decisión | Cómo queda en el Prototipo | Evidencia |
@@ -50,6 +50,6 @@ PostgreSQL: registros(lista, id, datos) · perfiles · auditoria · claves_monto
 | Estáticas | Términos vedados, orden de módulos, CSP | 3 verificaciones |
 
 ## 7. Alcance y límites declarados
-- Datos 100 % sintéticos; dos cuentas de prueba (Administra y Colaborador de un área de prueba).
+- Datos anonimizados (sin nombres, montos ni textos reales); dos cuentas de prueba (Administra y Colaborador de un área de prueba).
 - No se probó rendimiento con carga real, red privada, WAF ni pruebas de intrusión.
 - El inicio de sesión del Prototipo es correo + contraseña; en Corporativo corresponde SSO con Entra ID.

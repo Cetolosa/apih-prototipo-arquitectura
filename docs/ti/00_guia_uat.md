@@ -1,6 +1,6 @@
 # Guía de pruebas de aceptación (UAT) · Prototipo de arquitectura
 
-Cuentas de prueba: `tolosa-christian@aramark.cl` (Administra) y `cetolosa@gmail.com` (Colaborador del «Área de prueba», sin montos). Datos sintéticos.
+Cuentas de prueba: `tolosa-christian@aramark.cl` (Administra) y `cetolosa@gmail.com` (Colaborador del «Área de prueba», sin montos). Datos anonimizados (derivados de un portafolio real, sin nombres, montos ni textos originales).
 
 | # | Escenario | Con la cuenta | Resultado esperado |
 | --- | --- | --- | --- |
