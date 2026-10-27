@@ -2121,7 +2121,7 @@ class SupabaseService extends SharePointService {
   async listItems(ent) {
     const l = encodeURIComponent(this.listName(ent)), idc = this._idCol(ent), out = [], PAGE = 1000;
     for (let off = 0; ; off += PAGE) {
-      const { data } = await this._rest('registros?select=id,datos,actualizado&lista=eq.' + l + '&order=id&limit=' + PAGE + '&offset=' + off);
+      const { data } = await this._rest('registros_v?select=id,datos,actualizado&lista=eq.' + l + '&order=id&limit=' + PAGE + '&offset=' + off);
       for (const r of data || []) {
         let txt;
         if (String(r.datos).startsWith('p1.')) txt = r.datos.slice(3);
@@ -2151,13 +2151,13 @@ class SupabaseService extends SharePointService {
     const unoAUno = async (lst, fn) => { const q = lst.slice(); await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const i = q.shift(); try { await fn(i); } catch (e) { out[i] = e.conflict ? { ok: false, conflict: true, err: e.message } : { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) }; } } })); };
     await unoAUno(cond, async i => {
       const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, SPMap.fieldsOf(op.ent, op.o));
-      const { data } = await this._rest('registros?lista=eq.' + encodeURIComponent(row.lista) + '&id=eq.' + encodeURIComponent(row.id) + '&actualizado=eq.' + encodeURIComponent(this.ver[k]), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ datos: row.datos }) });
+      const { data } = await this._rest('registros?lista=eq.' + encodeURIComponent(row.lista) + '&id=eq.' + encodeURIComponent(row.id) + '&actualizado=eq.' + encodeURIComponent(this.ver[k]) + '&select=actualizado', { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ datos: row.datos }) });
       if (!data || !data.length) { const e = new Error('«' + op.o.id + '» fue modificado por otra persona'); e.conflict = true; throw e; }
       this.ver[k] = data[0].actualizado || null; this.ids[op.ent][op.o.id] = op.o.id;
     });
     await unoAUno(alt, async i => {
       const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, SPMap.fieldsOf(op.ent, op.o));
-      try { const { data } = await this._rest('registros', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify([row]) }); this.ver = this.ver || {}; this.ver[k] = (data && data[0] && data[0].actualizado) || null; this.ids[op.ent][op.o.id] = op.o.id; }
+      try { const { data } = await this._rest('registros?select=actualizado', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify([row]) }); this.ver = this.ver || {}; this.ver[k] = (data && data[0] && data[0].actualizado) || null; this.ids[op.ent][op.o.id] = op.o.id; }
       catch (e) { if (e.status === 409) { const c = new Error('El id «' + op.o.id + '» ya fue usado por otra persona'); c.conflict = true; throw c; } throw e; }
     });
     if (up.length) {
@@ -2177,7 +2177,7 @@ class SupabaseService extends SharePointService {
     return out;
   }
   async stamp() {
-    const { data, res } = await this._rest('registros?select=actualizado&order=actualizado.desc&limit=1', { headers: { Prefer: 'count=exact' } });
+    const { data, res } = await this._rest('registros_v?select=actualizado&order=actualizado.desc&limit=1', { headers: { Prefer: 'count=exact' } });
     const cr = res.headers.get('Content-Range') || '', n = cr.split('/')[1] || '?';
     return ((data && data[0] && data[0].actualizado) || '0') + '|' + n;
   }
