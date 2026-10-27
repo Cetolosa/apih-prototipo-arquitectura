@@ -14,7 +14,7 @@ function correr(t) {   // asíncrono: el servidor de la demo vive en este mismo 
   for (const t of (process.env.SOLO ? process.env.SOLO.split(',') : PRUEBAS)) {
     const r = await correr(t);
     const ult = (r.stdout || '').trim().split('\n').pop().slice(0, 100), mal = r.status !== 0 || /FALLA/.test(r.stdout || '');
-    if (mal) fallas++; console.log((mal ? 'FALLA ' : 'OK    ') + t + (mal ? '  ' + ult + ' ' + (r.stderr || '').split('\n')[0] : ''));
+    if (mal) { fallas++; if (process.env.GITHUB_ACTIONS) console.log('::error title=e2e ' + t + '::' + ((r.stderr || '') + ' | ' + (r.stdout || '').slice(-600)).replace(/[\r\n]+/g, ' ').slice(0, 900)); } console.log((mal ? 'FALLA ' : 'OK    ') + t + (mal ? '  ' + ult + ' ' + (r.stderr || '').split('\n')[0] : ''));
   }
   console.log(fallas ? 'FALLAS: ' + fallas : 'Suite completa OK'); srv.close(); process.exit(fallas ? 1 : 0);
 })();
