@@ -61,7 +61,7 @@ select pg_temp.ok((select count(*) from public.registros where lista='APIH_Hitos
 select pg_temp.ok((select substr(datos,4)::jsonb ->> 'fecha' from public.registros where lista='APIH_Hitos' and substr(datos,4)::jsonb ->> 'nombre' = 'Kick-off') = '2026-11-08', 'fecha de plantilla = inicioPlan + días');
 select pg_temp.ok(pg_temp.j('APIH_Proyectos','PRJ-050') -> 'deps' = '["PRJ-051","X"]'::jsonb, 'las dependencias apuntan al proyecto');
 select pg_temp.ok(pg_temp.j('APIH_Config','seq') ->> 'PRJ' = '51', 'contador PRJ actualizado');
-select pg_temp.ok((select count(*) from public.registros where lista='APIH_Bitacora') = 2, 'bitácora: 2 entradas');
+select pg_temp.ok((select count(*) from public.registros where lista='APIH_Bitacora') = 2 and not exists (select 1 from public.registros where lista='APIH_Bitacora' and substr(datos,4)::jsonb ->> 'id' <> id), 'bitácora: 2 entradas con id coherente');
 select pg_temp.ok((pg_temp.j('APIH_Propuestas','PROP-001') ->> 'estadoMotivo') = 'ok', 'nota de aprobación sin espacios');
 rollback;
 

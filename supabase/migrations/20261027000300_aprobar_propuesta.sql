@@ -85,7 +85,7 @@ declare
   hoy date := (now() at time zone 'America/Santiago')::date;
   per public.perfiles; r public.registros; j jsonb; nj jsonb; pj jsonb; cfg jsonb; tipo jsonb; h jsonb; rec record; jr jsonb;
   faltan text[] := '{}'; nuevo text; nota text; fasesprop jsonb; fasesprj jsonb; hn text; base date; n_hit int := 0;
-  autor text; ts text := to_char(now() at time zone 'America/Santiago', 'HH24:MI');
+  ba text; bb text; autor text; ts text := to_char(now() at time zone 'America/Santiago', 'HH24:MI');
 begin
   select * into per from public.perfiles where email = public.apih_email() and activo;
   if per.email is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
@@ -172,11 +172,12 @@ begin
   update public.registros set datos = 'p1.' || pj::text where lista = 'APIH_Propuestas' and id = p_id;
 
   -- 6. bitácora
+  ba := 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'a'; bb := 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'b';
   insert into public.registros(lista, id, datos) values
-   ('APIH_Bitacora', 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'a', 'p1.' || jsonb_build_object('id', 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'a',
+   ('APIH_Bitacora', ba, 'p1.' || jsonb_build_object('id', ba,
       'ts', hoy::text || 'T' || ts, 'tipo', 'Decisión', 'ini', p_id, 'autor', autor,
       'texto', 'Propuesta aprobada → proyecto ' || nuevo || case when nota <> '' then ' — ' || nota else '' end, 'meta', null)::text),
-   ('APIH_Bitacora', 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'b', 'p1.' || jsonb_build_object('id', 'BIT-' || to_char(clock_timestamp(), 'YYMMDDHH24MISSUS') || 'b',
+   ('APIH_Bitacora', bb, 'p1.' || jsonb_build_object('id', bb,
       'ts', hoy::text || 'T' || ts, 'tipo', 'Cambio', 'ini', nuevo, 'autor', autor,
       'texto', 'Proyecto creado desde la propuesta ' || p_id, 'meta', null)::text);
 
