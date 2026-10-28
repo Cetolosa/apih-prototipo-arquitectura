@@ -43,7 +43,7 @@ declare
   nl int; tol numeric; thr numeric; d int; sug text; fc date; fp date; b jsonb; pv numeric; ev numeric; ac numeric; spi numeric; cpi numeric; dfin int;
   hv jsonb; nhv int; mx int; du int; why text[]; rc int; e numeric; dep text; dj jsonb; ii text;
   amb numeric; roj numeric; dias int; falta text[]; pq int; fq int; py int; fy int; fe date; cnt int;
-  cand record;
+  cand record; evmm jsonb := '{}'::jsonb; em jsonb; mov int; nue int; bh jsonb;
 begin
   -- iniciativas visibles para quien llama
   for r in select lista, id, substr(datos, 4)::jsonb j from public.registros_v where lista in ('APIH_Proyectos', 'APIH_Propuestas') and left(substr(datos, 4), 1) = '{' order by id loop
@@ -67,6 +67,20 @@ begin
     end if;
   end loop;
 
+  -- valor ganado contra la línea base congelada (SPI, CPI, desvío del fin y cambios de hitos)
+  foreach k in array ids loop
+    j := M -> k; b := j -> 'base'; ci := c -> 'ini' -> k;
+    continue when (j ->> '_prop')::boolean or ci is null or jsonb_typeof(b) <> 'object' or not (public.apih_num(b, 'pres') > 0) or public.apih_vacio(b, 'inicio') or public.apih_vacio(b, 'fin');
+    pv := public.apih_num(b, 'pres') * greatest(0, least(1, (hoy - public.apih_fecha(b, 'inicio'))::numeric / greatest(1, public.apih_fecha(b, 'fin') - public.apih_fecha(b, 'inicio'))));
+    ev := public.apih_num(b, 'pres') * coalesce((ci ->> 'avance')::numeric, 0) / 100; ac := public.apih_num(j, 'gastado');
+    bh := case when jsonb_typeof(b -> 'hitos') = 'array' then b -> 'hitos' else '[]'::jsonb end;
+    select count(*) filter (where o is not null and public.apih_fecha(h, 'fecha') > public.apih_fecha(o, 'fecha')), count(*) filter (where o is null) into mov, nue
+      from (select h, (select ob from jsonb_array_elements(bh) ob where ob ->> 'id' = h ->> 'id' limit 1) o
+              from (select substr(datos, 4)::jsonb h from public.registros_v where lista = 'APIH_Hitos' and left(substr(datos, 4), 1) = '{') q where h ->> 'ini' = k) t;
+    evmm := evmm || jsonb_build_object(k, jsonb_build_object('pv', pv, 'ev', ev, 'ac', ac, 'spi', case when pv > 0 then ev / pv end, 'cpi', case when ac > 0 then ev / ac end,
+        'dfin', nullif(ci ->> 'forecast', '')::date - public.apih_fecha(b, 'fin'), 'movidos', mov, 'nuevos', nue));
+  end loop;
+
   -- ===== Reglas PMO =====
   foreach k in array ids loop
     j := M -> k; es_prop := (j ->> '_prop')::boolean; continue when es_prop;
@@ -82,12 +96,9 @@ begin
           case when j ->> 'rag' is distinct from sug then jsonb_build_array(jsonb_build_object('t', 'Marcar RAG ' || sug, 'a', 'fxrag', 'id', k, 'rag', sug))
                else jsonb_build_array(jsonb_build_object('t', 'Crear acción de recuperación', 'a', 'fxacc', 'id', k)) end);
       end if;
-      b := j -> 'base';
-      if jsonb_typeof(b) = 'object' and public.apih_num(b, 'pres') > 0 and not public.apih_vacio(b, 'inicio') and not public.apih_vacio(b, 'fin') then
-        pv := public.apih_num(b, 'pres') * greatest(0, least(1, (hoy - public.apih_fecha(b, 'inicio'))::numeric / greatest(1, public.apih_fecha(b, 'fin') - public.apih_fecha(b, 'inicio'))));
-        ev := public.apih_num(b, 'pres') * coalesce((ci ->> 'avance')::numeric, 0) / 100; ac := public.apih_num(j, 'gastado');
-        spi := case when pv > 0 then ev / pv end; cpi := case when ac > 0 then ev / ac end;
-        dfin := nullif(ci ->> 'forecast', '')::date - public.apih_fecha(b, 'fin');
+      em := evmm -> k;
+      if em is not null then
+        spi := nullif(em ->> 'spi', '')::numeric; cpi := nullif(em ->> 'cpi', '')::numeric; dfin := (em ->> 'dfin')::int;
         if (spi is not null and spi < .85) or (cpi is not null and cpi < .85) then
           out := out || public.apih_hf('PMO', 'Desempeño vs línea base', case when (spi is not null and spi < .7) or (cpi is not null and cpi < .7) then 3 else 2 end, k, jsonb_build_array(k),
             (j ->> 'titulo') || ': desempeño bajo la línea base',
@@ -267,12 +278,12 @@ begin
 
   -- uid por orden de generación y orden por severidad (estable)
   select coalesce(jsonb_agg(f || jsonb_build_object('uid', 'F' || (o - 1)) order by -(f ->> 'sev')::int, o), '[]'::jsonb) into out from jsonb_array_elements(out) with ordinality t(f, o);
-  return jsonb_build_object('hallazgos', out, 'puntajes', pun);
+  return jsonb_build_object('hallazgos', out, 'puntajes', pun, 'evm', evmm);
 end $$;
 revoke all on function public.apih_hallazgos(jsonb) from public, anon, authenticated;
 
 create or replace function public.apih_calculos() returns jsonb language plpgsql stable security definer set search_path = public as
 $$ declare c jsonb := public.apih_calculos_base(); h jsonb := public.apih_hallazgos(c);
-begin return c || jsonb_build_object('hallazgos', h -> 'hallazgos', 'puntajes', h -> 'puntajes'); end $$;
+begin return c || jsonb_build_object('hallazgos', h -> 'hallazgos', 'puntajes', h -> 'puntajes', 'evm', h -> 'evm'); end $$;
 revoke all on function public.apih_calculos() from public, anon;
 grant execute on function public.apih_calculos() to authenticated;

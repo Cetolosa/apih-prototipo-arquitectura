@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
 import { DataService } from './02-datos.js';
 import { Acts, Chg, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
 /* =====================================================================
@@ -187,7 +187,7 @@ function propResumen(i) {
    APIH · Vistas 1: Dashboard, Portfolio, Iniciativas, Propuestas
    ============================================================ */
 export const nextHito = i => hitosDe(i.id).filter(h => !h.completado).sort(by('fecha'))[0] || null;
-export const priorScore = i => { if (!i.score) return 0; const s = i.score, r = roi(i), fr = r == null ? 0 : Math.max(0, Math.min(1, r / 200)) * 5, cap = Math.max(1, +St.cfg.capacidadMax || 5), n = St.ini.filter(x => !esProp(x) && isLive(x) && x.lider && x.lider === i.lider).length, fc = i.lider ? Math.max(0, Math.min(1, 1 - n / cap)) * 5 : 0; return Math.round((s.valor * .30 + s.estrategia * .25 + fr * .15 + (6 - s.esfuerzo) * .15 + fc * .10 + (6 - s.riesgo) * .05) / 5 * 100); };   // sin evaluación = 0 (antes valía 50 por defecto)
+export const priorScore = i => (i && CALC.puntajes && CALC.puntajes[i.id]) || 0;   // el puntaje de priorización lo calcula el servidor
 export function myWork() {
   const me = miUsuario(), items = [], L = d => diffD(d, hoy());
   HITOS().forEach(h => { const i = byId(h.ini); if (!i || i.lider !== me || h.completado || !isLive(i) || !inArea(i)) return; if (L(h.fecha) <= 14) items.push({ k: 'hito', id: h.id, t: h.nombre, s: i.titulo, when: h.fecha, over: L(h.fecha) < 0, ic: 'flag' }); });

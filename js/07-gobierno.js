@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
 import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
 import { cmdServidor, diasEnFase, priorScore } from './04-flujos.js';
@@ -475,16 +475,11 @@ Acts.myreset = d => { if (FL.verComo || (!esAdministra() && fijo(d.k === '_tema'
    1 Compuertas duras (solo Administra puede forzar) · 2 Línea base y valor ganado · 3 Riesgos críticos con mitigación y decisiones con plazo/escalamiento
    4 Beneficio real y priorización ponderada · 5 Tercera estrella exige resultado
    ============================================================ */
-const decMaxDias = () => +St.cfg.decMaxDias || 30, decEscDias = () => +St.cfg.decEscalaDias || 7;
-const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.limite && diffD(hoy(), d.limite) > decEscDias());
+const decMaxDias = () => +St.cfg.decMaxDias || 30;
+const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.escalada);   // la marca la pone el servidor (apih_mantener) al vencer el plazo de escalamiento
 const resultadoOk = i => (i.beneficio > 0) ? (i.ahorroReal > 0) : String(i.resultadoNota || '').trim().length >= 10;
 const riesgoSinMit = (i, r) => riesgoCritico(r) && !String(r.mit || '').trim();
-function evm(i) {   // valor ganado simple contra la línea base congelada
-  const b = i.base; if (!b || !(b.pres > 0) || !b.inicio || !b.fin) return null;
-  const T = Math.max(1, diffD(b.fin, b.inicio)), pv = b.pres * Math.max(0, Math.min(1, diffD(hoy(), b.inicio) / T)), ev = b.pres * (i.avance || 0) / 100, ac = i.gastado || 0, hs = hitosDe(i.id);
-  return { pv, ev, ac, spi: pv > 0 ? ev / pv : null, cpi: ac > 0 ? ev / ac : null, dfin: diffD(forecast(i), b.fin),
-    movidos: hs.filter(h => { const o = (b.hitos || []).find(x => x.id === h.id); return o && h.fecha > o.fecha; }).length, nuevos: hs.filter(h => !(b.hitos || []).some(x => x.id === h.id)).length };
-}
+const evm = i => (i && CALC.evm && CALC.evm[i.id]) || null;   // valor ganado: lo calcula el servidor contra la línea base
 function controlHTML(i) {
   if (esProp(i)) return '';
   const b = i.base, e = evm(i), ix = v => v == null ? '—' : `<span style="color:${v >= .95 ? 'var(--grn,#107C10)' : v >= .85 ? '#CA5010' : 'var(--red)'};font-weight:700">${v.toFixed(2)}</span>`;
@@ -615,69 +610,12 @@ const GRUPOS_REGLAS = {
 };
 const SEVT = { 3: 'Crítico', 2: 'Atención', 1: 'Info' };
 
-function findingsPMO() {
-  const out = [], L = scope().filter(isLive);
-  L.filter(isActive).forEach(i => {
-    const d = desv(i);
-    if (d > cfgI(i,'tolDesv')) { const sug = ragSugerido(i).rag; out.push({ grupo: 'PMO', regla: 'Proyecto atrasado', sev: d > 30 ? 3 : 2, ini: i.id, titulo: `${i.titulo} está atrasado (+${d} d)`, detalle: `Fin plan ${fmtD(i.finPlan)}, proyectado ${fmtD(forecast(i))}. Avance ${pct(i.avance)} vs ${pct(esperado(i))} esperado.`, fx: i.rag !== sug ? [{ t: `Marcar RAG ${sug}`, a: 'fxrag', id: i.id, rag: sug }] : [{ t: 'Crear acción de recuperación', a: 'fxacc', id: i.id }] }); }
-    { const e = evm(i); if (e && ((e.spi != null && e.spi < .85) || (e.cpi != null && e.cpi < .85))) out.push({ grupo: 'PMO', regla: 'Desempeño vs línea base', sev: (e.spi != null && e.spi < .7) || (e.cpi != null && e.cpi < .7) ? 3 : 2, ini: i.id, titulo: `${i.titulo}: desempeño bajo la línea base`, detalle: `SPI ${e.spi == null ? '—' : e.spi.toFixed(2)} · CPI ${e.cpi == null ? '—' : e.cpi.toFixed(2)} · ${e.dfin > 0 ? '+' + e.dfin + ' d' : 'sin atraso'} vs fin base.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }); }
-    { if (i.estado === 'Completado' && i.beneficio > 0 && !(i.ahorroReal > 0) && i.finReal && diffD(hoy(), i.finReal) > 90) out.push({ grupo: 'PMO', regla: 'Beneficio sin medir', sev: 1, ini: i.id, titulo: `${i.titulo}: beneficio esperado sin medir`, detalle: `Cerró hace ${diffD(hoy(), i.finReal)} d y no registra beneficio real.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }); }
-    const du = diasSinUpd(i); if (du > cfgI(i,'diasSinUpdate')) out.push({ grupo: 'PMO', regla: 'Sin actualización', sev: du > cfgI(i,'diasSinUpdate') * 2 ? 2 : 1, ini: i.id, titulo: `${i.titulo} sin actualización hace ${du} d`, detalle: `Última actualización: ${fmtD(i.actualizada)}. Responsable: ${i.lider}. Umbral: ${cfgI(i,'diasSinUpdate')} d.`, fx: [{ t: 'Solicitar actualización', a: 'fxnudge', id: i.id }] });
-  });
-  scope().filter(i => i.estado === 'Pausado' && i.estadoRev && i.estadoRev < hoy()).forEach(i => out.push({ grupo: 'PMO', regla: 'Proyecto atrasado', sev: 1, ini: i.id, titulo: `${i.titulo}: revisión de “Pausado” vencida (${fmtD(i.estadoRev)})`, detalle: `Motivo: ${i.estadoMotivo || '—'}. Decidir si se reanuda o se cancela.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }));
-  L.filter(i => i.estado === 'En curso').forEach(i => { const hv = hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).sort(by('fecha')); if (hv.length) { const mx = diffD(hoy(), hv[0].fecha); out.push({ grupo: 'PMO', regla: 'Hito vencido', sev: mx > 30 || hv.length > 2 ? 3 : 2, ini: i.id, titulo: `${hv.length} hito(s) vencido(s) en ${i.titulo}`, detalle: hv.slice(0, 3).map(h => `“${h.nombre}” (${fmtD(h.fecha)}, hace ${diffD(hoy(), h.fecha)} d)`).join('; ') + (hv.length > 3 ? '…' : ''), fx: [{ t: 'Replanificar primer hito', a: 'fxhito', id: hv[0].id }, { t: 'Marcar completado', a: 'fxdone', id: hv[0].id }] }); } });
-  DECS().filter(d => d.estado === 'Pendiente' && d.limite && d.limite < hoy() && (!d.ini || (byId(d.ini) && inArea(byId(d.ini))))).forEach(d => out.push({ grupo: 'PMO', regla: 'Decisión vencida', sev: 2, ini: d.ini, titulo: `Decisión vencida hace ${diffD(hoy(), d.limite)} d: ${d.titulo}`, detalle: `${d.tipo} · solicitada por ${d.solicita}. Debe resolverse en comité.`, fx: [{ t: 'Resolver ahora', a: 'resolvedec', id: d.id }] }));
-  DECS().filter(d => decEscalada(d) && (!d.ini || (byId(d.ini) && inArea(byId(d.ini))))).forEach(d => out.push({ grupo: 'PMO', regla: 'Decisión escalada', sev: 3, ini: d.ini, titulo: `Decisión escalada (${diffD(hoy(), d.limite)} d de atraso): ${d.titulo}`, detalle: `Superó el plazo de escalamiento (${decEscDias()} d). Requiere resolución del rol Administra.`, fx: [{ t: 'Resolver ahora', a: 'resolvedec', id: d.id }] }));
-  return out;
-}
-function findingsRiesgos() {
-  const out = [], open = St.riesgos.filter(r => riesgoAbierto(r) && (!byId(r.ini) || (inArea(byId(r.ini)) && isLive(byId(r.ini)))));
-  open.forEach(r => {
-    const e = expo(r), ref = { grupo: 'Riesgos', ini: r.ini };
-    if (riesgoCritico(r)) out.push({ ...ref, regla: 'Impacto alto + Probabilidad alta', sev: 3, titulo: `Riesgo crítico (${e}): ${r.desc}`, detalle: `Impacto ${r.imp}/5 · Probabilidad ${r.prob}/5 · ${r.estado}. Dueño: ${r.dueno || 'sin dueño'}.`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    else if (r.imp >= 4) out.push({ ...ref, regla: 'Impacto alto', sev: 2, titulo: `Impacto alto: ${r.desc}`, detalle: `Impacto ${r.imp}/5 con probabilidad ${r.prob}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    else if (r.prob >= 4) out.push({ ...ref, regla: 'Probabilidad alta', sev: 2, titulo: `Probabilidad alta: ${r.desc}`, detalle: `Probabilidad ${r.prob}/5 con impacto ${r.imp}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    if (e >= 10 && !r.mit) out.push({ ...ref, regla: 'Sin plan de mitigación', sev: 2, titulo: `Sin mitigación definida: ${r.desc}`, detalle: `Exposición ${e}. Define plan y dueño.`, rid: r.id, fx: [{ t: 'Definir mitigación', a: 'fxrisk', id: r.id }] });
-  });
-  scope().filter(isLive).forEach(i => i.deps.forEach(did => {
-    const d = byId(did); if (!d || !isLive(d)) return; const why = [];
-    if (d.rag === 'Rojo') why.push('RAG Rojo'); if (atrasado(d)) why.push(`atrasada +${desv(d)} d`);
-    const rc = riesgosDe(d.id).filter(riesgoCritico).length; if (rc) why.push(rc + ' riesgo(s) crítico(s)');
-    if (why.length) out.push({ grupo: 'Riesgos', regla: 'Dependencias críticas', sev: why.length > 1 ? 3 : 2, ini: i.id, titulo: `${i.titulo} depende de ${d.titulo} (${why.join(', ')})`, detalle: `Fin proyectado de la predecesora: ${fmtD(forecast(d))}. Un retraso se propaga a ${i.titulo}.`, fx: [{ t: 'Registrar riesgo de dependencia', a: 'fxdeprisk', id: i.id, dep: d.id }] });
-  }));
-  return out;
-}
-function findingsRoadmap() {
-  const out = [], live = scope().filter(isLive);
-  const load = {}; live.filter(i => FASES_ACT.includes(i.fase)).forEach(i => (load[i.lider] = load[i.lider] || []).push(i));
-  Object.entries(load).forEach(([l, a]) => { if (a.length > St.cfg.capacidadMax) out.push({ grupo: 'Roadmap', regla: 'Sobrecarga de líder', sev: 2, ini: null, titulo: `${l} lidera ${a.length} proyectos activos (capacidad ${St.cfg.capacidadMax})`, detalle: a.map(i => i.titulo).join(' · '), fx: [{ t: 'Priorizar cierres', a: 'go', v: 'portfolio' }] }); });
-  live.forEach(i => {
-    i.deps.forEach(did => { const d = byId(did); if (!d || !isLive(d) || !i.inicioPlan) return; const fe = forecast(d); if (i.inicioPlan < fe && d.fase !== 'Cierre' && i.estado === 'En curso' && (i.fase === 'Planificación' || i.inicioPlan > hoy())) out.push({ grupo: 'Roadmap', regla: 'Secuencia de dependencias', sev: 2, ini: i.id, titulo: `${i.titulo} inicia (${fmtD(i.inicioPlan)}) antes de que termine ${d.titulo} (${fmtD(fe)})`, detalle: 'Conflicto de secuencia en el roadmap. Ajusta fechas o rompe la dependencia.', fx: [{ t: 'Editar fechas', a: 'edit', t2: 'ini', id: i.id }] }); });
-    if (FASES_ACT.includes(i.fase) && i.finPlan) { const f = forecast(i), pq = quarter(i.finPlan), fq = quarter(f), py = +i.finPlan.slice(0, 4), fy = +f.slice(0, 4); if (fy * 4 + fq > py * 4 + pq) out.push({ grupo: 'Roadmap', regla: 'Desfase de trimestre', sev: 1, ini: i.id, titulo: `${i.titulo} se desplaza de Q${pq} ${py} a Q${fq} ${fy}`, detalle: `Fin plan ${fmtD(i.finPlan)} → proyectado ${fmtD(f)}. Comunica el cambio al comité.`, fx: [{ t: 'Crear decisión', a: 'mkdec', id: i.id, tp: 'Mantener', ti: `Reprogramar ${i.titulo} a Q${fq} ${fy}`, rec: `Pronóstico ${fmtD(f)} vs línea base ${fmtD(i.finPlan)}.` }] }); }
-  });
-  const cap = l => (load[l] || []).length < St.cfg.capacidadMax;
-  const P = scopeP().filter(isLive);
-  P.filter(i => i.estado === 'Vigente' && (i.fase === 'Aprobación' || (i.fase === 'Evaluación' && priorScore(i) >= 70))).sort(by(i => -priorScore(i))).slice(0, 3).forEach(i => out.push({ grupo: 'Roadmap', regla: 'Candidatos a iniciar', sev: 1, ini: i.id, titulo: `Propuesta candidata a iniciar: ${i.titulo} (puntaje ${priorScore(i)})`, detalle: cap(i.lider) ? `${i.lider} tiene capacidad disponible (${(load[i.lider] || []).length}/${St.cfg.capacidadMax}).` : `${i.lider} está al límite de capacidad: considera reasignar.`, fx: [{ t: 'Proponer “Iniciar”', a: 'mkdec', id: i.id, tp: 'Iniciar', ti: `Iniciar ${i.titulo}`, rec: `Puntaje de priorización ${priorScore(i)}; ${cap(i.lider) ? 'hay capacidad' : 'revisar capacidad'}.` }] }));
-  P.forEach(i => {
-    const d = diasEnFase(i), amb = cfgI(i,'propDiasAmb') || 30, roj = cfgI(i,'propDiasRojo') || 60, fx = [{ t: 'Abrir propuesta', a: 'fxsel', id: i.id }];
-    if (i.estado === 'Vigente' && d > amb) out.push({ grupo: 'Roadmap', regla: 'Propuesta estancada', sev: d > roj ? 2 : 1, ini: i.id, titulo: `${i.titulo} lleva ${d} d en la fase ${i.fase}`, detalle: `Umbral ${amb} d (rojo ${roj} d). Responsable: ${i.lider}. Avanzar, poner en espera o retirar.`, fx });
-    if (i.estado === 'En espera' && i.estadoRev && i.estadoRev < hoy()) out.push({ grupo: 'Roadmap', regla: 'Propuesta estancada', sev: 1, ini: i.id, titulo: `${i.titulo}: revisión de “En espera” vencida (${fmtD(i.estadoRev)})`, detalle: `Motivo: ${i.estadoMotivo || '—'}. Decidir si se retoma, se rechaza o se retira.`, fx });
-    const falta = []; if (!i.sponsor) falta.push('sponsor'); if (['Caso de Negocio', 'Aprobación'].includes(i.fase)) { if (!i.bc) falta.push('business case'); if (!(i.presupuesto > 0)) falta.push('costo estimado'); if (!(i.beneficio > 0)) falta.push('beneficio estimado'); }
-    if (falta.length && i.estado === 'Vigente') out.push({ grupo: 'Roadmap', regla: 'Propuesta incompleta', sev: 1, ini: i.id, titulo: `${i.titulo}: falta ${falta.join(', ')}`, detalle: `Completa los datos para poder avanzar a la siguiente fase.`, fx });
-  });
-  live.filter(i => i.prioridad === 'Baja' && FASES_ACT.includes(i.fase) && !load[i.lider] ? false : (i.prioridad === 'Baja' && i.fase === 'Planificación' && (load[i.lider] || []).length > St.cfg.capacidadMax)).forEach(i => out.push({ grupo: 'Roadmap', regla: 'Sobrecarga de líder', sev: 1, ini: i.id, titulo: `Considera pausar ${i.titulo} (prioridad baja, líder sobrecargado)`, detalle: 'Libera capacidad para proyectos de mayor prioridad.', fx: [{ t: 'Proponer “Pausar”', a: 'mkdec', id: i.id, tp: 'Pausar', ti: `Pausar ${i.titulo}`, rec: 'Prioridad baja y líder sobre su capacidad.' }] }));
-  return out;
-}
-let _alertCache = null;
+/* Los hallazgos (reglas PMO, de riesgos y de roadmap) los evalúa el servidor (apih_calculos). Aquí solo se filtran por las reglas activadas y por el área elegida. */
+const GRUPO_REGLA = { PMO: 'pmo', Riesgos: 'riesgos', Roadmap: 'roadmap' };
 function motorAlertas() {
   if (APIH_CONFIG.analisis === false) return [];
-  const key = St.ini.length + '|' + St.hitos.length + '|' + St.riesgos.length + '|' + St.decisiones.length + '|' + (St.ver || 0) + '|' + hoy() + '|' + St.cfg.areaGlobal + '|' + JSON.stringify(St.cfg.reglas);
-  const sig = St.ini.map(i => i.rag + i.fase + i.avance + i.estado + (i.actualizada || '') + i.finEst + i.finPlan).join(',') + St.hitos.map(h => (h.completado ? 1 : 0) + h.fecha).join('') + St.riesgos.map(r => r.prob * 10 + r.imp + r.estado).join(',') + DECS().map(d => d.estado + d.limite).join(',') + St.cfg.tolDesv + St.cfg.umbralCritico + St.cfg.diasSinUpdate + St.cfg.capacidadMax + JSON.stringify(St.cfgU || {});
-  if (_alertCache && _alertCache.k === key + sig) return _alertCache.v;
-  const a = St.cfg.reglas; let out = [];
-  if (a.pmo) out = out.concat(findingsPMO()); if (a.riesgos) out = out.concat(findingsRiesgos()); if (a.roadmap) out = out.concat(findingsRoadmap());
-  out.forEach((f, k) => f.uid = 'F' + k);
-  out.sort(by(f => -f.sev)); _alertCache = { k: key + sig, v: out }; return out;
+  const R = St.cfg.reglas || {};
+  return (CALC.hallazgos || []).filter(f => R[GRUPO_REGLA[f.grupo]] !== false && (!(f.inis || []).length || f.inis.some(id => { const i = byId(id); return !!i && inArea(i); })));
 }
 const insightsFor = i => motorAlertas().filter(f => f.ini === i.id);
 
@@ -1000,7 +938,6 @@ Object.defineProperties(ENLACES, {
   PERS_KEYS: { get: () => PERS_KEYS, enumerable: true, configurable: true },
   PRES_MIO: { get: () => PRES_MIO, set: v => { PRES_MIO = v; }, enumerable: true, configurable: true },
   STAR_SVG: { get: () => STAR_SVG, enumerable: true, configurable: true },
-  _alertCache: { get: () => _alertCache, set: v => { _alertCache = v; }, enumerable: true, configurable: true },
   ampliable: { get: () => ampliable, enumerable: true, configurable: true },
   areaVisible: { get: () => areaVisible, enumerable: true, configurable: true },
   areasPermitidas: { get: () => areasPermitidas, enumerable: true, configurable: true },
@@ -1013,7 +950,6 @@ Object.defineProperties(ENLACES, {
   cieloOn: { get: () => cieloOn, enumerable: true, configurable: true },
   cocFit: { get: () => cocFit, set: v => { cocFit = v; }, enumerable: true, configurable: true },
   controlHTML: { get: () => controlHTML, enumerable: true, configurable: true },
-  decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
   decMaxDias: { get: () => decMaxDias, enumerable: true, configurable: true },
   esAdministra: { get: () => esAdministra, enumerable: true, configurable: true },
   estrellasOn: { get: () => estrellasOn, enumerable: true, configurable: true },
@@ -1021,6 +957,7 @@ Object.defineProperties(ENLACES, {
   guardAcceso: { get: () => guardAcceso, enumerable: true, configurable: true },
   guardAdmin: { get: () => guardAdmin, enumerable: true, configurable: true },
   hoyW: { get: () => hoyW, enumerable: true, configurable: true },
+  decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
   insightsFor: { get: () => insightsFor, enumerable: true, configurable: true },
   insignias: { get: () => insignias, set: v => { insignias = v; }, enumerable: true, configurable: true },
   menuRolCard: { get: () => menuRolCard, enumerable: true, configurable: true },
