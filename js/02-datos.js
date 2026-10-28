@@ -322,7 +322,7 @@ export const DataService = {
     if (!this.svc) return;
     try {
       const c = await this.svc.calculos(), antes = JSON.stringify(CALC), cielo = await this.svc.rpc('apih_cielo', {}).catch(() => null);
-      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } }, c, { cielo });
+      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } }, c, { cielo });
       this.aplicarDerivados();
       if (JSON.stringify(CALC) !== antes) { ENLACES._alertCache = null; if (typeof ENLACES.render === 'function') (0, ENLACES.render)(); }
     } catch (e) { console.warn('APIH: no se pudieron leer los valores calculados', e); }
@@ -535,7 +535,7 @@ export class SupabaseService {
   /* Permisos y directorio: los entrega el servidor (apih_contexto / apih_personas); la interfaz solo los lee */
   async contexto() { return (await this.rpc('apih_contexto', {})) || null; }
   async personas() { return (await this.rpc('apih_personas', {})) || []; }
-  async calculos() { return (await this.rpc('apih_calculos', {})) || { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], notif: null, resumen: null }; }
+  async calculos() { return (await this.rpc('apih_calculos', {})) || { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, notif: null, resumen: null }; }
   async verComo(correo) { return await this.rpc('apih_ver_como', { p_email: correo || null }); }
   async listItems(ent) {
     const l = encodeURIComponent(this.listName(ent)), idc = this._idCol(ent), out = [], PAGE = 1000;

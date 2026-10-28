@@ -373,7 +373,7 @@ export const hitosDe = id => _porIni('hitos', id);
 export const riesgosDe = id => _porIni('riesgos', id);
 /* Valores calculados: los entrega el SERVIDOR (apih_calculos). Aquí solo se leen; si aún no llegó el dato (registro recién creado, sin sincronizar)
    se devuelve un valor neutro y la pantalla se completa en cuanto el servidor responde. No hay fórmulas en el navegador. */
-export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } };
+export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } };
 const _ci = i => (i && CALC.ini[i.id]) || null;
 const HITO_NEUTRO = { k: 'ok', t: 'En plazo', c: '#0D446A' }, NIVEL_NEUTRO = { n: 'Bajo', c: '#107C10' };
 export const hitoEstado = h => (h && CALC.hitos[h.id]) || HITO_NEUTRO;
