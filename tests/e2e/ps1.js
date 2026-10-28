@@ -13,7 +13,7 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
     x.riesgos.forEach(r => St.riesgos.push(Object.assign({ id: nextId('RSK', St.riesgos), ini: n.id }, r)));
     n.lider = St.cfg.usuario; const R = St.riesgos.filter(r => r.ini === n.id); R[0].fRev = '2026-10-20'; R[1].fRev = '2026-10-26'; R[2].fRev = '2026-10-19';   // dos revisiones vencidas y una próxima: 6+ pasos, para que al posponer uno entre el siguiente
     UI.view = 'fases'; render(); }, plan);
-  await p.waitForTimeout(500);
+  await p.evaluate(async () => { save(); await DataService.flush(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(500);
   const r = {};
   await p.evaluate(() => { Acts.ficha({ id: 'PRJ-050' }); Acts.flall({ m: 'open' }); }); await p.waitForTimeout(600);
   await p.waitForTimeout(500);
