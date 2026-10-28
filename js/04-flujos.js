@@ -69,8 +69,8 @@ export async function cmdServidor(nombre, params, msg, enForm) {
 }
 /* Formularios por comando: el servidor valida (con el campo afectado), autoriza, asigna el id, aplica efectos y deja la bitácora.
    La SPA solo envía lo que la persona escribió y muestra los avisos que el servidor devuelva. */
-export async function guardarEnServidor(cmd, id, datos, msg) {
-  const r = await cmdServidor(cmd, { p_id: id || null, p_datos: datos }, msg, true);
+export async function guardarEnServidor(cmd, id, datos, msg, extra) {
+  const r = await cmdServidor(cmd, Object.assign({ p_id: id || null, p_datos: datos }, extra || {}), msg, true);
   if (r && Array.isArray(r.avisos)) r.avisos.forEach(a => toast('Aviso: ' + a, 'warn'));
   return r;
 }
@@ -210,6 +210,7 @@ export function myWork() {
 
 // Enlaces para módulos anteriores (ver 00-registro.js)
 Object.defineProperties(ENLACES, {
+  cmdServidor: { get: () => cmdServidor, enumerable: true, configurable: true },
   guardarEnServidor: { get: () => guardarEnServidor, enumerable: true, configurable: true },
   eliminarEnServidor: { get: () => eliminarEnServidor, enumerable: true, configurable: true },
   diasEnFase: { get: () => diasEnFase, enumerable: true, configurable: true },
