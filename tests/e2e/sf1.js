@@ -29,9 +29,9 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   const h = await p.evaluate(() => St.hitos.find(x => x.ini === 'PRJ-050' && x.fase === 'Ejecución').id);
   await p.evaluate(id => Acts.edit({ t: 'hito', id }), h); await p.waitForTimeout(200);
   r.optsSub = await p.$$eval('#f_subfase option', a => a.length);
-  await p.selectOption('#f_subfase', 'PRJ-050-SF2'); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.selectOption('#f_subfase', 'PRJ-050-SF2'); await p.click('[data-act="msave"]'); await p.waitForTimeout(700);
   r.rechazaOtraFase = await p.evaluate(id => !St.hitos.find(x => x.id === id).subfase && !!$('#mform'), h);
-  await p.selectOption('#f_subfase', 'PRJ-050-SF1'); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.selectOption('#f_subfase', 'PRJ-050-SF1'); await p.click('[data-act="msave"]'); await p.waitForTimeout(700);
   r.asignado = await p.evaluate(id => St.hitos.find(x => x.id === id).subfase, h);
   // 6) vistas
   await p.click('[data-act="fzopen"][data-id="PRJ-050"]'); await p.waitForTimeout(300);
