@@ -101,7 +101,7 @@ declare
   imp jsonb := '{}'::jsonb; proy jsonb := '{}'::jsonb; hist jsonb := '{}'::jsonb; st jsonb; sx jsonb := '{}'::jsonb;   -- sx: id -> [estado semana 0..26]
   wk int; w date; o jsonb; arr jsonb; per jsonb := '{}'::jsonb; lid text; lids text[];
   total int; racha int; run boolean; ok boolean; n int; nivel text; sig int; me text; mail text := public.apih_email(); meta numeric; on_ int; off_ int; pct int;
-  ins jsonb := '{}'::jsonb; cs int; aviso int; cump int; cierres int; sem int; ms1 int; ms3 int; nm int; ucfg jsonb;
+  ins jsonb := '{}'::jsonb; pas jsonb; cs int; aviso int; cump int; cierres int; sem int; ms1 int; ms3 int; nm int; ucfg jsonb;
 begin
   if public.apih_rol() is null or coalesce(cfg ->> 'cieloOn', 'true') = 'false' then return jsonb_build_object('W', w0, 'proy', '{}'::jsonb, 'hist', '{}'::jsonb, 'personas', '{}'::jsonb, 'yo', null); end if;
   select coalesce(nullif(p.nombre, ''), p.email) into me from public.perfiles p where p.email = mail;
@@ -193,7 +193,8 @@ begin
       'bv', jsonb_build_object('v', least(sem, 8), 'of', 8, 'ok', sem >= 8), 'm1', jsonb_build_object('v', least(ms1, 1), 'of', 1, 'ok', ms1 >= 1),
       'm3', jsonb_build_object('v', least(ms3, 1), 'of', 1, 'ok', ms3 >= 1), 'eq', jsonb_build_object('v', case when pct >= meta then 1 else 0 end, 'of', 1, 'ok', pct >= meta));
   end if;
-  return jsonb_build_object('W', w0, 'proy', proy, 'hist', hist, 'personas', per, 'impecables', imp, 'yo', jsonb_build_object('nombre', me, 'meta', meta, 'pct', pct, 'insignias', ins));
+  pas := public.apih_pasos(calc, ctx, M, proy, hoy);   -- «Siguientes pasos» (migración 5i)
+  return jsonb_build_object('W', w0, 'proy', proy, 'hist', hist, 'personas', per, 'impecables', imp, 'pasos', pas, 'yo', jsonb_build_object('nombre', me, 'meta', meta, 'pct', pct, 'insignias', ins));
 end $$;
 revoke all on function public.apih_cielo() from public, anon;
 grant execute on function public.apih_cielo() to authenticated;
