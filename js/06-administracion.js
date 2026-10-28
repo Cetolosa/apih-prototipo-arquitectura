@@ -679,18 +679,13 @@ function acuForm(a, pre) {
       { k: 'limite', l: 'Fecha comprometida', t: 'date', req: true }, { k: 'ini', l: 'Iniciativa', t: 'select', opts: [GEN_OPT, ...iniOpts()], w: 2 }, { k: 'tema', l: 'Tema o persona', w: 1 },
       ...(nw ? [] : [{ k: 'estado', l: 'Estado', t: 'select', opts: ['Abierto', 'Cumplido', 'Cancelado'] }])
     ],
-    onDanger: () => confirmBox('¿Eliminar este compromiso?', () => { St.compromisos = St.compromisos.filter(x => x.id !== a.id); log('Cambio', a.ini, 'Compromiso eliminado: ' + a.texto); toast('Compromiso eliminado'); refresh(); }, 'Eliminar', true),
-    onSave(o) {
-      o.ini = o.ini || null;
-      if (nw) { const n = { id: nextId('ACU', St.compromisos), ...o, estado: 'Abierto', fechaReal: null, creada: hoy(), origen: o.origen || 'manual' }; St.compromisos.push(n); log('Cambio', n.ini, `Compromiso registrado: ${n.texto} — ${n.resp}, ${fmtD(n.limite)}`); toast('Compromiso registrado'); }
-      else { const ch = o.estado !== a.estado; Object.assign(a, o, ch ? { fechaReal: o.estado === 'Cumplido' ? hoy() : null } : {}); if (ch) log('Cambio', a.ini, `Compromiso ${a.id} → ${a.estado}: ${a.texto}`); toast('Compromiso actualizado'); }
-      refresh();
-    }
+    onDanger: () => confirmBox('¿Eliminar este compromiso?', () => (0, ENLACES.eliminarEnServidor)('APIH_Compromisos', a.id, 'Compromiso eliminado').then(r => { if (r) refresh(); }), 'Eliminar', true),
+    onSave(o) { return (0, ENLACES.guardarEnServidor)('apih_guardar_compromiso', a && a.id, o, nw ? 'Compromiso registrado' : 'Compromiso actualizado').then(r => r !== null); }   // id, fecha real, estado inicial y bitácora: del servidor
   });
 }
 Acts.acunew = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const pre = {}; if (d && d.id) pre.ini = d.id; if (d && d.texto) pre.texto = d.texto; if (d && d.tema) pre.tema = d.tema; closePops(); if (Modal.cur) Modal.close(); setTimeout(() => acuForm(null, pre), 40); };
 Acts.acuedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const a = St.compromisos.find(x => x.id === d.id); if (a) acuForm(a); };
-Chg.acutoggle = el => { const a = St.compromisos.find(x => x.id === el.dataset.id); if (!a) return; a.estado = el.checked ? 'Cumplido' : 'Abierto'; a.fechaReal = el.checked ? hoy() : null; log('Cambio', a.ini, `Compromiso ${a.id} ${el.checked ? 'cumplido' : 'reabierto'}: ${a.texto}`); toast(el.checked ? 'Compromiso cumplido' : 'Compromiso reabierto'); refresh(); };
+Chg.acutoggle = el => { const a = St.compromisos.find(x => x.id === el.dataset.id); if (!a) return; (0, ENLACES.guardarEnServidor)('apih_guardar_compromiso', a.id, { estado: el.checked ? 'Cumplido' : 'Abierto' }, el.checked ? 'Compromiso cumplido' : 'Compromiso reabierto'); };
 Views.compromisos = {
   render() {
     const f = F('acu', { vista: 'debo', est: 'Abierto', q: '', ini: '' }), me = miUsuario(), all = todosAcu();
