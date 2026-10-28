@@ -40,12 +40,30 @@ create table if not exists public.registros (
   area         text,                                         -- derivada por trigger (nunca la envía el cliente)
   primary key (lista, id)
 );
+-- Bases anteriores: las tablas ya existían con menos columnas (create table if not exists no las completa)
+alter table public.registros add column if not exists modificado_por text;
+alter table public.registros add column if not exists area text;
+alter table public.perfiles add column if not exists nombre text;
+alter table public.perfiles add column if not exists app_rol text;
+update public.perfiles set app_rol = case rol when 'admin' then 'Administra' when 'editor' then 'Colaborador' else 'Invitado' end where app_rol is null;
+alter table public.perfiles add column if not exists areas text[] not null default '{}';
+alter table public.perfiles add column if not exists ve_todo boolean not null default false;
+alter table public.perfiles add column if not exists ve_montos boolean not null default false;
+alter table public.perfiles add column if not exists gobierna boolean not null default false;
+alter table public.perfiles add column if not exists activo boolean not null default true;
 create index if not exists registros_lista_area_idx on public.registros (lista, area);
 
 create table if not exists public.auditoria (
   n bigserial primary key, ts timestamptz not null default now(), email text, accion text not null,
   lista text, id_registro text, area text, toco_montos boolean not null default false
 );
+
+alter table public.auditoria add column if not exists ts timestamptz not null default now();
+alter table public.auditoria add column if not exists email text;
+alter table public.auditoria add column if not exists lista text;
+alter table public.auditoria add column if not exists id_registro text;
+alter table public.auditoria add column if not exists area text;
+alter table public.auditoria add column if not exists toco_montos boolean not null default false;
 
 -- 2. Funciones de contexto (SECURITY DEFINER: leen perfiles sin exponerla) ---------------
 create or replace function public.apih_email() returns text language sql stable as
@@ -205,3 +223,9 @@ $$ begin
 end $$;
 drop trigger if exists apih_dominio on auth.users;
 create trigger apih_dominio before insert on auth.users for each row execute function public.apih_dominio();
+
+-- Filas anteriores a esta migración: completar el área derivada (sin disparar validaciones ni sellos sobre datos históricos)
+alter table public.registros disable trigger user;
+update public.registros set area = public.apih_area_de(lista, substr(datos, 4)::jsonb) where area is null and lista in ('APIH_Proyectos', 'APIH_Propuestas') and left(substr(datos, 4), 1) = '{';
+update public.registros set area = public.apih_area_de(lista, substr(datos, 4)::jsonb) where area is null and lista not in ('APIH_Proyectos', 'APIH_Propuestas') and left(substr(datos, 4), 1) = '{';
+alter table public.registros enable trigger user;
