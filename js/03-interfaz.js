@@ -208,7 +208,7 @@ function scrollHints() {   /* N-U-09: avisa cuando un tablero se desplaza horizo
 function kbFocusables() { $$('#main [data-act]').forEach(el => { if (el.matches('button,a,input,select,textarea,tr,td,th') || el.tabIndex >= 0 && el.hasAttribute('tabindex')) return; if (!el.matches(KB_ACT_TAGS) || el.dataset.act === 'noop') return; el.setAttribute('tabindex', '0'); if (!el.getAttribute('role')) el.setAttribute('role', 'button'); }); }
 document.addEventListener('keydown', e => { if ((e.key !== 'Enter' && e.key !== ' ') || !e.target || e.target.matches('button,a,input,select,textarea') || !e.target.dataset || !e.target.dataset.act || !e.target.closest('#main')) return; if (e.target.getAttribute('role') !== 'button') return; e.preventDefault(); e.target.click(); });
 export function render() {
-  syncFases(); ppInval(); try { (0, ENLACES.michelinSync)(); } catch (e) { console.error(e); } try { (0, ENLACES.escalarSync)(); } catch (e) { console.error(e); } try { if (typeof ENLACES.chkInsignias === 'function' && !UI.bdPrev) (0, ENLACES.chkInsignias)(); } catch (e) { } (0, ENLACES.guardAdmin)(); (0, ENLACES.guardAcceso)();
+  syncFases(); ppInval(); try { (0, ENLACES.mantenerSrv)(); } catch (e) { console.error(e); } try { if (typeof ENLACES.chkInsignias === 'function' && !UI.bdPrev) (0, ENLACES.chkInsignias)(); } catch (e) { } (0, ENLACES.guardAdmin)(); (0, ENLACES.guardAcceso)();
   const v = Views[UI.view]; if (!v) return;
   const act = document.activeElement, key = act && act.dataset ? act.dataset.key : null, ss = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
   const keep = {}; $$('[data-keep]').forEach(e => keep[e.dataset.keep] = [e.scrollLeft, e.scrollTop]);

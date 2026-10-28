@@ -2,7 +2,7 @@ import { ENLACES } from './00-registro.js';
 import { $, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
 import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
-import { diasEnFase, priorScore } from './04-flujos.js';
+import { cmdServidor, diasEnFase, priorScore } from './04-flujos.js';
 import { pasosCocinaHTML, semOf, semSet } from './05-vistas.js';
 import { cut, informeTxt, notifUserCard, rondaIds, todosAcu } from './06-administracion.js';
 /* ============================================================
@@ -479,11 +479,6 @@ const decMaxDias = () => +St.cfg.decMaxDias || 30, decEscDias = () => +St.cfg.de
 const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.limite && diffD(hoy(), d.limite) > decEscDias());
 const resultadoOk = i => (i.beneficio > 0) ? (i.ahorroReal > 0) : String(i.resultadoNota || '').trim().length >= 10;
 const riesgoSinMit = (i, r) => riesgoCritico(r) && !String(r.mit || '').trim();
-function congelarBase(i, rebase) {
-  if (i.base && rebase) { i.baseHist = (i.baseHist || []).concat([i.base]); }
-  i.base = { fecha: hoy(), inicio: i.inicioPlan || null, fin: i.finPlan || null, pres: i.presupuesto || 0, por: St.cfg.usuario, hitos: hitosDe(i.id).map(h => ({ id: h.id, nombre: h.nombre, fecha: h.fecha })) };
-  log('Cambio', i.id, (rebase ? 'Línea base reemplazada' : 'Línea base congelada') + ` · fin ${fmtD(i.base.fin)} · presupuesto ${fmtMon(i.base.pres, monOf(i))} · ${i.base.hitos.length} hitos`);
-}
 function evm(i) {   // valor ganado simple contra la línea base congelada
   const b = i.base; if (!b || !(b.pres > 0) || !b.inicio || !b.fin) return null;
   const T = Math.max(1, diffD(b.fin, b.inicio)), pv = b.pres * Math.max(0, Math.min(1, diffD(hoy(), b.inicio) / T)), ev = b.pres * (i.avance || 0) / 100, ac = i.gastado || 0, hs = hitosDe(i.id);
@@ -501,15 +496,8 @@ function controlHTML(i) {
   h += kv('Beneficio esperado · real', `${fmtMon(i.beneficio || 0, monOf(i))} · ${fmtMon(i.ahorroReal || 0, monOf(i))}${rl != null ? ' (' + rl + '%)' : ''}`);
   return `<div class="pn-sec"><div class="kvs">${h}</div></div>`;
 }
-Acts.basego = d => { const i = byId(d.id); if (!i || !puedeEditarIni(i)) return NO_PERM('Tu rol no permite editar'); if (!(i.inicioPlan && i.finPlan)) return toast('Define inicio y fin plan primero', 'err'); congelarBase(i, false); toast('Línea base congelada'); refresh(); };
-Acts.baserebase = d => { const i = byId(d.id); if (!i || !esAdministra()) return; confirmBox(`¿Reemplazar la línea base de <b>${esc(i.titulo)}</b>? La anterior queda en el historial.`, () => { congelarBase(i, true); toast('Línea base reemplazada'); refresh(); }, 'Reemplazar', true); };
-function escalarSync() {   // las decisiones que superan el plazo de escalamiento quedan marcadas y en bitácora (solo lo escribe el rol Administra, una vez)
-  if (!St || !St.decisiones || !esAdministra() || FL.verComo) return; let n = 0;
-  DECS().forEach(d => { if (decEscalada(d) && !d.escalada) { d.escalada = hoy(); n++; log('Decisión', d.ini, `Decisión escalada a Administra: ${diffD(hoy(), d.limite)} d de atraso · ${d.titulo}`); St.bitacora[0].inPres = false; } });
-  if (n) save();
-}
-
-
+Acts.basego = d => cmdServidor('apih_congelar_base', { p_id: d.id, p_rebase: false }, 'Línea base congelada');   // el servidor valida permisos y plan, arma la base y deja la bitácora
+Acts.baserebase = d => { const i = byId(d.id); if (!i) return; confirmBox(`¿Reemplazar la línea base de <b>${esc(i.titulo)}</b>? La anterior queda en el historial.`, () => cmdServidor('apih_congelar_base', { p_id: d.id, p_rebase: true }, 'Línea base reemplazada'), 'Reemplazar', true); };
 /* ============================================================
    APIH · V21 · Modo de interfaz (Simple / Profesional) · por usuario (St.cfgU[usuario].ui)
    ============================================================ */
@@ -598,21 +586,21 @@ function celebrarMichelin(i) {
   d.innerHTML = `<div class="sky-pb">${RAYOS()}<div class="sky-big">${MS_SVG(true, 54)}</div><b>¡Estrella Michelin!</b><small>${esc(cut(i.titulo, 40))}</small>${msRow(i, 22, true)}</div>`;
   d.addEventListener('click', () => d.remove()); document.body.appendChild(d); setTimeout(() => d.remove(), 3000);
 }
-/* otorga y guarda las estrellas nuevas (solo si la persona puede editar ese proyecto); nunca quita */
-function michelinSync() {
-  if (!St || !St.ini || !cieloOn()) return;
-  const boot = !UI.msBoot; UI.msBoot = true; const nuevas = [];
-  St.ini.forEach(i => {
-    if (esProp(i) || esSB(i) || !puedeEditarIni(i)) return;
-    const have = msN(i), want = michelinCalc(i); if (want <= have) return;
-    i.michelin = i.michelin || []; for (let n = have + 1; n <= want; n++) i.michelin.push({ n, f: hoy() });
-    log('Comentario', i.id, 'Estrella Michelin ' + want + ' de 3 obtenida: ' + MS_DEF[want - 1].tip); St.bitacora[0].inPres = false;
-    nuevas.push(i);
-  });
-  if (!nuevas.length) return;
-  save();
-  if ((boot || nuevas.length > 1) && !msToastSeen()) toast(nuevas.length + ' proyecto' + (nuevas.length === 1 ? '' : 's') + ' con estrellas Michelin por hitos ya cumplidos');
-  else setTimeout(() => celebrarMichelin(nuevas[0]), document.querySelector('.sky-pop') ? 2700 : 350);
+/* Mantenimiento: el servidor marca las decisiones escaladas y otorga las estrellas Michelin nuevas (nunca quita). Aquí solo se pide y se celebra. */
+async function mantenerSrv() {
+  if (!St || !St.ini || UI.mantBusy || (UI.mantTs && Date.now() - UI.mantTs < 20000)) return;
+  UI.mantBusy = true; UI.mantTs = Date.now();
+  try {
+    const boot = !UI.msBoot; UI.msBoot = true;
+    const r = await DataService.svc.rpc('apih_mantener', {}).catch(e => { console.error(e); return null; });   // sin recarga si no hubo cambios
+    const nuevas = r && Array.isArray(r.estrellas) ? r.estrellas : [];
+    if (!r || (!nuevas.length && !r.escaladas)) return;
+    await DataService.refresh(false, true);
+    if (nuevas.length) {
+      if ((boot || nuevas.length > 1) && !msToastSeen()) toast(nuevas.length + ' proyecto' + (nuevas.length === 1 ? '' : 's') + ' con estrellas Michelin por hitos ya cumplidos');
+      else { const i = byId(nuevas[0].id); if (i) setTimeout(() => celebrarMichelin(i), document.querySelector('.sky-pop') ? 2700 : 350); }
+    }
+  } finally { UI.mantBusy = false; }
 }
 
 /* ============================================================
@@ -1024,12 +1012,10 @@ Object.defineProperties(ENLACES, {
   chkInsignias: { get: () => chkInsignias, enumerable: true, configurable: true },
   cieloOn: { get: () => cieloOn, enumerable: true, configurable: true },
   cocFit: { get: () => cocFit, set: v => { cocFit = v; }, enumerable: true, configurable: true },
-  congelarBase: { get: () => congelarBase, enumerable: true, configurable: true },
   controlHTML: { get: () => controlHTML, enumerable: true, configurable: true },
   decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
   decMaxDias: { get: () => decMaxDias, enumerable: true, configurable: true },
   esAdministra: { get: () => esAdministra, enumerable: true, configurable: true },
-  escalarSync: { get: () => escalarSync, enumerable: true, configurable: true },
   estrellasOn: { get: () => estrellasOn, enumerable: true, configurable: true },
   filtrosHTML: { get: () => filtrosHTML, enumerable: true, configurable: true },
   guardAcceso: { get: () => guardAcceso, enumerable: true, configurable: true },
@@ -1038,7 +1024,7 @@ Object.defineProperties(ENLACES, {
   insightsFor: { get: () => insightsFor, enumerable: true, configurable: true },
   insignias: { get: () => insignias, set: v => { insignias = v; }, enumerable: true, configurable: true },
   menuRolCard: { get: () => menuRolCard, enumerable: true, configurable: true },
-  michelinSync: { get: () => michelinSync, enumerable: true, configurable: true },
+  mantenerSrv: { get: () => mantenerSrv, enumerable: true, configurable: true },
   modoUI: { get: () => modoUI, enumerable: true, configurable: true },
   motorAlertas: { get: () => motorAlertas, enumerable: true, configurable: true },
   msN: { get: () => msN, enumerable: true, configurable: true },
