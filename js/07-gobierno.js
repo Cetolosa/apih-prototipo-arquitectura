@@ -422,8 +422,6 @@ Acts.myreset = d => { if (FL.verComo || (!esAdministra() && fijo(d.k === '_tema'
    ============================================================ */
 const decMaxDias = () => +St.cfg.decMaxDias || 30;
 const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.escalada);   // la marca la pone el servidor (apih_mantener) al vencer el plazo de escalamiento
-const resultadoOk = i => (i.beneficio > 0) ? (i.ahorroReal > 0) : String(i.resultadoNota || '').trim().length >= 10;
-const riesgoSinMit = (i, r) => riesgoCritico(r) && !String(r.mit || '').trim();
 const evm = i => (i && CALC.evm && CALC.evm[i.id]) || null;   // valor ganado: lo calcula el servidor contra la línea base
 function controlHTML(i) {
   if (esProp(i)) return '';
@@ -499,27 +497,6 @@ const msRow = (i, sz = 16, all) => {
     return `<span class="stw" data-act="startip" data-t="${esc(t)}" title="${esc(t)}">${MS_SVG(!!got, sz)}</span>`;
   }).join('')}</span>`;
 };
-const cambioAprob = (i, tipo) => CAMBIOS().some(c => c.ini === i.id && c.estado === 'Aprobado' && c.tipo === tipo);
-const hitoATiempo = (i, h) => !!h.completado && (!h.fechaReal || h.fechaReal <= h.fecha || cambioAprob(i, 'Fecha'));   // un cambio de fecha aprobado explica el atraso
-/* ¿cuántas estrellas cumple hoy el proyecto? (se evalúa con el historial de hitos, por eso no depende de cuándo se abra la app) */
-function michelinCalc(i) {
-  if (esProp(i) || !['En curso', 'Completado'].includes(i.estado)) return 0;
-  const hs = hitosDe(i.id), ok = h => hitoATiempo(i, h); let n = 0;
-  /* «primera fase o hito mayor»: si los hitos traen fase, la primera fase; si no (datos importados), el primer hito del cronograma */
-  const f1 = FASES_PRJ.find(f => hs.some(h => h.fase === f));
-  const g1 = f1 ? hs.filter(h => h.fase === f1) : hs.length ? [hs.slice().sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)[0]] : [];
-  if (g1.length && g1.every(ok)) n = 1;
-  if (n >= 1 && i.inicioPlan && i.finPlan) {
-    const mid = addD(i.inicioPlan, Math.floor(diffD(i.finPlan, i.inicioPlan) / 2));
-    if (hoy() >= mid) { const hm = hs.filter(h => h.fecha <= mid); if (hm.length ? hm.every(ok) : desv(i) <= cfgI(i,'tolDesv')) n = 2; }
-  }
-  if (n >= 2 && i.estado === 'Completado' && i.avance >= 100 && hs.every(ok) && resultadoOk(i)) {
-    const enPlazo = !i.finReal || !i.finPlan || i.finReal <= i.finPlan || cambioAprob(i, 'Fecha');
-    const enPres = !(i.presupuesto > 0) || (i.gastado || 0) <= i.presupuesto || cambioAprob(i, 'Presupuesto');
-    if (enPlazo && enPres) n = 3;
-  }
-  return n;
-}
 const RAYOS = () => Array.from({ length: 8 }, (_, k) => `<i style="--a:${k * 45}deg;--d:${k % 2 ? 0 : .08}s"></i>`).join('');
 function celebrarMichelin(i) {
   const d = document.createElement('div'); d.className = 'sky-pop'; d.setAttribute('role', 'status');
@@ -906,7 +883,6 @@ Object.defineProperties(ENLACES, {
   proyActivos: { get: () => proyActivos, enumerable: true, configurable: true },
   puedeEditarIni: { get: () => puedeEditarIni, enumerable: true, configurable: true },
   puedeVerAnalisis: { get: () => puedeVerAnalisis, enumerable: true, configurable: true },
-  riesgoSinMit: { get: () => riesgoSinMit, enumerable: true, configurable: true },
   rolActual: { get: () => rolActual, set: v => { rolActual = v; }, enumerable: true, configurable: true },
   simplify: { get: () => simplify, enumerable: true, configurable: true },
   soloLectura: { get: () => soloLectura, enumerable: true, configurable: true },
