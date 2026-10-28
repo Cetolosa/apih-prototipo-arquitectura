@@ -185,13 +185,13 @@ const backendLabel = () => 'Servidor seguro · acceso individual';
 const newSvc = () => new SupabaseService(APIH_CONFIG);
 export const DataService = {
   mode: 'demo', svc: null, snap: null, timer: null, poll: null, busy: false, again: false, dirty: false, tries: 0,
-  st: { state: 'demo', msg: 'Modo demo', last: null, pending: 0, err: '' },
+  st: { state: 'demo', msg: 'Sin conexión', last: null, pending: 0, err: '' },
   setStatus(o) { Object.assign(this.st, o); if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); },
   resolveMode() { const c = APIH_CONFIG; return c.auth.provider === 'supabase' && c.supabase.url && c.supabase.anonKey ? 'supabase' : 'demo'; },
   /* arranque: devuelve el estado inicial de la aplicación */
   async init() {
     this.mode = this.resolveMode();
-    if (this.mode === 'demo') { this.setStatus({ state: 'demo', msg: 'Modo demo · datos en memoria' }); return seedState(); }
+    if (this.mode === 'demo') { this.setStatus({ state: 'demo', msg: 'Sin servidor · solo lectura' }); return seedState(); }
     try { await AuthService.init(); }
     catch (e) { this.setStatus({ state: 'error', msg: 'Autenticación', err: e.message }); return this.fallback(e.message); }
     if (AuthService.needsLogin) { this.setStatus({ state: 'auth', msg: 'Inicie sesión' }); return this.fallback('Inicie sesión para conectar con ' + backendName()); }

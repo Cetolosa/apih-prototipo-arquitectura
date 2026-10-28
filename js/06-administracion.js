@@ -2,7 +2,7 @@ import { ENLACES } from './00-registro.js';
 import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
 import { AuthService, DataService, SETTINGS_KEYS, ESQUEMA } from './02-datos.js';
 import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
-import { cmdServidor, conServidor, diasEnFase, migrateV5 } from './04-flujos.js';
+import { cmdServidor, diasEnFase, migrateV5 } from './04-flujos.js';
 import { DESC_MAX, cutDesc, faseNotaP, fasesVentana, hitosSub, rangoTx, sfImportar, sfRef, subfasesDe, ventanaDe } from './05-vistas.js';
 /* ======================= ADMINISTRACIÓN ======================= */
 const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info', 14)}<span>Los umbrales de alerta (desviación, días sin actualización, riesgo crítico, semáforo de propuestas y meta de «Mi cocina») se ajustan en <button class="lnk" data-act="go" data-v="miconfig">Mi configuración</button>, donde Administra los fija para todos y cada líder puede personalizarlos.</span></div>` + ((0, ENLACES.esAdministra)() && window.V22 && V22.MENU ? (0, ENLACES.menuRolCard)() : '');
@@ -822,8 +822,7 @@ function chgForm(c, pre) {
       const i = byId(o.ini); if (!i) { toast('Elige un proyecto', 'err'); return false; }
       if (o.fNue && o.fNue === i.finPlan && !+o.pNue) { toast('La nueva fecha es igual a la actual', 'err'); return false; }
       if (o.fNue && i.inicioPlan && o.fNue < i.inicioPlan) { toast('La nueva fecha de fin no puede ser anterior al inicio plan (' + fmtD(i.inicioPlan) + ')', 'err'); return false; }   // N-F-05
-      if (nw && conServidor()) { return cmdServidor('apih_solicitar_cambio', { p_ini: o.ini, p_tipo: o.tipo, p_desc: o.desc, p_motivo: o.motivo, p_impacto: o.impacto || '', p_fnue: o.fNue || null, p_pnue: +o.pNue || 0 }, 'Solicitud registrada: queda pendiente de aprobación', true).then(r => r !== null); }
-      if (nw) { const n = { id: nextId('CHG', St.cambios), ...o, pNue: +o.pNue || 0, solicita: me, fAnt: i.finPlan || null, pAnt: i.presupuesto || 0, estado: 'Solicitado', aprobador: '', fDec: null, nota: '', creada: hoy() }; St.cambios.push(n); log('Cambio', n.ini, `Solicitud de cambio ${n.id} (${n.tipo}): ${n.desc}. ${chgEfecto(n)}`); toast('Solicitud registrada: queda pendiente de aprobación'); }
+      if (nw) { return cmdServidor('apih_solicitar_cambio', { p_ini: o.ini, p_tipo: o.tipo, p_desc: o.desc, p_motivo: o.motivo, p_impacto: o.impacto || '', p_fnue: o.fNue || null, p_pnue: +o.pNue || 0 }, 'Solicitud registrada: queda pendiente de aprobación', true).then(r => r !== null); }
       else { Object.assign(c, o, { pNue: +o.pNue || 0, fAnt: i.finPlan || null, pAnt: i.presupuesto || 0 }); toast('Solicitud actualizada'); }
       refresh();
     }
@@ -840,10 +839,7 @@ Acts.chgdec = d => {
     fields: [{ k: 'aprobador', l: 'Resuelve', list: people(), req: true }, { k: 'nota', l: ap ? 'Nota de aprobación' : 'Motivo del rechazo', t: 'textarea', req: !ap, w: 3 }],
     extra: `<div class="note ${ap ? '' : 'warn'}" style="margin-top:8px"><span><b>${esc(i.titulo)}</b> · ${esc(c.tipo)}: ${esc(c.desc)}<br>${ap ? '<b>Se aplicará:</b> ' : 'Efecto solicitado: '}${esc(chgEfecto(c))}</span></div>`,
     onSave(o) {
-      if (conServidor()) { return cmdServidor('apih_resolver_cambio', { p_id: c.id, p_estado: d.e, p_nota: o.nota || '' }, 'Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado'), true).then(r => r !== null); }
-      c.estado = d.e; c.aprobador = o.aprobador; c.nota = o.nota; c.fDec = hoy();
-      if (ap) { if (c.fNue) { (0, ENLACES.moverFinPlan)(i, c.fNue); if (!i.finEst || i.finEst < c.fNue) i.finEst = c.fNue; } if (+c.pNue > 0) i.presupuesto = +c.pNue; i.actualizada = hoy(); }
-      log('Decisión', c.ini, `Cambio ${c.id} ${ap ? 'aprobado' : 'rechazado'} por ${o.aprobador}${o.nota ? ': ' + o.nota : ''}${ap ? '. Línea base: ' + chgEfecto(c) : ''}`); toast('Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado')); refresh();
+      return cmdServidor('apih_resolver_cambio', { p_id: c.id, p_estado: d.e, p_nota: o.nota || '' }, 'Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado'), true).then(r => r !== null);
     }
   });
 };

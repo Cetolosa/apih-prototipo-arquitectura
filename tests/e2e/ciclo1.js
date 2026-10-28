@@ -48,7 +48,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.calcA = await ev(() => { sincAvance(byId('V23-A')); return byId('V23-A').avance; });
   r.calcAfase = await ev(() => Math.round(avanceFaseCalc(byId('V23-A'), 'Planificación') * 100));
   r.manual = await ev(() => { const i = byId('V23-A'); i.avanceManual = 90; sincAvance(i); return [i.avance, i.avanceCalc, avanceEf(i)].join('|'); });
-  r.gateLeeCalc = await ev(() => { const i = byId('V23-C'); i.avanceManual = 100; sincAvance(i); const f = gates(i, 'Cierre').filter(g => !g.ok).map(g => g.t); i.avanceManual = null; sincAvance(i); return f.join(','); });
+  // (las compuertas leen el avance calculado, nunca el manual: lo verifica supabase/tests/90_ciclo_de_vida.sql, que es donde viven)
   await ev(() => { const i = byId('V23-A'); i.avanceManual = null; sincAvance(i); });
   // 4) proyecto previo: su avance guardado se conserva como ajuste manual visible
   r.legacy = await ev(() => { const i = byId('V23-B'); sincAvance(i); return [i.avance, i.avanceManual, i.avanceCalc].join('|'); });
@@ -79,7 +79,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   const mal = [];
   const w = (k, v) => { if (JSON.stringify(r[k]) !== JSON.stringify(v)) mal.push(k + ' = ' + JSON.stringify(r[k]) + ' (esperado ' + JSON.stringify(v) + ')'); };
   w('fase', 'Ejecución'); w('pestana', 0); w('bloques', 3); w('panelActs', 'Abrir ficha'); w('panelEdita', 0); w('btnCambiar', 1); w('fichaEdita', 3); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
-  w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('gateLeeCalc', 'Avance al 100%,Todos los hitos completados'.split(',').filter(x => x === 'Avance al 100%').join(',')); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75); w('legacyAuto', '30|30|30'); w('formCierra', 'Completado|100');
+  w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75); w('legacyAuto', '30|30|30'); w('formCierra', 'Completado|100');
   w('reparto', '2026-01-01>2026-01-15 2026-01-16>2026-03-11 2026-03-12>2026-03-26 2026-03-27>2026-04-10'); w('derivaFin', '2026-04-10'); w('moverFin', '2026-05-10|2026-05-10');
   w('auto', 'Completado|100|true'); w('sbCampo', 1); w('sbSinMotivo', 'En curso'); w('sbOk', 'Stand By');
   if (!/Mover de fase/.test(r.grupos) || !/Cambiar estado/.test(r.grupos)) mal.push('grupos = ' + r.grupos);

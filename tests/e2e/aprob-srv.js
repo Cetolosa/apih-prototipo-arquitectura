@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   const r = await p.evaluate(async () => {
     const out = {}; const prop = { id: 'PROP-900', tipo: 'Propuesta', titulo: 'Prop', area: 'BISE', fase: 'Evaluación', estado: 'Vigente', sponsor: '', lider: '', bc: '', presupuesto: 0, deps: [] }; St.ini.push(prop); out.id = prop.id; const antes = St.ini.length;
     const llamadas = []; DataService.svc = { rpc: async (n, a) => { llamadas.push([n, a]); return 'PRJ-777'; } }; DataService.refresh = async () => { }; DataService.flush = async () => { }; DataService.busy = false; DataService.dirty = false;
-    const g = gatesAprobar(prop).filter(x => !x.ok); out.faltan = g.length;
+    const g = [{ ok: false, t: 'Sponsor identificado' }, { ok: false, t: 'Líder asignado' }]; out.faltan = g.length;
     await aprobarEnServidor(prop, g, false, '  nota  '); out.sinForzar = llamadas.length;           // admin sin marcar «forzar»: no llama
     await aprobarEnServidor(prop, [], false, '  nota  '); out.llamada = llamadas[0]; out.local = St.ini.length === antes && prop.estado !== 'Aprobada';
     await aprobarEnServidor(prop, g, true, 'x'); out.forzada = llamadas[1] && llamadas[1][1].p_forzar;

@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, gates, gatesAprobar, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
+import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
 import { AuthService, DataService, ESQUEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
@@ -418,7 +418,7 @@ export function syncInfo() {
   if (d.svc) return { c: 'ok', t: 'Guardado', tip: 'Conectado a ' + BK() + (s.last ? ' · último sync ' + s.last.toTimeString().slice(0, 5) : '') + (s.pending ? ' · ' + s.pending + ' pendiente(s)' : '') + (s.msLoad ? ' · carga ' + (s.msLoad / 1000).toFixed(1) + ' s' : '') + (s.msSave ? ' · último guardado ' + (s.msSave / 1000).toFixed(1) + ' s' : '') };
   if (s.state === 'auth') return { c: 'au', t: 'Iniciar sesión', tip: s.msg };
   if (s.state === 'error' || d.offlineWhy) return { c: 'er', t: 'Sin servidor · demo', tip: s.err || d.offlineWhy };
-  return { c: 'de', t: 'Modo demo', tip: 'Datos solo en memoria: se pierden al recargar. Configure la conexión en Administración.' };
+  return { c: 'de', t: 'Sin conexión', tip: 'Sin el servidor no hay datos ni se puede editar. Configure la conexión en Administración.' };
 }
 function updateSyncUI() {
   const i = syncInfo(), c = $('#syncChip'); if (c) { c.className = 'sync ' + i.c; c.innerHTML = '<i></i>' + esc(i.t); c.title = i.tip; }
@@ -433,7 +433,7 @@ Acts.syncgo = () => { F('adm', {}).tab = 'sp'; go('admin'); };
 export function banner() {
   const d = DataService, s = d.st, out = [];
   if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su correo corporativo para cargar los datos.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
-  else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Trabajando en modo demo (memoria): los cambios no se guardan.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
+  else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Sin el servidor la aplicación queda en solo lectura: no hay datos ni cambios locales.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
   if (d.svc && St.empty && !UI.bnOff2) out.push(['info', '<b>Las listas de ' + BK() + ' están vacías.</b> Puede cargar los datos del archivo original o comenzar a registrar propuestas.', btn('Cargar datos del archivo', 'spseed', { cls: 'pri sm' }) + btn('Ocultar', 'bnoff2', { cls: 'sm' })]);
   if (d.svc && s.state === 'error' && s.pending) out.push(['bad', '<b>Cambios sin sincronizar (' + s.pending + ').</b> ' + esc(s.err || ''), btn('Reintentar ahora', 'spretry', { cls: 'sm' })]);
   return out.map(([k, t, a]) => `<div class="banner ${k}">${icon(k === 'info' ? 'db' : 'warn', 16)}<span>${t}</span><div class="chips">${a || ''}</div></div>`).join('');
@@ -823,7 +823,7 @@ Acts.edit = d => {
 /* ---------- RAG / comentarios / hitos ---------- */
 Acts.applyrag = d => { const i = byId(d.id); log('Cambio', i.id, `RAG ${i.rag} → ${d.rag} (sugerido por reglas automáticas)`); i.rag = d.rag; i.actualizada = hoy(); toast('RAG actualizado'); refresh(); };
 Acts.comment = d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; log('Comentario', d.id, t); toast('Comentario agregado'); refresh(); setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
-export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; if ((0, ENLACES.conServidor)()) return (0, ENLACES.hitoEnServidor)(id, !h.completado); h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); if (h.completado) (0, ENLACES.autoCompletar)(i); } log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
+export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; return (0, ENLACES.hitoEnServidor)(id, !h.completado); }   // completar o reabrir un hito es un comando del servidor (avance y cierre automático en la base)
 Chg.hitotoggle = el => toggleHito(el.dataset.id); Acts.hitotoggle = d => toggleHito(d.id);
 
 /* ---------- Hito ---------- */
@@ -838,8 +838,8 @@ export function hitoForm(h, ini) {
       if (o.subfase) { const sx = (0, ENLACES.subfasesDe)(byId(o.ini)).find(x => x.id === o.subfase); if (!sx) { toast('La subfase elegida no es de esta iniciativa', 'err'); return false; } if (!o.fase) o.fase = sx.fase; if (o.fase !== sx.fase) { toast('La subfase «' + sx.nombre + '» es de ' + sx.fase + ': el hito debe estar en esa fase', 'err'); return false; } if (o.fecha < sx.inicio || o.fecha > sx.fin) toast('Aviso: la fecha del hito queda fuera de la subfase «' + sx.nombre + '» (' + (0, ENLACES.rangoTx)(sx.inicio, sx.fin) + ')', 'warn'); } else delete o.subfase;
       if (!nw && !o.subfase) delete h.subfase;
       if ((o.desc || '').length > ENLACES.DESC_MAX) { toast('La descripción no puede superar ' + ENLACES.DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = (0, ENLACES.cutDesc)(o.desc.trim()); else delete o.desc;
-      if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { const viaRpc = (0, ENLACES.conServidor)() && !!h.completado !== !!o.completado, comp = o.completado; if (viaRpc) { delete o.completado; delete o.fechaReal; } Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); if (viaRpc) (0, ENLACES.hitoEnServidor)(h.id, !!comp); }   /* con servidor, completar/reabrir pasa por el comando (avance y cierre automático en la base) */
-      const i = byId(o.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); if (!(0, ENLACES.conServidor)() && o.completado) (0, ENLACES.autoCompletar)(i); } refresh(); }
+      if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { const viaRpc = !!h.completado !== !!o.completado, comp = o.completado; if (viaRpc) { delete o.completado; delete o.fechaReal; } Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); if (viaRpc) (0, ENLACES.hitoEnServidor)(h.id, !!comp); }   /* con servidor, completar/reabrir pasa por el comando (avance y cierre automático en la base) */
+      const i = byId(o.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); } refresh(); }
   });
   /* N-U-04/05: al cambiar Iniciativa o Fase se recalculan las opciones de Fase y Subfase */
   const fi = $('#f_ini'), ff = $('#f_fase'), fs = $('#f_subfase');
@@ -890,20 +890,7 @@ Acts.resolvedec = d => {
     fields: [{ k: 'estado', l: 'Resultado', t: 'select', opts: ['Aprobada', 'Rechazada', 'Diferida'] }, { k: 'fResol', l: 'Fecha', t: 'date' }, { k: 'resolucion', l: 'Resolución / comentario de cierre', t: 'textarea', w: 3 }, { k: 'aplicar', l: 'Efecto', t: 'check', lbl: 'Aplicar efecto: ' + EFECTO(x.tipo, byId(x.ini)), w: 3 }],
     extra: `<p class="mut" style="margin-top:8px"><b>${esc(x.tipo)}</b> · ${esc(x.titulo)}</p>`,
     onSave(o) {
-      if ((0, ENLACES.conServidor)()) return (0, ENLACES.resolverEnServidor)(x, o);
-      if (o.estado === 'Diferida') { x.limite = addD(x.limite && x.limite > hoy() ? x.limite : hoy(), 14); x.resolucion = o.resolucion; log('Decisión', x.ini, `Decisión diferida: ${x.titulo}`, 'Nueva fecha ' + fmtD(x.limite)); toast('Decisión diferida 14 días'); return refresh(); }
-      x.estado = o.estado; x.resolucion = o.resolucion; x.fResol = o.fResol; x.aplicada = false;
-      const i = byId(x.ini);
-      if (i && isDone(i) && ['Pausar', 'Cancelar'].includes(x.tipo)) toast('El proyecto ya está cerrado: no se aplica el efecto', 'err');
-      if (o.estado === 'Aprobada' && o.aplicar && i) {
-        const mot = o.resolucion || 'Decisión de comité ' + (x.comite || '');
-        if (x.tipo === 'Iniciar' && esProp(i) && i.estado !== 'Aprobada' && !isDone(i)) { const falta = gatesAprobar(i).filter(g => !g.ok).map(g => g.t); if (falta.length) toast('No se crea el proyecto. Falta: ' + falta.join('; '), 'err'); else { i.fase = 'Aprobación'; const n = (0, ENLACES.aprobarPropuesta)(i, mot); toast('Proyecto ' + n.id + ' creado desde ' + i.id); x.aplicada = true; } }   // F-15c
-        else if (x.tipo === 'Acelerar' && !esProp(i)) { i.prioridad = 'Alta'; if (i.estado === 'Pausado') { i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; } x.aplicada = true; }
-        else if (x.tipo === 'Pausar' && !isDone(i)) { i.estado = esProp(i) ? 'En espera' : 'Pausado'; i.estadoMotivo = mot; i.estadoRev = addD(hoy(), 30); x.aplicada = true; }
-        else if (x.tipo === 'Cancelar' && !isDone(i)) { i.estado = esProp(i) ? 'Rechazada' : 'Cancelado'; i.estadoMotivo = mot; i.estadoRev = null; x.aplicada = true; }
-        i.actualizada = hoy();
-      }
-      log('Decisión', x.ini, `${x.tipo} · ${o.estado}: ${x.titulo}` + (o.resolucion ? ' — ' + o.resolucion : ''), x.aplicada ? 'Efecto aplicado' : null); toast('Decisión ' + o.estado.toLowerCase()); refresh();
+      return (0, ENLACES.resolverEnServidor)(x, o);   // la resolución y su efecto son un comando transaccional del servidor
     }
   });
 };
