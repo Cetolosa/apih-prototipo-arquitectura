@@ -879,8 +879,8 @@ function comForm(c) {
   openForm({
     title: nw ? 'Nuevo comité' : 'Editar comité', values: v, saveLabel: nw ? 'Crear' : 'Guardar', danger: nw ? null : 'Eliminar',
     fields: [{ k: 'nombre', l: 'Nombre', req: true, w: 3 }, { k: 'fecha', l: 'Fecha', t: 'date', req: true }, { k: 'hora', l: 'Hora', t: 'time' }, { k: 'lugar', l: 'Lugar / enlace' }, { k: 'estado', l: 'Estado', t: 'select', opts: ['Programado', 'Realizado', 'Cancelado'] }, { k: 'resumen', l: 'Mensaje principal / resumen', t: 'textarea', w: 3 }],
-    onDanger: () => confirmBox('¿Eliminar este comité?', () => { St.comites = St.comites.filter(x => x.id !== c.id); toast('Comité eliminado'); refresh(); }, 'Eliminar', true),
-    onSave(o) { if (nw) { const n = { id: nextId('COM', St.comites), participantes: [{ n: St.cfg.usuario, rol: 'PMO / IT Business Partner', asistio: false }, ...(St.cfg.comiteParts || []).map(x => ({ n: x, rol: 'Participante', asistio: false }))], temas: [], decisiones: [], acciones: [], compromisos: [], narrativa: '', ...o }; St.comites.push(n); UI.f.comite = { sel: n.id }; log('Cambio', null, 'Comité programado: ' + fmtD(o.fecha)); toast('Comité creado'); } else { Object.assign(c, o); toast('Comité guardado'); } refresh(); }
+    onDanger: () => confirmBox('¿Eliminar este comité?', () => (0, ENLACES.eliminarEnServidor)('APIH_Comites', c.id, 'Comité eliminado').then(r => { if (r) refresh(); }), 'Eliminar', true),
+    onSave(o) { return (0, ENLACES.guardarEnServidor)('apih_guardar_comite', c && c.id, o, nw ? 'Comité creado' : 'Comité guardado').then(r => { if (r === null) return false; if (nw && r.id) UI.f.comite = { sel: r.id }; return true; }); }   // id, participantes iniciales y bitácora: del servidor
   });
 }
 

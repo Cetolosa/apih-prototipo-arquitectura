@@ -25,5 +25,8 @@ La SPA presenta; **el servidor decide y calcula**. Permisos (`apih_contexto`, `r
 - Guardia: `node tools/guardia-reglas.js` (CI) falla si reaparece una regla retirada en `js/`, si la SPA escribe campos del servidor o si llama a un `apih_*` inexistente.
 - Pruebas: `tools/test-sql.sh` (reglas en Postgres), `tools/correr-e2e.js` (flujos contra backend real de pruebas).
 
+### Formularios por comando del servidor
+Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromiso`) y **comités** (`apih_guardar_comite`, `apih_comite_agregar/quitar/marcar/sugerido/armar/cerrar`); eliminar: `apih_eliminar`. Ids, valores iniciales, fecha real, agenda y bitácora los fija el servidor.
+
 ### Reglas que aún no se mueven (residuales declarados)
-Reglas de notificación (`notifPara`), umbrales de `execSummary`/KPIs, `personasData`, misiones/pasos, bitácora generada en cliente (`log()`), validaciones de formulario, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial). Candidatos de la siguiente iteración.
+Reglas de notificación (`notifPara`), umbrales de `execSummary`/KPIs, `personasData`, misiones/pasos, `log()` de bitácora en el cliente (otros flujos), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
