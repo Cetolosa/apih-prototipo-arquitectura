@@ -158,3 +158,4 @@
 .icard.ic2{height:206px}.ic2-ph{flex-wrap:nowrap;white-space:nowrap}.ic2-l .chip-bad{padding:0 6px;margin-right:2px}
 .icard.ic2 .inc-mini{top:7px;bottom:auto}.ic2-ft{padding-right:0;gap:4px}.ic2-ft .chip-bad{font-size:11px;padding:1px 6px}.ic2-l{white-space:nowrap}.ic2-ft .pp small{max-width:44px}
 .icard.ic2{height:226px}.ic2 .ic-t{justify-content:flex-start;padding-right:24px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.pn-slim{display:flex;align-items:center;gap:10px;padding:10px 14px}.pn-slim .pn-upd{margin:0 auto 0 0;font-size:12px}

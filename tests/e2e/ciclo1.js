@@ -27,7 +27,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.fase = await ev(() => byId('V23-A').fase);
   // sin botones sueltos de Fase/Estado en el panel
   await ev(() => { render(); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(300);
-  r.panelActs = await p.$$eval('#panel .pn-tr button', a => a.map(x => x.textContent.trim()).sort().join('|'));   // el panel solo resume: solo Abrir ficha
+  r.panelActs = await p.$$eval('#panel .pn-slim .pn-main', a => a.map(x => x.textContent.trim()).sort().join('|'));   // el panel solo resume: solo Abrir ficha
   r.panelEdita = await p.$$eval('#panel [data-act="etapa"], #panel [data-act="edit"], #panel [data-act="wk"], #panel [data-act="advance"], #panel .composer', a => a.length);
   await ev(() => Acts.ficha({ id: 'V23-A' })); await p.waitForTimeout(400);
   r.btnCambiar = (await p.$$eval('#main [data-act="etapa"]', a => a.length)) >= 1 ? 1 : 0;   // los cambios y las herramientas viven en la ficha

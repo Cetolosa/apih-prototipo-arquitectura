@@ -355,7 +355,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     const ult = i.actualizada ? diffD(H, i.actualizada) : null;
     const bt = `<button class="btn pri pn-main" data-act="ficha" data-id="${esc(i.id)}" title="Ver y editar todo en una sola página">${icon('full', 14)}<span>Abrir ficha</span></button>`;
     const upd = ult == null ? '' : `<span class="mut pn-upd">Actualizado ${ult === 0 ? 'hoy' : 'hace ' + ult + (ult === 1 ? ' día' : ' días')}</span>`;
-    const head = `<div class="pn-h pn-c"><div class="pn-k">Proyecto ${esc(i.id)}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><div class="pn-tr"><h3>${esc(i.titulo)}</h3>${bt}</div><div class="pn-p">${ragPill(i.rag)} ${faseTag(i)} ${i.estado !== 'En curso' ? estPill(i.estado) : ''}${upd}</div></div>`;
+    const head = `<div class="pn-h pn-c pn-slim"><h3 class="sr-only">${esc(i.id)} ${esc(i.titulo)}</h3>${upd || '<span></span>'}${bt}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div>`;
     return head + `<div class="pn-b">
       <div class="pn-sec"><h4>Por qué está en ${esc(i.rag)}</h4><div class="pn-sig">${sen.map(x => `<div class="sg ${x.bad ? 'bad' : 'ok'}"><span class="tg">${x.bad ? 'Atención' : 'En orden'}</span><span><b>${esc(x.t)}</b> ${esc(x.d)}</span></div>`).join('')}</div></div>
       <div class="pn-sec"><h4>Qué sigue</h4>${hs.length ? `<div class="pn-nx">${hs.map(h => `<div><span class="d">${fmtD(h.fecha)}</span><b>${esc(h.nombre)}</b><span class="r">${esc(h.resp || '')}</span></div>`).join('')}</div>` : '<p class="mut">Sin hitos pendientes.</p>'}
