@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
 import { AuthService, DataService, SETTINGS_KEYS, ESQUEMA } from './02-datos.js';
 import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
 import { cmdServidor, diasEnFase, migrateV5 } from './04-flujos.js';
@@ -723,7 +723,7 @@ Acts.acue = d => { F('acu', {}).est = d.k; render(); };
 /* ------------------------------------------------------------------
    3) RESUMEN DE MI SEMANA
    ------------------------------------------------------------------ */
-function esAprobadorDe(i) { const r = (0, ENLACES.rolActual)(); return r === 'Administra' || r === 'Responsable' || (!!i && !!i.sponsor && i.sponsor === miUsuario()); }
+const puedeResolver = c => !!(c && CALC.cambios && CALC.cambios[c.id]);   // quién resuelve un cambio lo decide el servidor
 function resumenDe(me) {
   const L = d => diffD(d, hoy()), S = [];
   const acu = todosAcu().filter(a => a.abierto && a.resp === me && a.limite && L(a.limite) <= 7).sort(by('limite'));
@@ -732,7 +732,7 @@ function resumenDe(me) {
   const upd = St.ini.filter(i => !esProp(i) && i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > MIN_DIAS_RONDA);
   const rs = RIESGOS().filter(r => r.dueno === me && riesgoAbierto(r) && r.fRev && L(r.fRev) <= 7);
   const dc = DECS().filter(d => d.estado === 'Pendiente' && d.solicita === me && d.limite && L(d.limite) <= 7);
-  const cg = CAMBIOS().filter(c => c.estado === 'Solicitado' && esAprobadorDe(byId(c.ini)) && c.solicita !== me);
+  const cg = CAMBIOS().filter(c => c.estado === 'Solicitado' && puedeResolver(c));
   const rel = d => L(d) < 0 ? `VENCIDO hace ${-L(d)} d` : L(d) === 0 ? 'hoy' : `en ${L(d)} d (${fmtD(d)})`;
   const sec = (t, arr, fn) => { if (arr.length) S.push([t, arr.map(fn)]); };
   sec('Compromisos que debes cumplir', acu, a => `${a.texto}${a.ini && byId(a.ini) ? ' · ' + byId(a.ini).titulo : ''} — ${rel(a.limite)}`);
@@ -786,7 +786,7 @@ Acts.chgnew = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)
 Acts.chgedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const c = St.cambios.find(x => x.id === d.id); if (c) chgForm(c); };
 Acts.chgdec = d => {
   const c = St.cambios.find(x => x.id === d.id), i = c && byId(c.ini); if (!c || !i || c.estado !== 'Solicitado') return;
-  if ((0, ENLACES.soloLectura)() || !esAprobadorDe(i)) return (0, ENLACES.NO_PERM)('Solo el sponsor del proyecto, el administrador o Administra pueden resolver cambios');
+  if ((0, ENLACES.soloLectura)() || !puedeResolver(c)) return (0, ENLACES.NO_PERM)('Solo el sponsor del proyecto, el administrador o Administra pueden resolver cambios');
   const ap = d.e === 'Aprobado';
   openForm({
     title: (ap ? 'Aprobar' : 'Rechazar') + ' cambio ' + c.id, values: { aprobador: miUsuario(), nota: '' }, saveLabel: ap ? 'Aprobar y aplicar' : 'Rechazar',
@@ -805,7 +805,7 @@ Views.cambios = {
     if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(c => (c.desc + c.motivo + nameOf(c.ini) + c.solicita).toLowerCase().includes(q)); }
     rows.sort(by(c => (c.estado === 'Solicitado' ? '0' : '1') + (c.creada || '')));
     const all = CAMBIOS(), n = e => all.filter(c => c.estado === e).length;
-    const tr = c => { const i = byId(c.ini), can = c.estado === 'Solicitado' && esAprobadorDe(i) && (c.solicita !== miUsuario() || (0, ENLACES.rolActual)() === 'Administra');
+    const tr = c => { const i = byId(c.ini), can = c.estado === 'Solicitado' && puedeResolver(c);
       return `<tr><td class="mono">${c.id}</td><td>${iniLink(c.ini, esc(cut(nameOf(c.ini), 30)))}</td><td>${esc(c.tipo)}</td>
         <td style="white-space:normal;min-width:260px"><b>${esc(c.desc)}</b><small>${esc(chgEfecto(c))}</small><small>Motivo: ${esc(c.motivo || '—')}</small></td><td>${esc(c.solicita || '—')}<small>${fmtD(c.creada)}</small></td>
         <td><span class="pill" style="--c:${CHG_C[c.estado]}">${c.estado}</span>${c.aprobador ? `<small>${esc(c.aprobador)} · ${fmtD(c.fDec)}${c.nota ? ' · ' + esc(cut(c.nota, 40)) : ''}</small>` : ''}</td>

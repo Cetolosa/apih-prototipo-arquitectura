@@ -43,7 +43,7 @@ declare
   nl int; tol numeric; thr numeric; d int; sug text; fc date; fp date; b jsonb; pv numeric; ev numeric; ac numeric; spi numeric; cpi numeric; dfin int;
   hv jsonb; nhv int; mx int; du int; why text[]; rc int; e numeric; dep text; dj jsonb; ii text;
   amb numeric; roj numeric; dias int; falta text[]; pq int; fq int; py int; fy int; fe date; cnt int;
-  cand record; evmm jsonb := '{}'::jsonb; em jsonb; mov int; nue int; bh jsonb;
+  cand record; semm jsonb := '{}'::jsonb; camm jsonb := '{}'::jsonb; per public.perfiles; evmm jsonb := '{}'::jsonb; em jsonb; mov int; nue int; bh jsonb;
 begin
   -- iniciativas visibles para quien llama
   for r in select lista, id, substr(datos, 4)::jsonb j from public.registros_v where lista in ('APIH_Proyectos', 'APIH_Propuestas') and left(substr(datos, 4), 1) = '{' order by id loop
@@ -247,6 +247,7 @@ begin
     dias := hoy - coalesce(public.apih_fecha(j, 'faseDesde'), public.apih_fecha(j, 'actualizada'), public.apih_fecha(j, 'creada'), hoy);
     amb := coalesce(nullif(public.apih_umbral(j, 'propDiasAmb'), 0), 30); roj := coalesce(nullif(public.apih_umbral(j, 'propDiasRojo'), 0), 60);
     x := jsonb_build_array(jsonb_build_object('t', 'Abrir propuesta', 'a', 'fxsel', 'id', k));
+    semm := semm || jsonb_build_object(k, jsonb_build_object('dias', dias, 'nivel', case when dias > roj then 'rojo' when dias > amb then 'amb' else 'ok' end));
     if j ->> 'estado' = 'Vigente' and dias > amb then
       out := out || public.apih_hf('Roadmap', 'Propuesta estancada', case when dias > roj then 2 else 1 end, k, jsonb_build_array(k), (j ->> 'titulo') || ' lleva ' || dias || ' d en la fase ' || (j ->> 'fase'),
         'Umbral ' || amb::int || ' d (rojo ' || roj::int || ' d). Responsable: ' || coalesce(j ->> 'lider', '') || '. Avanzar, poner en espera o retirar.', x);
@@ -276,14 +277,27 @@ begin
     end if;
   end loop;
 
+  -- cambios que quien llama puede resolver (sponsor de la iniciativa, Responsable o Administra, con permiso sobre su área); no el que los solicitó salvo Administra
+  select * into per from public.perfiles where email = public.apih_email() and activo;
+  if per.email is not null then
+    for r in select q.id, substr(q.datos, 4)::jsonb j, (select i.area from public.registros_v i where i.id = substr(q.datos, 4)::jsonb ->> 'ini' and i.lista in ('APIH_Proyectos', 'APIH_Propuestas') limit 1) area
+               from public.registros_v q where q.lista = 'APIH_Cambios' and left(substr(q.datos, 4), 1) = '{' loop
+      continue when r.j ->> 'estado' is distinct from 'Solicitado';
+      j := coalesce(M -> (r.j ->> 'ini'), '{}'::jsonb);
+      camm := camm || jsonb_build_object(r.id, not public.apih_solo_lectura() and public.apih_edita_area(r.area)
+        and (per.rol = 'admin' or (per.rol = 'editor' and per.gobierna) or (nullif(j ->> 'sponsor', '') is not null and (j ->> 'sponsor') in (coalesce(per.nombre, ''), per.email)))
+        and (per.rol = 'admin' or coalesce(r.j ->> 'solicita', '') is distinct from coalesce(nullif(per.nombre, ''), per.email)));
+    end loop;
+  end if;
+
   -- uid por orden de generación y orden por severidad (estable)
   select coalesce(jsonb_agg(f || jsonb_build_object('uid', 'F' || (o - 1)) order by -(f ->> 'sev')::int, o), '[]'::jsonb) into out from jsonb_array_elements(out) with ordinality t(f, o);
-  return jsonb_build_object('hallazgos', out, 'puntajes', pun, 'evm', evmm);
+  return jsonb_build_object('hallazgos', out, 'puntajes', pun, 'evm', evmm, 'sem', semm, 'cambios', camm);
 end $$;
 revoke all on function public.apih_hallazgos(jsonb) from public, anon, authenticated;
 
 create or replace function public.apih_calculos() returns jsonb language plpgsql stable security definer set search_path = public as
 $$ declare c jsonb := public.apih_calculos_base(); h jsonb := public.apih_hallazgos(c);
-begin return c || jsonb_build_object('hallazgos', h -> 'hallazgos', 'puntajes', h -> 'puntajes', 'evm', h -> 'evm'); end $$;
+begin return c || jsonb_build_object('hallazgos', h -> 'hallazgos', 'puntajes', h -> 'puntajes', 'evm', h -> 'evm', 'sem', h -> 'sem', 'cambios', h -> 'cambios'); end $$;
 revoke all on function public.apih_calculos() from public, anon;
 grant execute on function public.apih_calculos() to authenticated;

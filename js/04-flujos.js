@@ -29,7 +29,7 @@ export function migrateV5(S) {
   return T;
 }
 export const diasEnFase = i => diffD(hoy(), i.faseDesde || i.actualizada || i.creada || hoy());
-export function semFase(i) { const d = diasEnFase(i), a = (0, ENLACES.cfgI)(i,'propDiasAmb') || 30, r = (0, ENLACES.cfgI)(i,'propDiasRojo') || 60; return d > r ? { c: '#D13438', d } : d > a ? { c: '#F2A100', d } : { c: '#107C10', d }; }
+export function semFase(i) { const s = CALC.sem && CALC.sem[i.id]; return { c: s && s.nivel === 'rojo' ? '#D13438' : s && s.nivel === 'amb' ? '#F2A100' : '#107C10', d: s ? s.dias : diasEnFase(i) }; }   // el nivel (verde/ámbar/rojo) lo decide el servidor
 
 Acts.aprobar = d => {
   if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');

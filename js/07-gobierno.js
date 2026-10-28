@@ -710,24 +710,17 @@ function personasData() {
    Carga mensual por líder = proyectos vivos que lidera y cuyo plan (inicio → el mayor entre fin plan y fin proyectado) toca ese mes.
    Capacidad = St.cfg.capPers[persona] o, si no hay, el valor general St.cfg.capacidadMax.
    ============================================================ */
-const capDe = n => { const o = (St.cfg.capPers || {})[_nrm(n)]; return o > 0 ? +o : Math.max(1, +St.cfg.capacidadMax || 5); };
-const capFin = i => [i.finPlan, forecast(i)].filter(Boolean).sort().pop() || null;
-const capIni = i => i.inicioPlan || i.inicioReal || i.creada || hoy();
-function capMeses(h) { const b = pD(hoy()); return Array.from({ length: h }, (_, k) => { const a = new Date(b.getFullYear(), b.getMonth() + k, 1, 12), z = new Date(b.getFullYear(), b.getMonth() + k + 1, 0, 12); return { s: toISO(a), e: toISO(z), l: MESES[a.getMonth()].slice(0, 3), y: a.getFullYear() }; }); }
+/* La carga mensual, la capacidad, la holgura y el color de cada celda los calcula el servidor (apih_calculos.capacidad); aquí solo se filtra por persona/área y se suma. */
 export function capData(h) {
-  const meses = capMeses(h), R = respSel(), by = {};
-  scope().filter(i => !esProp(i) && isLive(i) && i.lider).forEach(i => { (by[i.lider] = by[i.lider] || []).push(i); });
-  const gente = Object.keys(by).filter(n => !R || n === R).map(n => {
-    const ps = by[n].map(i => ({ i, s: capIni(i), e: capFin(i) })), cap = capDe(n);
-    const carga = meses.map(m => ps.filter(p => p.s <= m.e && (!p.e || p.e >= m.s)));
-    const ns = carga.map(c => c.length), n3 = ns.slice(0, 3), prom3 = n3.reduce((a, b) => a + b, 0) / Math.max(1, n3.length);
-    return { n, cap, ps, carga, ns, over: ns.some(x => x > cap), hold: Math.max(0, cap - prom3), prom3 };
-  }).sort((a, b) => (b.over - a.over) || (b.ns.reduce((x, y) => x + y, 0) / b.cap - a.ns.reduce((x, y) => x + y, 0) / a.cap) || a.n.localeCompare(b.n));
+  const C = CALC.capacidad || { meses: [], gente: [] }, R = respSel();
+  const meses = C.meses.slice(0, h).map(m => { const d = pD(m.s); return { s: m.s, e: m.e, l: MESES[d.getMonth()].slice(0, 3), y: d.getFullYear() }; });
+  const gente = C.gente.filter(p => (!R || p.n === R) && p.ps.some(q => { const i = byId(q.id); return !!i && inArea(i); }))
+    .map(p => ({ n: p.n, cap: p.cap, ps: p.ps.map(q => ({ i: byId(q.id), s: q.s, e: q.e })).filter(q => q.i), ns: p.ns.slice(0, h), cls: p.cls.slice(0, h), over: !!p.over[h], hold: p.hold, prom3: p.prom3 }))
+    .sort((a, b) => (b.over - a.over) || (b.ns.reduce((x, y) => x + y, 0) / b.cap - a.ns.reduce((x, y) => x + y, 0) / a.cap) || a.n.localeCompare(b.n));
   const tot = meses.map((_, k) => gente.reduce((a, p) => a + p.ns[k], 0)), capT = gente.reduce((a, p) => a + p.cap, 0);
   const pk = tot.reduce((b, v, k) => v > tot[b] ? k : b, 0);
   return { meses, gente, tot, capT, pk, holgura: gente.reduce((a, p) => a + p.hold, 0) };
 }
-const capCls = (n, cap) => n === 0 ? 'n' : n > cap ? 'r' : n >= cap * .8 ? 'y' : 'g';
 Views.capacidad = {
   render() {
     const f = F('cap', { h: 6, alerta: false, open: '' }), D = capData(f.h), g = esAdministra(), fmt1 = x => (Math.round(x * 10) / 10).toLocaleString('es-CL');
@@ -741,7 +734,7 @@ Views.capacidad = {
     return pageHead('Capacidad de equipos', 'Carga de cada líder en los próximos meses según los proyectos que lidera, comparada con su capacidad.', btn('Exportar CSV', 'capcsv', { ic: 'download' })) + `
     <div class="toolbar"><label class="chk"><input type="checkbox" ${f.alerta ? 'checked' : ''} data-chg="capalerta"> <span>Solo con alerta</span></label><span class="cp-leg"><span><i class="g"></i>&lt; 80%</span><span><i class="y"></i>80–100%</span><span><i class="r"></i>&gt; 100%</span></span><div class="seg">${[3, 6, 12].map(h => `<button class="${f.h === h ? 'on' : ''}" data-act="caph" data-h="${h}">${h} meses</button>`).join('')}</div></div>
     <div class="cp-k"><div class="k"><small>Personas con proyectos</small><b>${D.gente.length}</b></div><div class="k"><small>Sobrecargadas (algún mes)</small><b style="color:${sobre.length ? 'var(--red)' : 'inherit'}">${sobre.length}</b><i>${esc(sobre.slice(0, 3).map(p => p.n.split(' ')[0]).join(', ') || '—')}</i></div><div class="k"><small>Mes de mayor carga</small><b>${D.gente.length ? D.meses[D.pk].l : '—'}</b><i>${D.gente.length ? D.tot[D.pk] + ' de ' + D.capT + ' cupos' : ''}</i></div><div class="k"><small>Holgura próx. 3 meses</small><b style="color:var(--green)">${fmt1(D.holgura)}</b><i>proyectos</i></div></div>
-    ${rows.length ? `<div class="cp-wrap"><table class="cp-t"><thead><tr><th>Persona</th><th>Capacidad</th>${th}</tr></thead><tbody>${rows.map(p => `<tr><td><button class="cp-p" data-act="capopen" data-n="${esc(p.n)}" aria-expanded="${f.open === p.n}">${avatar(p.n, 30)}<span><b>${esc(p.n)}</b><small>${p.ps.length} proyecto${p.ps.length === 1 ? ' vivo' : 's vivos'}</small></span></button></td><td>${g && !FL.verComo ? `<input type="number" min="1" max="20" class="cp-in" value="${p.cap}" data-chg="capp" data-n="${esc(p.n)}" aria-label="Capacidad de ${esc(p.n)}">` : `<b>${p.cap}</b>`}<small class="mut"> proy.</small></td>${p.ns.map((n, k) => `<td><button class="cp-c ${capCls(n, p.cap)} ${f.open === p.n ? 'sel' : ''}" data-act="capopen" data-n="${esc(p.n)}" title="${n} de ${p.cap} · ${D.meses[k].l} ${D.meses[k].y}">${n ? n + ' / ' + p.cap : '—'}</button></td>`).join('')}</tr>${f.open === p.n ? exp(p) : ''}`).join('')}</tbody></table></div>` : `<div class="card">${empty(f.alerta ? 'Nadie supera su capacidad en este horizonte' : 'Sin proyectos vivos con líder asignado', 'users')}</div>`}
+    ${rows.length ? `<div class="cp-wrap"><table class="cp-t"><thead><tr><th>Persona</th><th>Capacidad</th>${th}</tr></thead><tbody>${rows.map(p => `<tr><td><button class="cp-p" data-act="capopen" data-n="${esc(p.n)}" aria-expanded="${f.open === p.n}">${avatar(p.n, 30)}<span><b>${esc(p.n)}</b><small>${p.ps.length} proyecto${p.ps.length === 1 ? ' vivo' : 's vivos'}</small></span></button></td><td>${g && !FL.verComo ? `<input type="number" min="1" max="20" class="cp-in" value="${p.cap}" data-chg="capp" data-n="${esc(p.n)}" aria-label="Capacidad de ${esc(p.n)}">` : `<b>${p.cap}</b>`}<small class="mut"> proy.</small></td>${p.ns.map((n, k) => `<td><button class="cp-c ${p.cls[k]} ${f.open === p.n ? 'sel' : ''}" data-act="capopen" data-n="${esc(p.n)}" title="${n} de ${p.cap} · ${D.meses[k].l} ${D.meses[k].y}">${n ? n + ' / ' + p.cap : '—'}</button></td>`).join('')}</tr>${f.open === p.n ? exp(p) : ''}`).join('')}</tbody></table></div>` : `<div class="card">${empty(f.alerta ? 'Nadie supera su capacidad en este horizonte' : 'Sin proyectos vivos con líder asignado', 'users')}</div>`}
     <div class="cp-2"><div class="card"><header><h2>Quién puede tomar más</h2><small>holgura media próx. 3 meses</small></header>${libres.map(p => `<div class="cp-s">${avatar(p.n, 26)}<b>${esc(p.n)}</b><span class="g">+${fmt1(p.hold)} cupos</span></div>`).join('') || '<p class="mut">Nadie tiene holgura de al menos 0,5 cupos.</p>'}</div>
     <div class="card"><header><h2>Propuestas candidatas a iniciar</h2><small>por puntaje</small></header>${cand.map(i => `<div class="cp-s"><button class="lnk" data-act="sel" data-t="ini" data-id="${i.id}"><b>${esc(i.titulo)}</b></button><small class="mut">${esc(i.fase)} · puntaje ${priorScore(i)}</small>${libres[0] ? `<span class="g" title="Mayor holgura">Sugerido: ${esc(libres.find(p => _nrm(p.n) === _nrm(i.lider)) ? i.lider : libres[0].n)}</span>` : ''}</div>`).join('') || '<p class="mut">No hay propuestas candidatas por ahora.</p>'}</div></div>`;
   }

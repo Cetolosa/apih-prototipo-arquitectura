@@ -13,6 +13,7 @@ insert into public.registros(lista,id,datos) values
  ('APIH_Proyectos','PRJ-H3','p1.{"tipo":"Proyecto","titulo":"Tercero","area":"BISE","lider":"Ana","fase":"Ejecución","estado":"En curso","rag":"Verde","avance":50,"inicioPlan":"2026-09-01","finPlan":"2027-02-28","actualizada":"2026-10-27"}'),
  ('APIH_Propuestas','PRO-H1','p1.{"tipo":"Propuesta","titulo":"Propuesta buena","area":"BISE","lider":"Ana","fase":"Aprobación","estado":"Vigente","presupuesto":100,"beneficio":1000,"score":{"valor":5,"estrategia":5,"esfuerzo":1,"riesgo":1},"faseDesde":"2026-08-01","actualizada":"2026-10-20"}'),
  ('APIH_Hitos','HIT-H1','p1.{"id":"HIT-H1","ini":"PRJ-H1","nombre":"Entrega 1","fase":"Ejecución","fecha":"2026-09-15","completado":false}'),
+ ('APIH_Cambios','CHG-H1','p1.{"id":"CHG-H1","ini":"PRJ-H1","estado":"Solicitado","tipo":"Fecha","solicita":"Ana"}'),
  ('APIH_Riesgos','RSK-H1','p1.{"ini":"PRJ-H3","desc":"Proveedor","prob":5,"imp":5,"estado":"Abierto"}'),
  ('APIH_Decisiones','DEC-H1','p1.{"ini":"PRJ-H1","titulo":"Vieja","tipo":"Mantener","solicita":"Ana","estado":"Pendiente","limite":"2026-10-01"}'),
  ('APIH_Decisiones','DEC-H2','p1.{"ini":"PRJ-H1","titulo":"Reciente","tipo":"Mantener","solicita":"Ana","estado":"Pendiente","limite":"2026-10-25"}')
@@ -37,6 +38,8 @@ select pg_temp.ok((public.apih_calculos()->'puntajes'->>'PRO-H1')::int = 90, 'pu
 select pg_temp.ok(pg_temp.h('Desempeño vs línea base', 'PRJ-H1')->>'detalle' like 'SPI 0.14 · CPI 0.25%', 'valor ganado contra la línea base (SPI/CPI)');
 select pg_temp.ok((public.apih_calculos()->'evm'->'PRJ-H1'->>'movidos')::int = 1, 'cuenta los hitos movidos respecto de la línea base');
 select pg_temp.ok(pg_temp.h('Candidatos a iniciar', 'PRO-H1')->>'detalle' like 'Ana está al límite de capacidad%', 'propuesta candidata: avisa que el líder está al límite');
+select pg_temp.ok(public.apih_calculos()->'cambios'->>'CHG-H1' = 'true', 'el administrador puede resolver el cambio solicitado');
+select pg_temp.ok(public.apih_calculos()->'sem'->'PRO-H1'->>'nivel' = 'rojo', 'semáforo de la propuesta: rojo pasado el umbral');
 select pg_temp.ok(pg_temp.h('Propuesta estancada', 'PRO-H1')->>'sev' = '2', 'propuesta estancada pasado el umbral rojo (88 d)');
 select pg_temp.ok((select (f->>'sev')::int from jsonb_array_elements(public.apih_calculos()->'hallazgos') f limit 1) = 3, 'los hallazgos vienen ordenados por severidad');
 rollback;
