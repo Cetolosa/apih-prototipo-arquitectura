@@ -16,4 +16,5 @@ for (const f of arch) {
   if (/^08[a-g]-/.test(f)) for (const m of t.matchAll(/^import\s+\{[^}]*\}\s+from\s+'\.\/(\d\d[^']*)'/gm)) { /* el generador puede leer la aplicación; la inversa se revisa abajo */ }
   if (!/^08[a-g]-/.test(f) && f !== '08g-generador-ensamble.js') for (const m of t.matchAll(/from\s+'\.\/(08[a-f]-[^']+)'/g)) mal(`${f}: usa internals del generador (${m[1]}); solo GENE es público`);
 }
+{ const vistos = {}; for (const f of arch) for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/^(Acts|Chg)\.([A-Za-z0-9_]+)\s*=/gm)) { const k = m[1] + '.' + m[2]; if (vistos[k] && vistos[k] !== f) mal(`${k} definido en ${vistos[k]} y en ${f}: el último pisa al primero`); vistos[k] = f; } }   /* acciones duplicadas */
 console.log(fallas ? fallas + ' problemas' : `OK: ${arch.length} módulos, orden y dependencias correctos`); process.exit(fallas ? 1 : 0);
