@@ -373,7 +373,7 @@ export const hitosDe = id => _porIni('hitos', id);
 export const riesgosDe = id => _porIni('riesgos', id);
 /* Valores calculados: los entrega el SERVIDOR (apih_calculos). Aquí solo se leen; si aún no llegó el dato (registro recién creado, sin sincronizar)
    se devuelve un valor neutro y la pantalla se completa en cuanto el servidor responde. No hay fórmulas en el navegador. */
-export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] } };
+export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } };
 const _ci = i => (i && CALC.ini[i.id]) || null;
 const HITO_NEUTRO = { k: 'ok', t: 'En plazo', c: '#0D446A' }, NIVEL_NEUTRO = { n: 'Bajo', c: '#107C10' };
 export const hitoEstado = h => (h && CALC.hitos[h.id]) || HITO_NEUTRO;
@@ -396,11 +396,13 @@ export const avanceCalc = i => { const c = _ci(i); return c && c.avanceCalc != n
 export const avanceManualDe = i => { const c = _ci(i); return c ? c.avanceManual : null; };
 /* Ventana de cada fase (inicio, fin, avance, hitos cerrados) tal como la entrega el servidor */
 export const ventanasSrv = i => { const c = _ci(i); return c && Array.isArray(c.ventanas) ? c.ventanas : []; };
+/* Lectura del % On Track: el servidor entrega los tramos (desde, nivel, texto) */
+export const tonoOnTrack = pct => (CALC.resumen.tonos || []).find(t => pct >= t.desde) || { nivel: 'bad', txt: '' };
 export function kpis() {
   const L = scope(), live = L.filter(isLive), act = L.filter(isActive), P = scopeP(), pl = P.filter(isLive);
   const M = { pres: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.presupuesto), gas: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.gastado), presPipe: sumM(pl, i => i.presupuesto), valorPipe: sumM(pl, i => i.beneficio), beneficio: sumM(live, i => i.beneficio) };
   const pres = M.pres.CLP || 0, gas = M.gas.CLP || 0;   // escalares = solo CLP (no se mezclan monedas)
-  const ontrack = act.filter(i => i.rag === 'Verde' && !atrasado(i)).length;
+  const ontrack = act.filter(i => (CALC.resumen.ontrack || {})[i.id]).length;   /* «on track» lo define el servidor */
   return {
     total: L.length, activos: act.length, atrasados: live.filter(atrasado).length, riesgosCrit: riesgosCriticos().length, pres, gas, M,
     presPipe: M.presPipe.CLP || 0, valorPipe: M.valorPipe.CLP || 0,

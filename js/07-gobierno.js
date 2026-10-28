@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq, tonoOnTrack } from './01-nucleo.js';
 import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
 import { cmdServidor, diasEnFase, priorScore } from './04-flujos.js';
@@ -543,13 +543,13 @@ const insightsFor = i => motorAlertas().filter(f => f.ini === i.id);
 
 /* ---------- Resumen ejecutivo automático ---------- */
 export function execSummary(tone) {
-  const K = kpis(), L = scope(), live = L.filter(isLive), det = tone === 'det';
+  const K = kpis(), L = scope(), live = L.filter(isLive), det = tone === 'det', V = CALC.resumen.ventanas;   /* ventanas de días y tramos: del servidor */
   const crit = live.filter(i => FASES_ACT.includes(i.fase)).sort(by(i => -critScore(i))).slice(0, det ? 4 : 3);
-  const recent = HITOS().filter(h => h.completado && h.fechaReal && diffD(hoy(), h.fechaReal) <= 30 && byId(h.ini) && inArea(byId(h.ini)));
-  const cerr = L.filter(i => i.estado === 'Completado' && i.finReal && diffD(hoy(), i.finReal) <= 45);
-  const nxt = HITOS().filter(h => !h.completado && h.fecha >= hoy() && diffD(h.fecha, hoy()) <= 30 && byId(h.ini) && inArea(byId(h.ini))).sort(by('fecha'));
+  const recent = HITOS().filter(h => h.completado && h.fechaReal && diffD(hoy(), h.fechaReal) <= V.hitosDias && byId(h.ini) && inArea(byId(h.ini)));
+  const cerr = L.filter(i => i.estado === 'Completado' && i.finReal && diffD(hoy(), i.finReal) <= V.cierreDias);
+  const nxt = HITOS().filter(h => !h.completado && h.fecha >= hoy() && diffD(h.fecha, hoy()) <= V.proximosDias && byId(h.ini) && inArea(byId(h.ini))).sort(by('fecha'));
   const rc = riesgosCriticos(), pend = DECS().filter(d => d.estado === 'Pendiente');
-  const tone1 = K.ontrackPct >= 60 ? 'avanza de forma sólida' : K.ontrackPct >= 35 ? 'avanza con focos de atención' : 'requiere atención ejecutiva inmediata';
+  const tone1 = tonoOnTrack(K.ontrackPct).txt;
   const S = [];
   S.push({ h: 'Titular', p: [`El portafolio de TI ${tone1}: ${K.activos} proyectos activos, ${pct(K.ontrackPct)} on track, ${K.atrasados} atrasado(s) y ${K.riesgosCrit} riesgo(s) crítico(s). Hay ${K.pipe} propuestas en el pipeline (${K.propAprob} listas para aprobación).`] });
   S.push({ h: 'Logros recientes', p: [(cerr.length ? `Se completaron ${cerr.length} proyecto(s) en las últimas semanas: ${cerr.map(i => i.titulo).join(', ')}. ` : '') + (recent.length ? `Además se completaron ${recent.length} hitos en los últimos 30 días${det ? ' (' + recent.slice(0, 4).map(h => h.nombre).join('; ') + ')' : ''}.` : 'No se registran hitos completados en los últimos 30 días.')] });
