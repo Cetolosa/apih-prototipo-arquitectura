@@ -406,7 +406,7 @@ export function moverFinPlan(i, fin) {
   return setRangoPlan(i, i.inicioPlan, fin);
 }
 /* Tras cualquier cambio: los proyectos que ya usan el avance calculado y que el usuario puede editar se mantienen al día (hitos, subfases, fechas). */
-export function reconciliarAvance() { St.ini.forEach(i => { if (!esProp(i) && i.avanceCalc !== undefined && !isDone(i) && (0, ENLACES.puedeEditarIni)(i) && avanceCalc(i) !== i.avanceCalc) sincAvance(i); }); }
+export function reconciliarAvance() { St.ini.forEach(i => { if (!esProp(i) && !isDone(i) && (0, ENLACES.puedeEditarIni)(i) && (i.avanceCalc === undefined || avanceCalc(i) !== i.avanceCalc)) sincAvance(i);   /* incluye proyectos anteriores a V23: su % pasa a ajuste manual y todas las vistas coinciden */ }); }
 /* hitos de la fase cuya fecha cae fuera de ella (alerta, no bloqueo) */
 export const hitosFuera = (i, v) => (v && v.ini && v.fin ? v.hitos.filter(h => h.fecha && (h.fecha < v.ini || h.fecha > v.fin)) : []);
 const subFuera = (s, v) => !v || !v.ini || !v.fin || s.inicio < v.ini || s.fin > v.fin;
