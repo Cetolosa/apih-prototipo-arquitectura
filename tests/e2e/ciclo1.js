@@ -13,6 +13,8 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     mk('V23-C', { fase: 'Cierre' }); hit('V23-C', 'Planificación', true); hit('V23-C', 'Ejecución', true); hit('V23-C', 'Transición', true); hit('V23-C', 'Cierre', false, { id: 'V23-C-ULT' });
     mk('V23-D', { fase: 'Ejecución', subfases: [{ id: 'V23-D-SF1', nombre: 'S1', fase: 'Ejecución', inicio: '2026-02-01', fin: '2026-03-01' }] });
     hit('V23-D', 'Ejecución', true, { subfase: 'V23-D-SF1' }); hit('V23-D', 'Ejecución', false, { subfase: 'V23-D-SF1' }); hit('V23-D', 'Ejecución', true);
+    mk('V23-E', { avance: 30, fase: 'Ejecución' }); hit('V23-E', 'Planificación', true); hit('V23-E', 'Ejecución', false);
+    mk('V23-F', { fase: 'Cierre' }); hit('V23-F', 'Planificación', true); hit('V23-F', 'Ejecución', true); hit('V23-F', 'Transición', true); hit('V23-F', 'Cierre', false, { id: 'V23-F-ULT' });
     render(); });
   const r = {}, ev = (f, a) => p.evaluate(f, a);
   // 1) diálogo único: ofrece fases y estados; aplica la fase
@@ -44,6 +46,12 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await ev(() => { const i = byId('V23-A'); i.avanceManual = null; sincAvance(i); });
   // 4) proyecto previo: su avance guardado se conserva como ajuste manual visible
   r.legacy = await ev(() => { const i = byId('V23-B'); sincAvance(i); return [i.avance, i.avanceManual, i.avanceCalc].join('|'); });
+  // 4b) reconciliar al abrir: un proyecto anterior sin editar muestra el mismo número en todas las vistas (el guardado pasa a ajuste manual)
+  r.legacyAuto = await ev(() => { reconciliarAvance(); const i = byId('V23-E'); return [i.avance, i.avanceManual, avanceEf(i)].join('|'); });
+  // 4c) el formulario de hito también cierra el proyecto al completar el último hito de Cierre
+  await ev(() => Acts.edit({ t: 'hito', id: 'V23-F-ULT' })); await p.waitForTimeout(250);
+  await p.check('#f_completado'); await p.click('[data-act="msave"]'); await p.waitForTimeout(300);
+  r.formCierra = await ev(() => { const i = byId('V23-F'); return [i.estado, i.avance].join('|'); });
   // 5) subfase aporta: S1 (1/2) y 1 hito suelto (1/1) → fase 75 %
   r.subfase = await ev(() => Math.round(avanceFaseCalc(byId('V23-D'), 'Ejecución') * 100));
   // 6) fechas explícitas por fase
@@ -65,7 +73,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   const mal = [];
   const w = (k, v) => { if (JSON.stringify(r[k]) !== JSON.stringify(v)) mal.push(k + ' = ' + JSON.stringify(r[k]) + ' (esperado ' + JSON.stringify(v) + ')'); };
   w('fase', 'Ejecución'); w('pestana', 'hitos'); w('btnCambiar', 1); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
-  w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('gateLeeCalc', 'Avance al 100%,Todos los hitos completados'.split(',').filter(x => x === 'Avance al 100%').join(',')); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75);
+  w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('gateLeeCalc', 'Avance al 100%,Todos los hitos completados'.split(',').filter(x => x === 'Avance al 100%').join(',')); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75); w('legacyAuto', '30|30|30'); w('formCierra', 'Completado|100');
   w('reparto', '2026-01-01>2026-01-15 2026-01-16>2026-03-11 2026-03-12>2026-03-26 2026-03-27>2026-04-10'); w('derivaFin', '2026-04-10'); w('moverFin', '2026-05-10|2026-05-10');
   w('auto', 'Completado|100|true'); w('sbCampo', 1); w('sbSinMotivo', 'En curso'); w('sbOk', 'Stand By');
   if (!/Mover de fase/.test(r.grupos) || !/Cambiar estado/.test(r.grupos)) mal.push('grupos = ' + r.grupos);
