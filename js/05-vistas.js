@@ -595,7 +595,7 @@ export function planFichaHTML(i) {
       <div class="fz-card" style="padding:12px 14px"><h3 style="margin:0 0 6px">Próximos 14 días</h3>${prox.length ? prox.map(p => `<div class="fz-li" style="padding:7px 0"><b style="width:44px">${fzd(p.f)}</b><span class="fz-pill" style="color:${p.c};border:1px solid ${p.c}">${p.k}</span><span>${esc(p.t)}</span></div>`).join('') : '<p class="mut">Nada programado en los próximos 14 días.</p>'}</div></div>
     <div class="fz-card" style="flex:1 1 340px;min-width:0;padding:12px 14px"><div class="fz-ch" style="padding:0 0 4px;border:0"><h3>Siguientes pasos</h3><small class="mut">${P.length} sugerido${P.length === 1 ? '' : 's'}</small></div><p class="mut" style="font-size:12px;margin:0 0 10px">Calculados con las reglas de APIH: hitos, compuerta de fase, riesgos, compromisos y tenedores.</p>${P.length ? P.map(p => pasoHTML(p)).join('') : '<p class="mut">Sin pasos pendientes. ¡Todo al día!</p>'}</div></div>`;
 }
-Acts.avauto = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); i.avanceManual = null; i.actualizada = hoy(); log('Actualización', i.id, 'Avance: se usa el calculado'); toast('Avance: se usa el calculado'); refresh(); };
+Acts.avauto = async d => { const i = byId(d.id); if (!i || esProp(i)) return; await (0, ENLACES.cmdServidor)('apih_avance_auto', { p_id: d.id }, 'Avance: se usa el calculado'); };
 Acts.fasefix = async d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); const r = await cmdServidor('apih_fases_fechas', { p_id: i.id, p_ff: null }, 'Fechas de las fases fijadas'); if (r !== null) refresh(); };
 Acts.fasefechas = d => {
   const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto');
@@ -935,7 +935,7 @@ Views.bitacora = {
   }
 };
 Chg.noop = () => { };
-Acts.bitadd = () => { const t = $('#bt-txt').value.trim(); if (!t) return toast('Escribe un comentario', 'err'); log('Comentario', $('#bt-ini').value || null, t); const nb = St.bitacora[0], tm = $('#bt-tema').value.trim(); if (tm) nb.tema = tm; if (!$('#bt-pres').checked) nb.inPres = false; toast('Publicado en la bitácora'); refresh(); };
+Acts.bitadd = async () => { const t = $('#bt-txt').value.trim(); if (!t) return toast('Escribe un comentario', 'err'); await (0, ENLACES.cmdServidor)('apih_comentar', { p_ini: $('#bt-ini').value || null, p_texto: t, p_tema: $('#bt-tema').value.trim() || null, p_en_pres: !!$('#bt-pres').checked }, 'Publicado en la bitácora'); };
 Chg.bitpres = el => { const b = St.bitacora.find(x => x.id === el.dataset.id); if (!b) return; if (el.checked) delete b.inPres; else b.inPres = false; save(); toast(el.checked ? 'La nota entra en las presentaciones' : 'La nota queda fuera de las presentaciones'); };
 Acts.btipo = d => { const f = F('bit', {}); f.tipos = f.tipos.includes(d.t) ? f.tipos.filter(x => x !== d.t) : [...f.tipos, d.t]; render(); };
 Acts.bmore = () => { F('bit', {}).n += 60; render(); };
