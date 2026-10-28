@@ -14,6 +14,7 @@ const HOST = 'https://bjkuupynrylgfmzhyxgz.supabase.co';
     const eq = k => { const v = q.get(k); return v && v.startsWith('eq.') ? v.slice(3) : null; };
     log.push(m + ' ' + path);
     if (path === 'rpc/apih_contexto') return ok({ email: 'tolosa-christian@aramark.cl', nombre: 'Christian Tolosa', rol: 'admin', appRol: 'Administra', areas: [], veTodo: true, veMontos: true, gobierna: true, esAdmin: true, editaTodo: true, puedeVerAnalisis: true, soloLectura: false, congelado: false, comoDe: null, areasVisibles: [], areasEditables: [] });
+    if (path === 'rpc/apih_calculos') return ok({ hoy: '', ini: {}, hitos: {}, riesgos: {} });
     if (path === 'rpc/apih_personas') return ok([{ n: 'Christian Tolosa', correo: 'tolosa-christian@aramark.cl', cargo: '', rol: 'Administra', area: '', veTodo: true }]);
     if (path.startsWith('registros_v') && m === 'GET') {
       let rows = [...db.values()]; const l = eq('lista'); if (l) rows = rows.filter(r => r.lista === l);

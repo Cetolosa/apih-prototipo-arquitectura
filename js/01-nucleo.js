@@ -404,11 +404,13 @@ export function kpis() {
   };
 }
 /* Compuertas de gobierno por transición */
+/* TEMPORAL (Iter 3 las traslada al servidor): exposición local solo para estas compuertas, que se evalúan antes de sincronizar */
+const exposicionLocal = r => (+r.prob || 0) * (+r.imp || 0);
 export function gates(i, to) {
   const g = [], ok = (c, t) => g.push({ ok: !!c, t });
   const hs = hitosDe(i.id), av = (0, ENLACES.avanceCalc)(i);   /* V23: las compuertas leen el avance CALCULADO, nunca el ajuste manual */
   /* con servidor rige el umbral de la organización (el servidor no conoce los ajustes personales) */
-  const umbral = () => (0, ENLACES.conServidor)() ? +St.cfg.umbralCritico : (0, ENLACES.cfgI)(i, 'umbralCritico'), sinMit = r => riesgoAbierto(r) && expo(r) >= umbral() && !String(r.mit || '').trim();
+  const umbral = () => (0, ENLACES.conServidor)() ? +St.cfg.umbralCritico : (0, ENLACES.cfgI)(i, 'umbralCritico'), sinMit = r => riesgoAbierto(r) && exposicionLocal(r) >= umbral() && !String(r.mit || '').trim();
   if (to === 'Evaluación') { ok(i.problema || i.desc, 'Problema/objetivo descrito'); ok(i.sponsor, 'Sponsor identificado'); }
   if (to === 'Caso de Negocio') { ok(i.sponsor, 'Sponsor identificado'); ok(i.score, 'Evaluación de valor/esfuerzo completada'); ok(i.lider, 'Líder asignado'); }
   if (to === 'Aprobación') { ok(i.presupuesto > 0, 'Presupuesto estimado'); ok(i.beneficio > 0 || i.categoria === 'Transversal', 'Beneficio esperado'); ok(i.bc, 'Business case redactado'); }
@@ -420,7 +422,7 @@ export function gates(i, to) {
   }
   if (!['Evaluación', 'Caso de Negocio', 'Aprobación', 'Ejecución', 'Transición', 'Cierre'].includes(to) && FASES_PRJ.includes(to) && to !== FASES_PRJ[0]) { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.lider, 'Líder asignado'); }
   { const F_ = fasesDe(i), a = F_.indexOf(i.fase), b = F_.indexOf(to); if (b > a && a >= 0 && to !== 'Transición') { const pend = hs.filter(h => h.fase === i.fase && !h.completado); if (hs.some(h => h.fase === i.fase)) ok(!pend.length, 'Hitos de la fase ' + i.fase + ' completados' + (pend.length ? ' (faltan ' + pend.length + ')' : '')); } }
-  if (to === 'Cierre') { ok(av >= 100, 'Avance al 100%'); ok(hs.filter(h => h.fase !== to).every(h => h.completado), 'Todos los hitos completados'); ok(!riesgosDe(i.id).some(r => riesgoAbierto(r) && expo(r) >= umbral()), 'Sin riesgos críticos abiertos'); }   /* F-06, F-07 */
+  if (to === 'Cierre') { ok(av >= 100, 'Avance al 100%'); ok(hs.filter(h => h.fase !== to).every(h => h.completado), 'Todos los hitos completados'); ok(!riesgosDe(i.id).some(r => riesgoAbierto(r) && exposicionLocal(r) >= umbral()), 'Sin riesgos críticos abiertos'); }   /* F-06, F-07 */
   return g;
 }
 /* compuertas para APROBAR una propuesta y convertirla en proyecto */
