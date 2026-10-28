@@ -172,3 +172,22 @@
 .v22-nuevo .pop.open,.v22-nuevo .pop.on,.v22-nuevo .pop.show{display:flex}
 .v22-nuevo .pop .btn{width:100%;justify-content:flex-start;border:0;background:transparent;height:38px;font-weight:600}.v22-nuevo .pop .btn:hover{background:var(--bg2)}
 #main>.ph+.v22-row .flt select{width:104px!important;max-width:104px!important}#main>.ph+.v22-row .search{flex:1 1 140px;max-width:240px}
+/* Encabezado plano (opción 1): sin caja, chips y botones del tamaño de los de las tarjetas */
+@media (min-width:700px){
+  #main>.ph,#main>.ph:has(+.v22-row),#main>.ph:has(+.tabs){background:none;border:0;box-shadow:none;padding:0;margin:0 0 10px;border-radius:0}
+  #main>.ph+.v22-row{background:none;border:0;box-shadow:none;padding:0;margin:0 0 12px;border-radius:0}
+  #main>.ph h1{font-size:22px}
+}
+.v22-row{gap:8px}
+.v22-row .flt{display:inline-flex;flex-direction:row;align-items:center;gap:5px;background:var(--card);border:1px solid var(--bd);border-radius:999px;height:30px;padding:0 6px 0 11px;box-sizing:border-box}
+.v22-row .flt small{font-size:12px;color:var(--tx2);margin:0;text-transform:none;letter-spacing:0}
+.v22-row .flt select{border:0!important;background:transparent!important;font-size:12px!important;font-weight:700;height:28px!important;padding:0 4px!important;width:auto!important;min-width:0!important;max-width:120px!important;box-shadow:none!important}
+.v22-row .btn,.v22-row .btn.mine{height:30px!important;border-radius:999px!important;font-size:12px;padding:0 12px}
+.v22-row .search{height:30px!important;border-radius:999px!important;flex:0 1 190px;min-width:140px}.v22-row .search input{font-size:12px}
+.v22-row .chk,.v22-row label.chk{font-size:12px;min-height:30px}
+.v22-row .tb-l{font-size:0;gap:0;color:var(--tx2)}
+.v22-row .seg{padding:2px!important}.v22-row .seg button{height:28px!important;border-radius:7px!important}
+#main>.ph .ph-act .btn{height:32px;border-radius:9px!important;font-size:12px}
+.ph-act .menu-tabs.in-ph{padding:2px;border-radius:9px}.ph-act .menu-tabs.in-ph a{height:28px;font-size:12px;border-radius:7px;padding:0 12px}
+.v22-row .search,.v22-row .search input{border-radius:999px!important;box-sizing:border-box}.v22-row .search input{height:28px!important;padding-left:30px}
+#main .v22-row .search input,#main .v22-row .search input[type=search]{border-radius:999px!important;height:30px!important}#main .v22-row .search span{top:8px}
