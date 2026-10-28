@@ -457,11 +457,11 @@ function cardProyecto(i, sel) {
   const seg = FS.map((f, j) => `<i class="${j < k ? 'done' : j === k ? 'cur' : ''}" title="${esc(f)}"></i>`).join('');
   const dn = nh ? diffD(nh.fecha, H) : 0;
   return `<article tabindex="0" role="button" class="icard ic2 ${sel ? 'sel' : ''}" draggable="true" data-id="${i.id}" data-act="sel" data-t="ini">
-      <div class="ic-t"><span class="mono">${i.id}</span>${!['En curso', 'Vigente'].includes(i.estado) ? estPill(i.estado) : ''}${ragPill(i.rag)}<span class="sp"></span>${prioPill(i.prioridad)}</div><h3>${esc(i.titulo)}</h3>
-      <div class="ic2-f"><span class="ic2-ph">${fasePill(i.fase)}<small class="mut">fase ${k + 1} de ${FS.length}</small></span><div class="ic2-seg">${seg}</div></div>
+      <div class="ic-t"><span class="mono">${i.id}</span>${!['En curso', 'Vigente'].includes(i.estado) ? estPill(i.estado) : ''}${ragPill(i.rag)}</div><h3>${esc(i.titulo)}</h3>
+      <div class="ic2-f"><span class="ic2-ph">${fasePill(i.fase)}<small class="mut">fase ${k + 1} de ${FS.length}</small><span class="sp"></span>${prioPill(i.prioridad)}</span><div class="ic2-seg">${seg}</div></div>
       <div class="ic2-av"><div class="ic2-l"><b>Avance ${av} %</b><span class="mut">plan ${plan} %</span></div><div class="ic2-bar" title="Avance ${av} % · plan ${plan} %"><i style="width:${Math.max(0, Math.min(100, av))}%"></i><u style="left:${Math.max(0, Math.min(100, plan))}%"></u></div></div>
-      ${nh ? `<div class="ic2-nx">${icon('flag', 14)}<span><b>${esc(nh.nombre)}</b> · ${fmtD(nh.fecha)}</span><em class="${dn < 0 ? 'bad' : ''}">${dn < 0 ? 'vencido ' + (-dn) + ' d' : dn === 0 ? 'hoy' : 'en ' + dn + ' d'}</em></div>` : `<div class="ic2-nx mut">${icon('flag', 14)}<span>Sin hitos pendientes</span></div>`}
-      <div class="ic2-ft"><span class="pp">${avatar(i.lider, 22)}<small>${esc(String(i.lider || '').split(' ').slice(0, 2).join(' '))}</small></span><span class="sp"></span>${dv > 0 ? `<span class="chip-bad">+${dv} d</span>` : ''}${ven ? `<span class="chip-bad">${ven} ${ven === 1 ? 'vencido' : 'vencidos'}</span>` : ''}</div></article>`;
+      ${nh ? `<div class="ic2-nx">${icon('flag', 14)}<span class="n"><b title="${esc(nh.nombre)}">${esc(nh.nombre)}</b><small>${fmtD(nh.fecha)} <em class="${dn < 0 ? 'bad' : ''}">${dn < 0 ? 'vencido ' + (-dn) + ' d' : dn === 0 ? 'hoy' : 'en ' + dn + ' d'}</em></small></span></div>` : `<div class="ic2-nx mut">${icon('flag', 14)}<span class="n"><b>Sin hitos pendientes</b><small>&nbsp;</small></span></div>`}
+      <div class="ic2-ft"><span class="pp">${avatar(i.lider, 22)}<small title="${esc(i.lider || '')}">${esc(String(i.lider || '').split(' ').slice(0, 2).join(' '))}</small></span><span class="sp"></span>${dv > 0 ? `<span class="chip-bad">+${dv} d</span>` : ''}${ven ? `<span class="chip-bad">${ven} ${ven === 1 ? 'vencido' : 'vencidos'}</span>` : ''}</div></article>`;
 }
 export function faseTag(i, f) {
   f = f || i.fase; const v = ventanaDe(i, f), s = f === i.fase ? subActual(i) : null;
