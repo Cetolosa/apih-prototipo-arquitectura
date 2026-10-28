@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, fasesDe, compuertas, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgoCritico, riesgosDe, save } from './01-nucleo.js';
+import { $, CALC, fasesDe, compuertas, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgoCritico, riesgosDe, save } from './01-nucleo.js';
 import { AuthService, SB, SBLogin } from './02-datos.js';
 import { estPill, pnHead, ragPill, Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
 import { faseTag, pasosDe, planFichaHTML, senalesIni, subfasesDe } from './05-vistas.js';
@@ -781,7 +781,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
 
   const diaPlural = n => n + (n === 1 ? ' día' : ' días');
   function misionDe(i) {
-    const W = hoyW(), E = hoy(), out = [], st = starsOf(i, W), off = k => (st.find(x => x.k === k) || {}).s === 'off';
+    const W = hoyW(), E = hoy(), out = [], M = (CALC.mision || {})[i.id] || { hit: [], cmp: [], rsk: [] }, st = starsOf(i, W), off = k => (st.find(x => x.k === k) || {}).s === 'off';
     const bAct = (l, a, d, pri) => ({ l, a, d, pri });
     if (off('dia')) {
       const nc = actSemana(i, W) === 'nc';
@@ -789,26 +789,26 @@ import { GUIA, presLayout } from './09-presentaciones.js';
         como: 'Abre la actualización semanal, anota un logro o el próximo paso y ajusta el % de avance. Toma 1 minuto.', btn: [bAct('Actualizar ahora', 'wk', { id: i.id }, true)] });
     }
     if (off('hit')) {
-      const hv = vencidosA(hitosDe(i.id), 'fecha', E, (h, e) => h.completado && (h.fechaReal || '') <= e);
+      const hv = M.hit;   // los hitos vencidos los define el servidor
       out.push({ k: 'hit', t: 'Hitos', por: 'Tienes ' + hv.length + ' hito' + (hv.length === 1 ? '' : 's') + ' vencido' + (hv.length === 1 ? '' : 's') + ' sin cerrar ni explicar:',
         lista: hv.slice(0, 4).map(h => '«' + h.nombre + '» venció el ' + fmtD(h.fecha) + ' (hace ' + diaPlural(diffD(E, h.fecha)) + ')'),
         como: '<b>Si ya se cumplió:</b> ábrelo y márcalo completado. <b>Si se atrasó:</b> pide el cambio de fecha en Control de cambios; el atraso queda explicado y el tenedor se enciende.',
         btn: [bAct('Pedir cambio de fecha', 'chgnew', { id: i.id }, true), bAct('Ver hitos de la ficha', 'cocir', { id: i.id, k: 'hit' })] });
     }
     if (off('cmp')) {
-      const cv = ACUERDOS().filter(c => c.ini === i.id && c.estado !== 'Cancelado' && c.limite && c.limite < E && c.estado !== 'Cumplido');
+      const cv = M.cmp;
       out.push({ k: 'cmp', t: 'Compromisos', por: 'Hay ' + cv.length + ' compromiso' + (cv.length === 1 ? '' : 's') + ' con fecha vencida:',
         lista: cv.slice(0, 4).map(c => '«' + cut(c.texto, 60) + '» (' + (c.resp || 'sin responsable') + ', límite ' + fmtD(c.limite) + ')'),
         como: 'Ábrelos desde la ficha y márcalos <b>Cumplido</b>, o cámbiales la fecha límite si se acordó otra.', btn: [bAct('Ir a los compromisos', 'cocir', { id: i.id, k: 'com' }, true)] });
     }
     if (off('rsk')) {
-      const um = cfgI(i, 'umbralCritico'), rs = riesgosDe(i.id).filter(riesgoAbierto).filter(r => (r.fRev && r.fRev < E) || (riesgoCritico(r) && !String(r.mit || '').trim()));
+      const rs = M.rsk;
       out.push({ k: 'rsk', t: 'Riesgos', por: rs.length + ' riesgo' + (rs.length === 1 ? '' : 's') + ' por atender:',
-        lista: rs.slice(0, 4).map(r => '«' + cut(r.desc, 60) + '» · ' + ((r.fRev && r.fRev < E) ? 'revisión vencida el ' + fmtD(r.fRev) : 'crítico (' + expo(r) + ') sin plan de mitigación')),
+        lista: rs.slice(0, 4).map(r => '«' + cut(r.desc, 60) + '» · ' + (r.por === 'rev' ? 'revisión vencida el ' + fmtD(r.fRev) : 'crítico (' + r.expo + ') sin plan de mitigación')),
         como: 'Abre el riesgo y <b>escribe el plan de mitigación</b> o <b>actualiza la fecha de próxima revisión</b>.', btn: [bAct('Abrir el primer riesgo', 'sel', { t: 'risk', id: rs[0] ? rs[0].id : '' }, true), bAct('Ver riesgos de la ficha', 'cocir', { id: i.id, k: 'rie' })] });
     }
     if (off('gob')) {
-      out.push({ k: 'gob', t: 'Gobierno', por: 'Se proyecta terminar el ' + fmtD(forecast(i)) + ', ' + diaPlural(desv(i)) + ' después de lo planificado (' + fmtD(i.finPlan) + '). Tu tolerancia es de ' + diaPlural(cfgI(i, 'tolDesv')) + ' y no hay ningún cambio registrado.',
+      out.push({ k: 'gob', t: 'Gobierno', por: 'Se proyecta terminar el ' + fmtD(forecast(i)) + ', ' + diaPlural(desv(i)) + ' después de lo planificado (' + fmtD(i.finPlan) + '). Tu tolerancia es de ' + diaPlural((CALC.ini[i.id] || {}).tol) + ' y no hay ningún cambio registrado.',
         como: 'Registra la solicitud de cambio de fecha <b>antes de avisar al comité</b>: así el atraso queda aprobado o explicado.', btn: [bAct('Registrar cambio de fecha', 'chgnew', { id: i.id }, true)] });
     }
     return out;
