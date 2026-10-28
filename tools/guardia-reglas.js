@@ -29,7 +29,16 @@ archivos.forEach(({ f, s }) => CAMPOS_SERVIDOR.forEach(([n, rx]) => { if (rx.tes
 
 // 3) toda llamada al servidor existe en las migraciones
 const definidas = new Set(); fs.readdirSync(MIG).filter(f => f.endsWith('.sql')).forEach(f => { for (const m of fs.readFileSync(path.join(MIG, f), 'utf8').matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.(apih_[a-z0-9_]+)/gi)) definidas.add(m[1]); });
-archivos.forEach(({ f, s }) => { for (const m of s.matchAll(/(?:rpc|cmdServidor)\(\s*['"](apih_[a-z0-9_]+)['"]/g)) if (!definidas.has(m[1])) fallas.push(`${f}: llama a «${m[1]}», que no existe en las migraciones`); });
+archivos.forEach(({ f, s }) => { for (const m of s.matchAll(/(?:rpc|cmdServidor|guardarEnServidor\))\(\s*['"](apih_[a-z0-9_]+)['"]/g)) if (!definidas.has(m[1])) fallas.push(`${f}: llama a «${m[1]}», que no existe en las migraciones`); });
+
+// 4) entidades que se guardan solo por comando del servidor (apih_guardar_* / apih_eliminar): la SPA no las crea ni las borra en su copia local
+const POR_COMANDO = [['hitos', 'apih_guardar_hito'], ['riesgos', 'apih_guardar_riesgo'], ['decisiones', 'apih_guardar_decision']];
+/* Residuales declarados (archivo → entidades): flujos que aún escriben en bloque y se migran en la siguiente iteración
+   (plantillas, «Con archivo», eliminar iniciativa con sus registros). Ver docs/arquitectura-front.md. */
+const RESIDUAL_ESCRITURA = { '01-nucleo.js': ['hitos'], '03-interfaz.js': ['hitos', 'riesgos', 'decisiones'], '06-administracion.js': ['hitos', 'riesgos'] };
+archivos.forEach(({ f, s }) => POR_COMANDO.forEach(([c, cmd]) => {
+  if (new RegExp('St\\.' + c + '\\s*(\\.push\\(|=(?!=))').test(s) && !(RESIDUAL_ESCRITURA[f] || []).includes(c)) fallas.push(`${f}: escribe St.${c} directamente (se guarda con ${cmd})`);
+}));
 
 if (fallas.length) { console.error('GUARDIA DE ARQUITECTURA: ' + fallas.length + ' problema(s)\n - ' + fallas.join('\n - ')); process.exit(1); }
 console.log('OK: guardia de arquitectura (' + archivos.length + ' módulos, ' + RETIRADOS.length + ' nombres vigilados, ' + definidas.size + ' funciones del servidor)');
