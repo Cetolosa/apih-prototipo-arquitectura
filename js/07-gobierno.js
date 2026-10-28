@@ -661,27 +661,8 @@ function verComoHTML() {
 Chg.vercomo = el => Acts.vercomo({ n: el.value });
 
 /* ---------- directorio de PERSONAS y roles ---------- */
-const ROL_PORT = [['lider', 'Líder de proyecto', i => i.lider], ['sponsor', 'Sponsor', i => i.sponsor], ['negocio', 'Negocio', i => i.negocio]];
-function personasData() {
-  const P = {}, g = n => (P[n] = P[n] || { n, cargo: '', acceso: '', areas: new Set(), roles: {}, lidera: 0, hitos: 0, hitosAtr: 0, riesgos: 0, decis: 0, acc: 0 });
-  const split = s => String(s || '').split(/\s+-\s+|,/).map(x => x.trim()).filter(Boolean);
-  St.usuarios.forEach(u => { const p = g(u.n); p.cargo = u.cargo; p.acceso = u.rol; String(u.area || '').split(',').forEach(a => a.trim() && p.areas.add(a.trim())); });
-  const rol = (n, r) => { const p = g(n); p.roles[r] = (p.roles[r] || 0) + 1; return p; };
-  St.ini.filter(i => !esSB(i)).forEach(i => {
-    const ar = String(i.area || '').split(',').map(x => x.trim()).filter(Boolean), live = isLive(i);
-    split(i.lider).forEach(n => { const p = rol(n, esProp(i) ? 'Líder de propuesta' : 'Líder de proyecto'); ar.forEach(a => p.areas.add(a)); if (live && !esProp(i)) p.lidera++; });
-    split(i.sponsor).forEach(n => { rol(n, 'Sponsor').areas.add(ar[0] || ''); });
-    split(i.negocio).forEach(n => { rol(n, 'Negocio'); });
-  });
-  St.hitos.filter(h => !esSB(byId(h.ini))).forEach(h => { if (h.resp) { const p = rol(h.resp, 'Responsable de hito'); if (!h.completado) { p.hitos++; if (h.fecha < hoy()) p.hitosAtr++; } } });
-  RIESGOS().forEach(r => { if (r.dueno) { const p = rol(r.dueno, 'Dueño de riesgo'); if (riesgoAbierto(r)) p.riesgos++; } });
-  DECS().forEach(d => { if (d.solicita) { const p = rol(d.solicita, 'Solicita decisiones'); if (d.estado === 'Pendiente') p.decis++; } });
-  St.comites.forEach(c => {
-    (c.participantes || []).forEach(x => { if (x.n) { const p = g(x.n); p.roles['Comité'] = (p.roles['Comité'] || 0) + 1; if (!p.cargo) p.cargo = x.rol; } });
-    [...(c.acciones || []), ...(c.compromisos || [])].forEach(a => { if (a.resp) { const p = g(a.resp); if (['Abierta', 'Abierto'].includes(a.estado)) p.acc++; } });
-  });
-  return Object.values(P).filter(p => p.n);
-}
+/* El directorio (roles, conteos de hitos/riesgos/decisiones/acciones, áreas y acceso) lo calcula el servidor (apih_calculos.personas); aquí solo se filtra y se muestra. */
+function personasData() { return (CALC.personas || []).map(p => Object.assign({}, p, { areas: new Set(p.areas || []) })); }
 /* ============================================================
    V22.49 · Capacidad de equipos
    Carga mensual por líder = proyectos vivos que lidera y cuyo plan (inicio → el mayor entre fin plan y fin proyectado) toca ese mes.
