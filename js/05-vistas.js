@@ -340,9 +340,7 @@ function faseNotaForm(i, fase) {
       { k: 'nota', l: 'Nota de esta fase en este proyecto', t: 'textarea', w: 3, rows: 4, hint: 'Opcional. Complementa la descripción global de la fase (Administración → Metodología). Se ve en Mi cocina, la ficha y Fases.' }],
     extra: (f => f ? '<p class="mut" style="font-size:12px;margin:10px 0 0">Descripción global de «' + esc(FS.includes(fase) ? fase : i.fase) + '»: ' + esc(f) + '</p>' : '')(faseDescG(FS.includes(fase) ? fase : i.fase)),
     saveLabel: 'Guardar',
-    onSave(o) { if ((o.nota || '').length > DESC_MAX) { toast('La nota no puede superar ' + DESC_MAX + ' caracteres', 'err'); return false; }
-      i.faseNota = Object.assign({}, i.faseNota); if (String(o.nota || '').trim()) i.faseNota[o.fase] = cutDesc(o.nota.trim()); else delete i.faseNota[o.fase];
-      i.actualizada = hoy(); log('Cambio', i.id, 'Nota de fase ' + o.fase + (String(o.nota || '').trim() ? ' actualizada' : ' eliminada')); toast('Nota guardada'); refresh(); } });
+    onSave(o) { return cmdServidor('apih_nota_fase', { p_ini: i.id, p_fase: o.fase, p_nota: o.nota || '' }, 'Nota guardada', true).then(r => r !== null); } });
   const sel = $('#f_fase'), ta = $('#f_nota');   /* N-U-05: al cambiar la fase se carga la nota de esa fase (no se pisa la de otra) */
   if (sel && ta) sel.addEventListener('change', () => { ta.value = faseNotaP(i, sel.value) || ''; const ex = $('#mform') && $('#mform').parentNode.querySelector('p.mut'); if (ex) { const f = faseDescG(sel.value); ex.textContent = f ? 'Descripción global de «' + sel.value + '»: ' + f : ''; } });
 }
@@ -399,21 +397,8 @@ function subfaseForm(s, iniId, fase) {
     fields: [{ k: 'fase', l: 'Fase', t: 'select', req: true, w: 3, opts: FS.map(x => { const w = ventanaDe(i, x) || {}; return { v: x, t: x + (w.ini ? ' · ' + rangoTx(w.ini, w.fin) : ' · sin fechas') }; }), hint: 'La subfase vive completa dentro de una sola fase obligatoria' },
       { k: 'nombre', l: 'Nombre de la subfase', req: true, w: 3 }, { k: 'inicio', l: 'Inicio', t: 'date', hint: 'Vacío: hereda el inicio de la fase' }, { k: 'fin', l: 'Fin', t: 'date', hint: 'Vacío: hereda el fin de la fase' }, { k: 'resp', l: 'Responsable', list: people() }, { k: 'desc', l: 'Descripción / instrucciones', t: 'textarea', w: 3, rows: 3, hint: 'Opcional. Se ve en Mi cocina, la ficha y Fases.' }],
     extra: '<p class="mut" style="font-size:12px;margin:10px 0 0">Regla: una subfase no puede extenderse fuera del inicio y fin de su fase. Los hitos de la subfase deben ser de esa misma fase.</p>',
-    onDanger: () => confirmBox('¿Eliminar esta subfase? Sus hitos quedarán sin subfase.', () => { const hs = hitosSub(i, s); i.subfases = subfasesDe(i).filter(x => x.id !== s.id); hs.forEach(h => { delete h.subfase; }); i.actualizada = hoy(); log('Cambio', i.id, 'Subfase eliminada: ' + s.nombre + ' (' + s.fase + ')' + (hs.length ? ' · ' + hs.length + ' hitos quedan sin subfase' : '')); toast('Subfase eliminada'); refresh(); }, 'Eliminar', true),
-    onSave(o) {
-      const w = ventanaDe(i, o.fase);
-      if (!w || !w.ini || !w.fin) { toast('La fase ' + o.fase + ' no tiene inicio y fin: define las fechas plan del proyecto', 'err'); return false; }
-      if (nw && o.fase !== f0 && o.inicio === (w0.ini || '') && o.fin === (w0.fin || '')) { o.inicio = ''; o.fin = ''; }   // cambió de fase sin tocar las fechas: hereda las de la nueva fase
-      if (!o.inicio) o.inicio = w.ini; if (!o.fin) o.fin = w.fin;
-      if (o.nombre.length > 120 || (o.resp || '').length > 120) { toast('Nombre y responsable: hasta 120 caracteres', 'err'); return false; }
-      if ((o.desc || '').length > DESC_MAX) { toast('La descripción no puede superar ' + DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = cutDesc(o.desc.trim()); else delete o.desc;
-      if (o.fin < o.inicio) { toast('El fin de la subfase no puede ser anterior a su inicio', 'err'); return false; }
-      if (o.inicio < w.ini || o.fin > w.fin) { toast('La subfase debe quedar dentro de ' + o.fase + ' (' + rangoTx(w.ini, w.fin) + ')', 'err'); return false; }
-      if (subfasesDe(i).some(x => x.id !== (s && s.id) && x.fase === o.fase && _nrm(x.nombre) === _nrm(o.nombre))) { toast('Ya existe una subfase «' + o.nombre + '» en ' + o.fase, 'err'); return false; }
-      if (nw) { i.subfases = subfasesDe(i).concat([{ id: sfNextId(i), ...o }]); log('Cambio', i.id, 'Subfase creada: ' + o.nombre + ' · ' + o.fase + ' · ' + rangoTx(o.inicio, o.fin)); toast('Subfase creada'); }
-      else { const cf = s.fase !== o.fase; Object.assign(s, o); if (cf) hitosSub(i, s).forEach(h => { h.fase = o.fase; }); log('Cambio', i.id, 'Subfase actualizada: ' + o.nombre + ' · ' + o.fase + ' · ' + rangoTx(o.inicio, o.fin)); toast('Subfase guardada'); }
-      i.actualizada = hoy(); refresh();
-    }
+    onDanger: () => confirmBox('¿Eliminar esta subfase? Sus hitos quedarán sin subfase.', () => { cmdServidor('apih_eliminar_subfase', { p_ini: i.id, p_id: s.id }, 'Subfase eliminada'); }, 'Eliminar', true),
+    onSave(o) { return cmdServidor('apih_guardar_subfase', { p_ini: i.id, p_id: s ? s.id : null, p_datos: { fase: o.fase, nombre: o.nombre, inicio: o.inicio || '', fin: o.fin || '', resp: o.resp || '', desc: o.desc || '' } }, nw ? 'Subfase creada' : 'Subfase guardada', true).then(r => r !== null); }
   });
 }
 /* V22.59 · importación de subfases (archivo de iniciativas y «Con archivo»): valida la regla y resuelve referencias por id o nombre */

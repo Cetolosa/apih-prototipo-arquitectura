@@ -930,17 +930,12 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     if (soloLectura() || !puedeEditarIni(i)) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
     openForm({ title: 'Presupuesto al día · ' + i.titulo, values: { gastado: i.gastado || 0, nota: '' }, saveLabel: 'Guardar',
       fields: [{ k: 'gastado', l: 'Consumido a la fecha (' + MONEDAS[monOf(i)].n + ')', t: 'number', min: 0, w: 3, hint: 'Presupuesto: ' + fmtMon(i.presupuesto, monOf(i)) + ' · lo último registrado: ' + fmtMon(i.gastado || 0, monOf(i)) + '. Si lo pasas, <a class="lnk" data-act="chgnew" data-id="' + i.id + '">registra un cambio de presupuesto</a>.' }, { k: 'nota', l: 'Comentario (opcional)', t: 'textarea', w: 3 }],
-      onSave(o) {
-        const a = i.gastado || 0, n = +o.gastado || 0; i.gastado = n;
-        log(a !== n ? 'Cambio' : 'Comentario', i.id, mkMes('Presupuesto') + 'Consumido ' + fmtN(a) + ' → ' + fmtN(n) + ' de ' + fmtN(i.presupuesto) + (o.nota ? '. ' + o.nota : ''));
-        toast('Presupuesto registrado'); refresh();
-      } });
+      onSave(o) { return (0, ENLACES.cmdServidor)('apih_registrar_consumo', { p_id: i.id, p_gastado: +o.gastado || 0, p_nota: o.nota || '' }, 'Presupuesto registrado', true).then(r => r !== null); } });
   };
   Acts.misgastook = d => {
     const i = byId(d.id); if (!i) return;
     if (soloLectura() || !puedeEditarIni(i)) return NO_PERM('Tu rol o el modo solo lectura no permiten editar');
-    log('Comentario', i.id, mkMes('Presupuesto') + 'Consumo confirmado sin cambios (' + fmtN(i.gastado || 0) + ' de ' + fmtN(i.presupuesto) + ')');
-    toast('Confirmado: presupuesto al día'); refresh();
+    (0, ENLACES.cmdServidor)('apih_confirmar_consumo', { p_id: i.id }, 'Confirmado: presupuesto al día');
   };
   const insignias0 = insignias;
   ENLACES.insignias = function (me) {
@@ -977,23 +972,13 @@ import { GUIA, presLayout } from './09-presentaciones.js';
         { k: 'tipo', l: 'Tipo', t: 'select', opts: DOC_TIPOS, w: 1 },
         { k: 'url', l: 'Vínculo de OneDrive o SharePoint', req: true, w: 3, hint: 'Sube el archivo a OneDrive o SharePoint, pulsa <b>Compartir → Copiar vínculo</b> (que lo pueda abrir el equipo del proyecto) y pégalo acá.' },
         { k: 'nota', l: 'Nota (opcional)', t: 'textarea', w: 3 }],
-      onSave(o) {
-        const u = String(o.url || '').trim(), nm = String(o.nombre || '').trim();
-        if (!nm) { toast('Ponle un nombre al documento', 'err'); return false; }
-        if (!docUrlOk(u)) { toast('El vínculo debe ser de OneDrive o SharePoint (https://…sharepoint.com, 1drv.ms)', 'err'); return false; }
-        if (nw) {
-          const hh = new Date().toTimeString().slice(0, 5); St.documentos = St.documentos || [];
-          St.documentos.unshift({ id: 'DOC-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 5).toUpperCase(), ini: i.id, nombre: nm, tipo: o.tipo || 'Otro', url: u, nota: String(o.nota || '').trim(), autor: miUsuario(), correo: emailYo(), ts: hoy() + 'T' + hh });
-          log('Cambio', i.id, 'Documento agregado: ' + nm + ' (' + (o.tipo || 'Otro') + ')');
-        } else { Object.assign(d, { nombre: nm, tipo: o.tipo || 'Otro', url: u, nota: String(o.nota || '').trim() }); log('Cambio', i.id, 'Documento actualizado: ' + nm); }
-        toast(nw ? 'Documento agregado' : 'Documento actualizado'); refresh();
-      } });
+      onSave(o) { return (0, ENLACES.cmdServidor)('apih_guardar_documento', { p_ini: i.id, p_id: nw ? null : d.id, p_datos: { nombre: o.nombre, tipo: o.tipo, url: o.url, nota: o.nota || '' } }, nw ? 'Documento agregado' : 'Documento actualizado', true).then(r => r !== null); } });
   }
   Acts.docnew = d => { const i = byId(d.id); if (!i) return; if (!docPuedeAgregar(i)) return NO_PERM('Tu rol o el modo solo lectura no permiten agregar documentos'); docForm(i, null); };
   Acts.docedit = d => { const x = (St.documentos || []).find(n => n.id === d.id), i = x && byId(x.ini); if (!x || !i) return; if (!docPuedeEditar(x, i)) return NO_PERM('Solo quien lo agregó o el PMO puede editarlo'); docForm(i, x); };
   Acts.docdel = d => {
     const x = (St.documentos || []).find(n => n.id === d.id), i = x && byId(x.ini); if (!x || !i) return;
     if (!docPuedeEditar(x, i)) return NO_PERM('Solo quien lo agregó o el PMO puede quitarlo');
-    confirmBox('¿Quitar «' + esc(x.nombre) + '» de la documentación? El archivo en OneDrive/SharePoint no se borra.', () => { St.documentos = St.documentos.filter(n => n.id !== x.id); log('Cambio', i.id, 'Documento quitado: ' + x.nombre); toast('Documento quitado'); refresh(); }, 'Quitar', true);
+    confirmBox('¿Quitar «' + esc(x.nombre) + '» de la documentación? El archivo en OneDrive/SharePoint no se borra.', () => { (0, ENLACES.cmdServidor)('apih_quitar_documento', { p_id: x.id }, 'Documento quitado'); }, 'Quitar', true);
   };
 })();

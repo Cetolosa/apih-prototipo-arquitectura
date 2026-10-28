@@ -293,7 +293,7 @@ Acts.usredit = d => {
       { k: 'veMontos', l: 'Montos', t: 'check', lbl: 'Ve presupuestos y montos', w: 3 },
       { k: 'gobierna', l: 'Gobierno', t: 'check', lbl: 'Gestiona comités y decisiones', w: 3 }
     ],
-    onSave: o => { cmdServidor('apih_guardar_usuario', { p_email: u.email, p_datos: Object.assign({}, o, { activo: true }) }, u.pendiente ? 'Cuenta activada' : 'Usuario guardado', true).then(r => { if (r !== null) usrCargar(); }); }
+    onSave: o => { return cmdServidor('apih_guardar_usuario', { p_email: u.email, p_datos: Object.assign({}, o, { activo: true }) }, u.pendiente ? 'Cuenta activada' : 'Usuario guardado', true).then(r => { if (r !== null) usrCargar(); return r !== null; }); }
   });
 };
 Acts.usroff = d => {
@@ -724,7 +724,7 @@ function chgForm(c, pre) {
       { k: 'desc', l: 'Qué cambia', t: 'textarea', req: true, w: 3 }, { k: 'motivo', l: 'Por qué (motivo)', t: 'textarea', req: true, w: 3 }, { k: 'impacto', l: 'Impacto en alcance, costo, calidad o equipo', t: 'textarea', w: 3 },
       { k: 'fNue', l: 'Nueva fecha de fin plan', t: 'date', hint: 'Déjala vacía si no cambia la fecha' }, { k: 'pNue', l: 'Nuevo presupuesto (en la moneda del proyecto)', t: 'number', min: 0, hint: '0 = sin cambio · CLP en MM, USD en miles, UF en unidades' }
     ],
-    onDanger: () => confirmBox('¿Eliminar esta solicitud de cambio?', () => { St.cambios = St.cambios.filter(x => x.id !== c.id); log('Cambio', c.ini, 'Solicitud de cambio eliminada: ' + c.id); toast('Solicitud eliminada'); refresh(); }, 'Eliminar', true),
+    onDanger: () => confirmBox('¿Eliminar esta solicitud de cambio?', () => { (0, ENLACES.eliminarEnServidor)('APIH_Cambios', c.id, 'Solicitud eliminada'); }, 'Eliminar', true),
     onSave(o) {
       const i = byId(o.ini); if (!i) { toast('Elige un proyecto', 'err'); return false; }
       if (o.fNue && o.fNue === i.finPlan && !+o.pNue) { toast('La nueva fecha es igual a la actual', 'err'); return false; }

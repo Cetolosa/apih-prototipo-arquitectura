@@ -32,7 +32,7 @@ Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromi
 `apih_calculos().notif` entrega el catálogo, la preferencia efectiva (catálogo → organización → persona) y los avisos de quien llama (hitos y compromisos, riesgo crítico, decisiones, atraso, sin actualizar, propuestas estancadas, cambios y eventos de bitácora), con sus canales. La campana y la matriz de Notificaciones solo presentan; guardar la configuración hace que el servidor vuelva a evaluar. Lo leído sigue por navegador (localStorage).
 
 ### Reglas que aún no se mueven (residuales declarados)
-Contenido de las anotaciones de bitácora que escribe el cliente (autor y hora ya los fija el servidor), validaciones de formulario de otras pantallas.
+Registros de presentaciones y plantillas (configuración personal, no reglas de negocio) y validaciones de formulario de otras pantallas.
 
 ## Resumen ejecutivo y KPIs
 `apih_resumen(calc)` (dentro de `apih_calculos`) entrega qué proyectos están «on track», los tramos del % On Track (texto y nivel) y las ventanas de días del resumen. El cliente solo los muestra (`CALC.resumen`, `tonoOnTrack`).
@@ -66,3 +66,7 @@ Cualquiera crea su cuenta desde la pantalla de acceso (Supabase Auth). Sin perfi
 Un proyecto asignado se ve y (Colaborador/Responsable) se edita aunque sea de otra área: el servidor agrega a `registros.area` un código propio de cada proyecto (`@PRJ-001`) y las reglas de visibilidad y escritura, que ya comparan áreas, lo reconocen sin duplicar lógica. Los hitos, riesgos, decisiones, etc. heredan ese código del proyecto. `apih_area_vis` quita los códigos cuando el área se muestra o se copia a datos.
 
 Para que Supabase deje crear cuentas sin dominio fijo: Authentication → Providers → Email (registro habilitado; se recomienda «Confirm email»). El trigger de dominio ya no restringe.
+
+## Subfases, nota de fase, consumo de presupuesto y documentos
+
+`apih_guardar_subfase` / `apih_eliminar_subfase` (ventana de la fase, largo de campos, duplicados, id `PRJ-001-SF1` y hitos que siguen a su subfase), `apih_nota_fase`, `apih_registrar_consumo` / `apih_confirmar_consumo` (solo quien ve montos; deja la marca de la misión del mes en la bitácora) y `apih_guardar_documento` / `apih_quitar_documento` (vínculos solo de OneDrive/SharePoint por https; edita quien lo agregó o el PMO). Eliminar una solicitud de cambio usa `apih_eliminar` (solo si sigue «Solicitado»). El navegador ya no calcula la auditoría de «Edición»: la dejan los comandos en la bitácora y la tabla `auditoria`.

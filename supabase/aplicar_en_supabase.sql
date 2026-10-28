@@ -4641,13 +4641,14 @@ create or replace function public.apih_eliminar(p_lista text, p_id text) returns
 $$ declare r public.registros; x jsonb; t text;
 begin
   if public.apih_rol() is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
-  if p_lista not in ('APIH_Hitos', 'APIH_Riesgos', 'APIH_Decisiones', 'APIH_Compromisos', 'APIH_Comites') then raise exception 'APIH: no se puede eliminar en %', p_lista using errcode = '42501'; end if;
+  if p_lista not in ('APIH_Hitos', 'APIH_Riesgos', 'APIH_Decisiones', 'APIH_Compromisos', 'APIH_Comites', 'APIH_Cambios') then raise exception 'APIH: no se puede eliminar en %', p_lista using errcode = '42501'; end if;
   select * into r from public.registros where lista = p_lista and id = p_id for update;
   if not found then raise exception 'APIH: el registro % no existe', p_id using errcode = 'P0002'; end if;
   if p_lista = 'APIH_Comites' then
     if not public.apih_escribe(p_lista, p_id, null) then raise exception 'APIH: solo quien gobierna puede gestionar comités' using errcode = '42501'; end if;
   elsif not public.apih_edita_area(r.area) then raise exception 'APIH: sin permiso sobre el área del registro' using errcode = '42501'; end if;
   x := substr(r.datos, 4)::jsonb;
+  if p_lista = 'APIH_Cambios' and coalesce(x ->> 'estado', '') <> 'Solicitado' then raise exception 'APIH: una solicitud de cambio ya resuelta no se elimina' using errcode = '22023'; end if;
   perform set_config('apih.interno', 'on', true);
   if p_lista = 'APIH_Decisiones' then
     update public.registros set datos = 'p1.' || jsonb_set(substr(datos, 4)::jsonb, '{decisiones}',
@@ -4663,6 +4664,7 @@ begin
                     when 'APIH_Riesgos' then 'Riesgo eliminado: ' || coalesce(x ->> 'desc', p_id)
                     when 'APIH_Compromisos' then 'Compromiso eliminado: ' || coalesce(x ->> 'texto', p_id)
                     when 'APIH_Comites' then 'Comité eliminado: ' || coalesce(x ->> 'nombre', p_id)
+                    when 'APIH_Cambios' then 'Solicitud de cambio eliminada: ' || p_id
                     else 'Decisión eliminada: ' || coalesce(x ->> 'titulo', p_id) end;
   perform public.apih_bitacora_cmd(x ->> 'ini', case p_lista when 'APIH_Riesgos' then 'Riesgo' when 'APIH_Decisiones' then 'Decisión' else 'Cambio' end, t);
   return jsonb_build_object('id', p_id);
@@ -5477,3 +5479,195 @@ alter table public.registros disable trigger user;
 update public.registros set area = public.apih_area_de(lista, substr(datos, 4)::jsonb) where lista in ('APIH_Proyectos', 'APIH_Propuestas') and left(substr(datos, 4), 1) = '{';
 update public.registros r set area = public.apih_area_de(r.lista, substr(r.datos, 4)::jsonb) where r.lista in ('APIH_Hitos','APIH_Riesgos','APIH_Decisiones','APIH_Compromisos','APIH_Cambios','APIH_Documentos','APIH_Notas') and left(substr(r.datos, 4), 1) = '{';
 alter table public.registros enable trigger user;
+
+-- ===== 20261028002700_subfases_y_notas.sql =====
+-- =====================================================================================
+-- APIH Prototipo · Iter 7 · Subfases y nota de fase por comando del servidor
+--   apih_guardar_subfase(p_ini, p_id, p_datos)  crea o edita una subfase (dentro de la ventana de su fase)
+--   apih_eliminar_subfase(p_ini, p_id)          la quita; sus hitos quedan sin subfase
+--   apih_nota_fase(p_ini, p_fase, p_nota)       nota propia de una fase en un proyecto (vacía = se quita)
+--   La SPA envía lo escrito en el formulario; ventanas, topes de largo, duplicados e id los fija el servidor.
+-- =====================================================================================
+create or replace function public.apih_guardar_subfase(p_ini text, p_id text, p_datos jsonb) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; i jsonb; es_prop boolean; fs text[]; subs jsonb; nw boolean := p_id is null or btrim(p_id) = ''; ex jsonb; w jsonb; sf jsonb;
+  nom text := btrim(coalesce(p_datos ->> 'nombre', '')); fase text := btrim(coalesce(p_datos ->> 'fase', '')); resp text := btrim(coalesce(p_datos ->> 'resp', ''));
+  de text := btrim(coalesce(p_datos ->> 'desc', '')); ini_ text; fin_ text; n int := 0; m text; sid text; nh int := 0; prev text;
+begin
+  ir := public.apih_puede_ini(p_ini); i := substr(ir.datos, 4)::jsonb; es_prop := ir.lista = 'APIH_Propuestas'; fs := public.apih_fases(es_prop);
+  subs := coalesce(case when jsonb_typeof(i -> 'subfases') = 'array' then i -> 'subfases' end, '[]'::jsonb);
+  if nom = '' then perform public.apih_err('escribe el nombre de la subfase', 'nombre'); end if;
+  if length(nom) > 120 or length(resp) > 120 then perform public.apih_err('nombre y responsable: hasta 120 caracteres', 'nombre'); end if;
+  if length(de) > 500 then perform public.apih_err('la descripción no puede superar 500 caracteres', 'desc'); end if;
+  if not fase = any (fs) then perform public.apih_err('elige la fase de la subfase', 'fase'); end if;
+  if not nw then
+    ex := (select e from jsonb_array_elements(subs) e where e ->> 'id' = p_id limit 1);
+    if ex is null then perform public.apih_err('la subfase ' || p_id || ' no existe', 'nombre'); end if;
+  end if;
+  w := (select e from jsonb_array_elements(public.apih_ventanas(i, p_ini, es_prop)) e where e ->> 'fase' = fase limit 1);
+  if w is null or w ->> 'ini' is null or w ->> 'fin' is null then perform public.apih_err('la fase ' || fase || ' no tiene inicio y fin: define las fechas plan del proyecto', 'fase'); end if;
+  -- si cambió de fase sin tocar las fechas, hereda las de la nueva fase
+  ini_ := nullif(btrim(coalesce(p_datos ->> 'inicio', '')), ''); fin_ := nullif(btrim(coalesce(p_datos ->> 'fin', '')), '');
+  if ex is not null and ex ->> 'fase' <> fase and ini_ is not distinct from (ex ->> 'inicio') and fin_ is not distinct from (ex ->> 'fin') then ini_ := null; fin_ := null; end if;
+  if ini_ is not null and ini_ !~ '^\d{4}-\d{2}-\d{2}$' then perform public.apih_err('fecha de inicio inválida', 'inicio'); end if;
+  if fin_ is not null and fin_ !~ '^\d{4}-\d{2}-\d{2}$' then perform public.apih_err('fecha de fin inválida', 'fin'); end if;
+  ini_ := coalesce(ini_, w ->> 'ini'); fin_ := coalesce(fin_, w ->> 'fin');
+  if fin_ < ini_ then perform public.apih_err('el fin de la subfase no puede ser anterior a su inicio', 'fin'); end if;
+  if ini_ < (w ->> 'ini') or fin_ > (w ->> 'fin') then
+    perform public.apih_err('la subfase debe quedar dentro de ' || fase || ' (' || to_char((w ->> 'ini')::date, 'DD-MM-YYYY') || ' → ' || to_char((w ->> 'fin')::date, 'DD-MM-YYYY') || ')', 'inicio'); end if;
+  if exists (select 1 from jsonb_array_elements(subs) e where e ->> 'id' is distinct from p_id and e ->> 'fase' = fase and public.apih_norm(e ->> 'nombre') = public.apih_norm(nom)) then
+    perform public.apih_err('ya existe una subfase «' || nom || '» en ' || fase, 'nombre'); end if;
+  sf := jsonb_strip_nulls(jsonb_build_object('nombre', nom, 'fase', fase, 'inicio', ini_, 'fin', fin_, 'resp', resp, 'desc', nullif(de, '')));
+  if nw then
+    for m in select substring(e ->> 'id' from 'SF(\d+)$') from jsonb_array_elements(subs) e loop if m is not null then n := greatest(n, m::int); end if; end loop;
+    sid := p_ini || '-SF' || (n + 1);
+    subs := subs || jsonb_build_array(sf || jsonb_build_object('id', sid));
+  else
+    sid := p_id;
+    subs := (select jsonb_agg(case when e ->> 'id' = p_id then (e - 'desc') || sf || jsonb_build_object('id', p_id) else e end) from jsonb_array_elements(subs) e);
+    if ex ->> 'fase' <> fase then
+      perform set_config('apih.interno', 'on', true);
+      update public.registros set datos = 'p1.' || (substr(datos, 4)::jsonb || jsonb_build_object('fase', fase))::text
+       where lista = 'APIH_Hitos' and left(substr(datos, 4), 1) = '{' and substr(datos, 4)::jsonb ->> 'ini' = p_ini and substr(datos, 4)::jsonb ->> 'subfase' = p_id;
+      get diagnostics nh = row_count;
+      perform set_config('apih.interno', 'off', true);
+    end if;
+  end if;
+  perform public.apih_escribir_cmd(ir.lista, p_ini, i || jsonb_build_object('subfases', subs, 'actualizada', public.apih_hoy()::text));
+  perform public.apih_bitacora_cmd(p_ini, 'Cambio', (case when nw then 'Subfase creada: ' else 'Subfase actualizada: ' end) || nom || ' · ' || fase || ' · ' || to_char(ini_::date, 'DD-MM-YYYY') || ' → ' || to_char(fin_::date, 'DD-MM-YYYY'));
+  return jsonb_build_object('id', sid);
+end $$;
+revoke all on function public.apih_guardar_subfase(text, text, jsonb) from public, anon;
+grant execute on function public.apih_guardar_subfase(text, text, jsonb) to authenticated;
+
+create or replace function public.apih_eliminar_subfase(p_ini text, p_id text) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; i jsonb; subs jsonb; ex jsonb; nh int := 0;
+begin
+  ir := public.apih_puede_ini(p_ini); i := substr(ir.datos, 4)::jsonb;
+  subs := coalesce(case when jsonb_typeof(i -> 'subfases') = 'array' then i -> 'subfases' end, '[]'::jsonb);
+  ex := (select e from jsonb_array_elements(subs) e where e ->> 'id' = p_id limit 1);
+  if ex is null then raise exception 'APIH: la subfase % no existe', p_id using errcode = 'P0002'; end if;
+  perform set_config('apih.interno', 'on', true);
+  update public.registros set datos = 'p1.' || ((substr(datos, 4)::jsonb) - 'subfase')::text
+   where lista = 'APIH_Hitos' and left(substr(datos, 4), 1) = '{' and substr(datos, 4)::jsonb ->> 'ini' = p_ini and substr(datos, 4)::jsonb ->> 'subfase' = p_id;
+  get diagnostics nh = row_count;
+  perform set_config('apih.interno', 'off', true);
+  perform public.apih_escribir_cmd(ir.lista, p_ini, i || jsonb_build_object('subfases', coalesce((select jsonb_agg(e) from jsonb_array_elements(subs) e where e ->> 'id' <> p_id), '[]'::jsonb), 'actualizada', public.apih_hoy()::text));
+  perform public.apih_bitacora_cmd(p_ini, 'Cambio', 'Subfase eliminada: ' || (ex ->> 'nombre') || ' (' || (ex ->> 'fase') || ')' || case when nh > 0 then ' · ' || nh || ' hitos quedan sin subfase' else '' end);
+  return jsonb_build_object('id', p_id, 'hitos', nh);
+end $$;
+revoke all on function public.apih_eliminar_subfase(text, text) from public, anon;
+grant execute on function public.apih_eliminar_subfase(text, text) to authenticated;
+
+create or replace function public.apih_nota_fase(p_ini text, p_fase text, p_nota text) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; i jsonb; nota text := btrim(coalesce(p_nota, '')); fn jsonb;
+begin
+  ir := public.apih_puede_ini(p_ini); i := substr(ir.datos, 4)::jsonb;
+  if not coalesce(p_fase, '') = any (public.apih_fases(ir.lista = 'APIH_Propuestas')) then perform public.apih_err('elige la fase', 'fase'); end if;
+  if length(nota) > 500 then perform public.apih_err('la nota no puede superar 500 caracteres', 'nota'); end if;
+  fn := coalesce(case when jsonb_typeof(i -> 'faseNota') = 'object' then i -> 'faseNota' end, '{}'::jsonb) - p_fase;
+  if nota <> '' then fn := fn || jsonb_build_object(p_fase, nota); end if;
+  perform public.apih_escribir_cmd(ir.lista, p_ini, i || jsonb_build_object('faseNota', fn, 'actualizada', public.apih_hoy()::text));
+  perform public.apih_bitacora_cmd(p_ini, 'Cambio', 'Nota de fase ' || p_fase || case when nota <> '' then ' actualizada' else ' eliminada' end);
+  return jsonb_build_object('id', p_ini);
+end $$;
+revoke all on function public.apih_nota_fase(text, text, text) from public, anon;
+grant execute on function public.apih_nota_fase(text, text, text) to authenticated;
+
+-- ===== 20261028002800_consumo_y_documentos.sql =====
+-- =====================================================================================
+-- APIH Prototipo · Iter 7 · Consumo de presupuesto y documentación por comando del servidor
+--   apih_registrar_consumo(p_id, p_gastado, p_nota)  actualiza lo consumido a la fecha (misión del mes «Presupuesto»)
+--   apih_confirmar_consumo(p_id)                      confirma que el consumo sigue igual
+--   apih_guardar_documento(p_ini, p_id, p_datos)      agrega o edita un vínculo de OneDrive/SharePoint
+--   apih_quitar_documento(p_id)                       lo quita de la documentación (el archivo no se borra)
+-- =====================================================================================
+create or replace function public.apih_fmt_n(n numeric) returns text language sql immutable as
+$$ select case when coalesce(n, 0) < 0 then '-' else '' end || reverse(regexp_replace(reverse(abs(round(coalesce(n, 0)))::text), '(\d{3})(?=\d)', '\1.', 'g')) $$;
+
+create or replace function public.apih_registrar_consumo(p_id text, p_gastado numeric, p_nota text default null) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; i jsonb; a numeric; nt text := btrim(coalesce(p_nota, ''));
+begin
+  ir := public.apih_puede_ini(p_id); i := substr(ir.datos, 4)::jsonb;
+  if not public.apih_ve_montos() then raise exception 'APIH: tu rol no registra montos' using errcode = '42501'; end if;
+  if p_gastado is null or p_gastado < 0 then perform public.apih_err('el consumo debe ser un número mayor o igual a 0', 'gastado'); end if;
+  if length(nt) > 1000 then perform public.apih_err('el comentario admite hasta 1000 caracteres', 'nota'); end if;
+  a := coalesce(nullif(i ->> 'gastado', '')::numeric, 0);
+  perform public.apih_escribir_cmd(ir.lista, p_id, i || jsonb_build_object('gastado', p_gastado));
+  perform public.apih_bitacora_cmd(p_id, case when a <> p_gastado then 'Cambio' else 'Comentario' end,
+    '[Misión del mes · Presupuesto] Consumido ' || public.apih_fmt_n(a) || ' → ' || public.apih_fmt_n(p_gastado) || ' de ' || public.apih_fmt_n(nullif(i ->> 'presupuesto', '')::numeric)
+    || case when nt <> '' then '. ' || nt else '' end);
+  return jsonb_build_object('id', p_id, 'gastado', p_gastado);
+end $$;
+revoke all on function public.apih_registrar_consumo(text, numeric, text) from public, anon;
+grant execute on function public.apih_registrar_consumo(text, numeric, text) to authenticated;
+
+create or replace function public.apih_confirmar_consumo(p_id text) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; i jsonb;
+begin
+  ir := public.apih_puede_ini(p_id); i := substr(ir.datos, 4)::jsonb;
+  perform public.apih_bitacora_cmd(p_id, 'Comentario', '[Misión del mes · Presupuesto] Consumo confirmado sin cambios (' || public.apih_fmt_n(nullif(i ->> 'gastado', '')::numeric) || ' de ' || public.apih_fmt_n(nullif(i ->> 'presupuesto', '')::numeric) || ')');
+  return jsonb_build_object('id', p_id);
+end $$;
+revoke all on function public.apih_confirmar_consumo(text) from public, anon;
+grant execute on function public.apih_confirmar_consumo(text) to authenticated;
+
+create or replace function public.apih_guardar_documento(p_ini text, p_id text, p_datos jsonb) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare ir public.registros; nw boolean := p_id is null or btrim(p_id) = ''; r public.registros; d jsonb := '{}'::jsonb; per public.perfiles; host text;
+  nm text := btrim(coalesce(p_datos ->> 'nombre', '')); u text := btrim(coalesce(p_datos ->> 'url', '')); tp text := coalesce(public.apih_txt(p_datos, 'tipo'), 'Otro'); nt text := btrim(coalesce(p_datos ->> 'nota', '')); did text;
+begin
+  if public.apih_rol() is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
+  if public.apih_solo_lectura() then raise exception 'APIH: tu rol o el modo solo lectura no permiten editar documentos' using errcode = '42501'; end if;
+  select * into per from public.perfiles where email = public.apih_email();
+  if nw then
+    ir := public.apih_ini(p_ini);
+    if ir.id is null then perform public.apih_err('la iniciativa no existe', 'nombre'); end if;
+    if not (public.apih_edita_area(ir.area) or public.apih_gobierna()) then raise exception 'APIH: no puedes agregar documentos a esta iniciativa' using errcode = '42501'; end if;
+  else
+    select * into r from public.registros where lista = 'APIH_Documentos' and id = p_id for update;
+    if not found then raise exception 'APIH: el documento % no existe', p_id using errcode = 'P0002'; end if;
+    d := substr(r.datos, 4)::jsonb; ir := public.apih_ini(d ->> 'ini');
+    if not (lower(coalesce(d ->> 'correo', '')) = public.apih_email() or public.apih_gobierna() or per.rol = 'admin') then raise exception 'APIH: solo quien lo agregó o el PMO puede editarlo' using errcode = '42501'; end if;
+  end if;
+  if nm = '' then perform public.apih_err('ponle un nombre al documento', 'nombre'); end if;
+  if length(nm) > 200 then perform public.apih_err('el nombre admite hasta 200 caracteres', 'nombre'); end if;
+  if tp not in ('Acta', 'Contrato', 'RFP', 'Especificación', 'Informe', 'Presupuesto', 'Otro') then perform public.apih_err('tipo de documento inválido', 'tipo'); end if;
+  if length(nt) > 1000 then perform public.apih_err('la nota admite hasta 1000 caracteres', 'nota'); end if;
+  host := lower(substring(u from '^https://([^/:?#]+)'));
+  if host is null or host !~ '(^|\.)(sharepoint\.com|1drv\.ms|onedrive\.live\.com|office\.com|microsoft\.com)$' then
+    perform public.apih_err('el vínculo debe ser de OneDrive o SharePoint (https://…sharepoint.com, 1drv.ms)', 'url'); end if;
+  if nw then
+    did := 'DOC-' || upper(to_char(clock_timestamp(), 'YYMMDDHH24MISSUS')) || upper(substr(md5(random()::text), 1, 3));
+    d := jsonb_build_object('id', did, 'ini', p_ini, 'autor', coalesce(nullif(per.nombre, ''), per.email), 'correo', per.email,
+           'ts', public.apih_hoy()::text || 'T' || to_char(now() at time zone 'America/Santiago', 'HH24:MI'));
+  else did := p_id; end if;
+  d := d || jsonb_build_object('nombre', nm, 'tipo', tp, 'url', u, 'nota', nt);
+  perform public.apih_escribir('APIH_Documentos', did, d);
+  perform public.apih_bitacora_cmd(d ->> 'ini', 'Cambio', case when nw then 'Documento agregado: ' || nm || ' (' || tp || ')' else 'Documento actualizado: ' || nm end);
+  return jsonb_build_object('id', did);
+end $$;
+revoke all on function public.apih_guardar_documento(text, text, jsonb) from public, anon;
+grant execute on function public.apih_guardar_documento(text, text, jsonb) to authenticated;
+
+create or replace function public.apih_quitar_documento(p_id text) returns jsonb language plpgsql security definer set search_path = public as
+$$
+declare r public.registros; d jsonb; per public.perfiles;
+begin
+  if public.apih_rol() is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
+  if public.apih_solo_lectura() then raise exception 'APIH: tu rol o el modo solo lectura no permiten editar documentos' using errcode = '42501'; end if;
+  select * into per from public.perfiles where email = public.apih_email();
+  select * into r from public.registros where lista = 'APIH_Documentos' and id = p_id for update;
+  if not found then raise exception 'APIH: el documento % no existe', p_id using errcode = 'P0002'; end if;
+  d := substr(r.datos, 4)::jsonb;
+  if not (lower(coalesce(d ->> 'correo', '')) = public.apih_email() or public.apih_gobierna() or per.rol = 'admin') then raise exception 'APIH: solo quien lo agregó o el PMO puede quitarlo' using errcode = '42501'; end if;
+  delete from public.registros where lista = 'APIH_Documentos' and id = p_id;
+  perform public.apih_bitacora_cmd(d ->> 'ini', 'Cambio', 'Documento quitado: ' || coalesce(d ->> 'nombre', p_id));
+  return jsonb_build_object('id', p_id);
+end $$;
+revoke all on function public.apih_quitar_documento(text) from public, anon;
+grant execute on function public.apih_quitar_documento(text) to authenticated;
