@@ -248,7 +248,7 @@ export function sanSt(S) { ['ini', 'hitos', 'riesgos', 'decisiones', 'comites', 
 export function refresh() { sanSt(St); (0, ENLACES.reconciliarAvance)(); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
 
 /* ---------- panel contextual ---------- */
-export function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); }
+export function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); if (t === 'ini') requestAnimationFrame(() => { const c = document.querySelector('.icard.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center', inline: 'nearest' }); }); }
 function renderPanel() {
   const p = $('#panel'); if (!p) return; const s = UI.sel; let h = '';
   try {

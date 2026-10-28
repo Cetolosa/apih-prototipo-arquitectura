@@ -129,7 +129,6 @@
 .ic2-seg{display:flex;gap:3px}.ic2-seg i{flex:1;height:4px;border-radius:2px;background:var(--bd)}.ic2-seg i.done,.ic2-seg i.cur{background:var(--pri)}.ic2-seg i.cur{opacity:.55}
 .ic2-l{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
 .ic2-bar{position:relative;height:8px;border-radius:4px;background:var(--bd)}.ic2-bar i{display:block;height:8px;border-radius:4px;background:var(--pri)}.ic2-bar u{position:absolute;top:-3px;width:2px;height:14px;background:var(--tx);text-decoration:none}
-.ic2-nx{display:flex;align-items:center;gap:8px;font-size:12px;border-top:1px solid var(--bd2);padding-top:8px}.ic2-nx{flex-wrap:wrap}.ic2-nx svg{flex:none}.ic2-nx>span{flex:1 1 calc(100% - 24px);min-width:0}.ic2-nx em{margin-left:22px}.ic2-nx em{font-style:normal;background:var(--bd2);border-radius:6px;padding:1px 7px;white-space:nowrap}.ic2-nx em.bad{background:var(--redbg);color:#9B0019;font-weight:700}
 .ic2-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ic2-ft .pp{display:inline-flex;align-items:center;gap:6px}.ic2-ft .pp small{display:inline}
 .chip-bad{background:var(--redbg);color:#9B0019;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
 /* V23 · Panel de proyecto (¿por qué está así y qué sigue?) */
@@ -139,3 +138,23 @@
 .pn-nx{display:flex;flex-direction:column;font-size:13px}.pn-nx>div{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--bd2)}.pn-nx>div:last-child{border-bottom:0}.pn-nx .d{width:76px;color:var(--tx2);flex:none;white-space:nowrap}.pn-nx b{flex:1}.pn-nx .r{color:var(--tx2)}
 .pn-gt{margin-top:10px;background:var(--pri-l);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5}.pn-gt .bar{height:6px;background:rgba(13,68,106,.18);border-radius:3px;margin:6px 0}.pn-gt .bar i{display:block;height:6px;background:var(--pri);border-radius:3px}
 .pn-pd{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.4}.bad-t{color:#9B0019;font-weight:700}
+
+/* tarjetas de proyecto: todas de la misma altura */
+.icard.ic2{height:206px;overflow:hidden;box-sizing:border-box}
+.ic2 h3{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.ic2-nx{display:flex;align-items:center;gap:8px;font-size:12px;border-top:1px solid var(--bd2);padding-top:7px;min-height:34px}.ic2-nx svg{flex:none}
+.ic2-nx .n{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}.ic2-nx .n b,.ic2-nx .n small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ic2-nx em{font-style:normal;background:var(--bd2);border-radius:6px;padding:0 6px;white-space:nowrap;margin-left:4px}.ic2-nx em.bad{background:var(--redbg);color:#9B0019;font-weight:700}
+.ic2-ft{flex-wrap:nowrap;padding-right:24px}.ic2-ft .pp{min-width:0;flex:1 1 auto}.ic2-ft .pp small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}.ic2-ft .chip-bad{flex:none;white-space:nowrap}
+/* panel de proyecto compacto */
+.pn-tr{display:flex;align-items:flex-start;gap:10px}.pn-tr h3{flex:1;min-width:0;margin:0}.pn-tr .btn{flex:none}
+.pn-h.pn-c .pn-p{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}.pn-c .pn-upd{margin:0 0 0 auto;font-size:11px}
+.pn-b .pn-sec{padding:8px 0}.pn-b .pn-sec h4{margin:0 0 4px;font-size:12px}
+.pn-sig{gap:3px;font-size:12px;line-height:1.3}.pn-sig .tg{width:56px;font-size:10px;padding:1px 0}
+.pn-nx{font-size:12px}.pn-nx>div{padding:3px 0;gap:8px}.pn-nx .d{width:62px}
+.pn-gt{margin-top:6px;padding:6px 10px;font-size:11px;line-height:1.35}.pn-gt .bar{margin:4px 0}
+.pn-pd{gap:3px;font-size:12px;line-height:1.3}
+.icard.ic2{height:224px;gap:7px}.ic2 .ic-t{flex-wrap:nowrap;white-space:nowrap}.ic2-nx .n{text-align:left}.ic2 .ic-t .pill{flex:none}
+.icard.ic2{height:206px}.ic2-ph{flex-wrap:nowrap;white-space:nowrap}.ic2-l .chip-bad{padding:0 6px;margin-right:2px}
+.icard.ic2 .inc-mini{top:7px;bottom:auto}.ic2-ft{padding-right:0;gap:4px}.ic2-ft .chip-bad{font-size:11px;padding:1px 6px}.ic2-l{white-space:nowrap}.ic2-ft .pp small{max-width:44px}
+.icard.ic2{height:226px}.ic2 .ic-t{justify-content:flex-start;padding-right:24px}

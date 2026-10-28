@@ -353,15 +353,14 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     const dep = (i.deps || []).map(id => byId(id)).filter(Boolean).map(x => ({ o: '99', h: `<div><b>Depende de</b> ${esc(x.id)} ${esc(x.titulo)} · ${esc(x.estado)}${x.tipo === 'Proyecto' ? ', ' + Math.round(+x.avance || 0) + ' %' : ''}</div>` }));
     const pend = [...dec, ...cmp, ...dep].sort((a, b) => String(a.o).localeCompare(String(b.o))).slice(0, 6);
     const ult = i.actualizada ? diffD(H, i.actualizada) : null;
-    const head = pnHead(`Proyecto ${esc(i.id)} · ${esc(i.area)}`, esc(i.titulo), `${ragPill(i.rag)} ${faseTag(i)} ${i.estado !== 'En curso' ? estPill(i.estado) : ''}`,
-      `<button class="btn pri pn-main" data-act="ficha" data-id="${esc(i.id)}" title="Ver y editar todo en una sola página">${icon('full', 14)}<span>Abrir ficha</span></button>`);
-    const sub = ult == null ? '' : `<p class="mut pn-upd">Actualizado ${ult === 0 ? 'hoy' : 'hace ' + ult + (ult === 1 ? ' día' : ' días')}${i.lider ? ' · ' + esc(i.lider) : ''}</p>`;
-    return head + `<div class="pn-b">${sub}
-      <div class="pn-sec"><h4>1 · Por qué está en ${esc(i.rag)}</h4><div class="pn-sig">${sen.map(x => `<div class="sg ${x.bad ? 'bad' : 'ok'}"><span class="tg">${x.bad ? 'Atención' : 'En orden'}</span><span><b>${esc(x.t)}</b> ${esc(x.d)}</span></div>`).join('')}</div></div>
-      <div class="pn-sec"><h4>2 · Qué sigue</h4>${hs.length ? `<div class="pn-nx">${hs.map(h => `<div><span class="d">${fmtD(h.fecha)}</span><b>${esc(h.nombre)}</b><span class="r">${esc(h.resp || '')}</span></div>`).join('')}</div>` : '<p class="mut">Sin hitos pendientes.</p>'}
+    const bt = `<button class="btn pri pn-main" data-act="ficha" data-id="${esc(i.id)}" title="Ver y editar todo en una sola página">${icon('full', 14)}<span>Abrir ficha</span></button>`;
+    const upd = ult == null ? '' : `<span class="mut pn-upd">Actualizado ${ult === 0 ? 'hoy' : 'hace ' + ult + (ult === 1 ? ' día' : ' días')}</span>`;
+    const head = `<div class="pn-h pn-c"><div class="pn-k">Proyecto ${esc(i.id)}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><div class="pn-tr"><h3>${esc(i.titulo)}</h3>${bt}</div><div class="pn-p">${ragPill(i.rag)} ${faseTag(i)} ${i.estado !== 'En curso' ? estPill(i.estado) : ''}${upd}</div></div>`;
+    return head + `<div class="pn-b">
+      <div class="pn-sec"><h4>Por qué está en ${esc(i.rag)}</h4><div class="pn-sig">${sen.map(x => `<div class="sg ${x.bad ? 'bad' : 'ok'}"><span class="tg">${x.bad ? 'Atención' : 'En orden'}</span><span><b>${esc(x.t)}</b> ${esc(x.d)}</span></div>`).join('')}</div></div>
+      <div class="pn-sec"><h4>Qué sigue</h4>${hs.length ? `<div class="pn-nx">${hs.map(h => `<div><span class="d">${fmtD(h.fecha)}</span><b>${esc(h.nombre)}</b><span class="r">${esc(h.resp || '')}</span></div>`).join('')}</div>` : '<p class="mut">Sin hitos pendientes.</p>'}
         ${to ? `<div class="pn-gt"><b>Para ${sig ? 'pasar a ' + esc(sig) : 'completar el proyecto'}: ${gok} de ${g.length} compuertas</b><div class="bar"><i style="width:${g.length ? Math.round(gok / g.length * 100) : 100}%"></i></div>${falta.length ? `<div>Faltan: ${falta.map(esc).join(' · ')}.</div>` : '<div>Cumple todas las compuertas.</div>'}</div>` : ''}</div>
-      <div class="pn-sec"><h4>3 · Pendientes con otras personas</h4>${pend.length ? `<div class="pn-pd">${pend.map(x => x.h).join('')}</div>` : '<p class="mut">Sin pendientes con otras personas.</p>'}</div>
-      <p class="mut pn-note">Para cambiar algo, informes y herramientas: abre la ficha.</p></div>`;
+      <div class="pn-sec"><h4>Pendientes con otras personas</h4>${pend.length ? `<div class="pn-pd">${pend.map(x => x.h).join('')}</div>` : '<p class="mut">Sin pendientes con otras personas.</p>'}</div></div>`;
   }
   ENLACES.panelIni = function (i) {
     if (!esProp(i)) return panelResumen(i);
