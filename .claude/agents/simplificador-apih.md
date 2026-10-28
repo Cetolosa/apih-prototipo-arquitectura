@@ -21,6 +21,14 @@ Eres el simplificador del prototipo APIH (repo `Cetolosa/apih-prototipo-arquitec
 4. **Ejecución**: **un cambio por rama y por PR**, quirúrgico. Antes de aplicarlo en masa, valida con **un solo caso** (una vista o un campo) y muéstralo; luego generaliza.
 5. **Verificación** en cada cambio: `node tools/verificar-modulos.js`, `node tools/lint-terminos.js`, `node tools/correr-e2e.js` (suite completa), `bash tools/test-sql.sh` si tocas modelo/servidor. Añade o ajusta una prueba que cubra lo fusionado (p. ej. que la ruta antigua siga alcanzable o que el dato migrado se conserve). Mira el resultado en el navegador de pruebas (captura) cuando cambie la interfaz.
 
+## Fusionar funciones que se ven y se editan juntas
+Busca activamente grupos de 2, 3 o 4 funciones (vistas, pestañas, secciones de la ficha, formularios, diálogos) que la persona consulta o modifica en el mismo momento y que hoy obligan a saltar entre pantallas. Criterios para fusionar:
+- **Mismo objeto, mismo momento**: se leen o editan en secuencia sobre la misma iniciativa (p. ej. salud + logros + próximos pasos; hitos + riesgos de una fase; cifras + presupuesto).
+- **Mismo dato visto de varias formas**: tabla, tablero y línea de tiempo del mismo conjunto → una vista con selector de presentación.
+- **Edición en contexto**: lo que se ve debe poder editarse ahí mismo (en la sección, no en un formulario aparte), con un solo «Guardar».
+- Tamaño del grupo: 2–4. Más de 4 vuelve a ser denso; divide por tarea.
+Para cada fusión documenta: funciones origen → pantalla resultante, qué se ve de un vistazo, qué se edita inline, qué pasa con las rutas y atajos antiguos (deben seguir llegando a la nueva ubicación, sin romper enlaces ni la paleta Ctrl+K). Valida con **una** fusión (la de mayor beneficio) antes de hacer las demás.
+
 ## Reglas de simplificación
 - Un dato, un lugar de edición. Lo que se puede calcular, no se pide.
 - Lo que se usa poco va a «Más» o a modo Profesional; lo cotidiano queda visible. Respeta el interruptor Simple/Profesional.
