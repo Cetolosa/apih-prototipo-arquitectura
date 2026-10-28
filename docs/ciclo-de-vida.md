@@ -9,6 +9,8 @@ Qué cambió y por qué: fase, estado y avance eran tres números que se editaba
 - **Completado es automático**: al cerrar el último hito de la última fase (Cierre), si las compuertas de cierre se cumplen, el proyecto pasa a Completado con avance 100 % y fin real = hoy. También puede pedirse a mano desde el diálogo (misma validación).
 - Servidor: RPC `apih_transicion(p_id, p_fase, p_estado, p_motivo, p_rev, p_forzar, p_nota)`. Las compuertas se evalúan en la base (`apih_faltan_transicion`).
 
+- **Avanzar de fase reprograma el plan desde hoy** (casilla «Reprogramar el plan desde hoy», marcada por defecto, con vista previa): la fase destino empieza hoy; la fase que se deja (y las que se saltan) terminan ayer; las fases siguientes se mueven conservando su duración; las subfases se ajustan a sus nuevas ventanas; el fin del proyecto se recalcula. Queda en la bitácora. Al volver a una fase anterior no se tocan fechas. Si el plan no tiene fechas completas, solo cambia la fase. La línea base se congela antes de reprogramar. Con servidor, la fase cambia por `apih_transicion` y las fechas se guardan después como edición normal.
+
 ## 2. Avance
 - `avanceFaseCalc`: promedio de las unidades de la fase (cada subfase = hitos cerrados / hitos de la subfase; cada hito suelto = 0 ó 1). Fase sin unidades: 100 % si ya quedó atrás, 0 % si es la actual o futura.
 - `avanceCalc`: promedio de las fases, ponderado por días **solo si todas tienen fechas explícitas**; si no, peso igual.
@@ -38,3 +40,6 @@ Lo único válido es `apih_transicion`, `apih_aprobar_propuesta`, `apih_reabrir`
 
 ## Fuera de alcance (a propósito)
 Fases propias por tipo de iniciativa (T1–T6 comparten fases). Es el siguiente paso natural.
+
+## 7. Ficha minimalista
+La ficha muestra primero el panorama: franja de etapa (con «Cambiar etapa»), cuatro cifras (avance vs plan, fin proyectado, gasto, riesgos críticos), «Qué sigue» y cronograma. El resto (Resumen, Planificación, Hitos, Riesgos, Decisiones…) queda en «Todo lo demás», una fila por tema, plegada de entrada. En la barra superior: Actualizar (principal), 1 a 1, Informe, Editar y «Más».

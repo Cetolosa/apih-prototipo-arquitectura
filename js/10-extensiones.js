@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, fasesDe, gates, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
+import { $, fasesDe, gates, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
 import { AuthService, SB, SBLogin } from './02-datos.js';
 import { estPill, pnHead, ragPill, Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
 import { faseTag, pasosDe, planFichaHTML, senalesIni, subfasesDe } from './05-vistas.js';
@@ -146,7 +146,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   const fh = () => (UI.fh = UI.fh || (() => { try { return JSON.parse(lsGet('apih_fh') || '{}'); } catch (e) { return {}; } })());
   const fhSave = () => lsSet('apih_fh', JSON.stringify(fh()));
   const fOculta = k => !!(fh()[k] && fh()[k].h);
-  const fAbierta = k => { const s = fh()[k]; if (s && s.c != null) return !s.c; return modoUI() === 'pro' || SIMPLE_OPEN.includes(k); };
+  const fAbierta = k => { const s = fh()[k]; if (s && s.c != null) return !s.c; return false; };
   function grupoResumen(el) {
     const h = ((el.querySelector && el.querySelector('h4')) || {}).textContent || '';
     if (/Salud|Recomendaci/i.test(h)) return 'sal'; if (/Dependencias|Habilita/i.test(h)) return 'dep'; if (/Logros|Pr[oó]ximos/i.test(h)) return 'log'; if (/Calidad/i.test(h)) return 'cal';
@@ -284,6 +284,29 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   }
   Acts.hsfil = d => { UI.hs.f = d.k; UI.hs.n = 15; render(); };
   Acts.hsmas = () => { UI.hs.n += 15; render(); };
+
+  /* Panorama de la ficha: etapa, cuatro cifras, qué sigue y cronograma. Lo demás queda en filas plegadas («Todo lo demás»). */
+  function panoFicha(i) {
+    const PR = esProp(i), FS = fasesDe(i), idx = Math.max(0, FS.indexOf(i.fase)), fin = isDone(i), sig = FS[idx + 1] || null, to = fin ? null : (sig || 'Cierre'), H = hoy();
+    const g = to ? gates(i, to) : [], gok = g.filter(x => x.ok).length;
+    const strip = `<section class="pa-fase" aria-label="Etapa"><div class="pa-seg">${FS.map((f, k) => `<div><i class="${k < idx ? 'd' : k === idx ? 'c' : ''}"></i><span class="${k === idx ? 'on' : ''}">${k < idx ? '✓ ' : ''}${esc(f)}${k === idx ? ' · actual' : ''}</span></div>`).join('')}</div><div class="pa-go">${to && !fin ? `<span>Para pasar a <b>${esc(to)}</b>: <b>${gok} de ${g.length}</b> condiciones</span>` : ''}${fin ? '' : `<span class="edit-only">${btn('Cambiar etapa', 'etapa', { d: { id: i.id }, ic: 'chev' })}</span>`}</div></section>`;
+    if (PR) return strip;
+    const av = Math.round(+i.avance || 0), pl = Math.round(esperado(i)), dv = desv(i), fc = forecast(i), pres = +i.presupuesto || 0, gas = i.gastado == null || i.gastado === '' ? null : +i.gastado, gp = pres > 0 && gas != null && isFinite(gas) ? Math.round(gas / pres * 100) : null;
+    const um = +cfgI(i, 'umbralCritico') || 15, rs = riesgosDe(i.id).filter(riesgoAbierto), rk = rs.filter(r => expo(r) >= um), rks = rk.filter(r => !String(r.mit || '').trim());
+    const kp = (t, v, sub, bad, extra) => `<div class="pa-k"><span class="pa-kt">${t}</span><div class="pa-kv"><b>${v}</b>${sub ? `<span class="${bad ? 'bad-t' : 'mut'}">${sub}</span>` : ''}</div>${extra || ''}</div>`;
+    const cifras = `<section class="pa-ks" aria-label="Cifras">${kp('Avance', av + ' %', 'plan ' + pl + ' %', false, `<div class="pa-bar"><i style="width:${Math.max(0, Math.min(100, av))}%"></i><u style="left:${Math.max(0, Math.min(100, pl))}%"></u></div>`)}${kp('Fin proyectado', fc ? fmtD(fc) : '—', dv > 0 ? '+' + dv + ' d' : 'en plazo', dv > 0, i.finPlan ? `<span class="mut pa-ks2">Plan: ${fmtD(i.finPlan)}</span>` : '')}${kp('Gasto', gp != null ? gp + ' %' : '—', gp != null ? fmtMon(gas, monOf(i)) + ' de ' + fmtMon(pres, monOf(i)) : '', false, gp != null && gp > av + 10 ? '<span class="bad-t pa-ks2">Por encima del avance</span>' : '')}${kp('Riesgos críticos', String(rk.length), 'de ' + rs.length + ' abiertos', false, rks.length ? '<span class="bad-t pa-ks2">' + rks.length + ' sin mitigación</span>' : '')}</section>`;
+    const hs = hitosDe(i.id).filter(h => !h.completado).sort(by('fecha')).slice(0, 4), edit = !soloLectura() && puedeEditarIni(i);
+    const nx = `<div class="pa-c"><h2>Qué sigue</h2>${hs.length ? hs.map(h => { const d = h.fecha ? diffD(h.fecha, H) : null, ven = d != null && d < 0; return `<div class="pa-r"><span class="tg ${ven ? 'bad' : ''}">${ven ? 'Vencido' : h.fecha ? fmtD(h.fecha) : 'Sin fecha'}</span><span class="pa-rt"><b>${esc(h.nombre)}</b><small class="mut">${h.fecha ? fmtD(h.fecha) : ''}${h.resp ? ' · ' + esc(h.resp) : ''}${d == null ? '' : ven ? ' · vencido hace ' + (-d) + ' d' : ' · en ' + d + ' d'}</small></span>${edit ? btn('Abrir', 'edit', { d: { t: 'hito', id: h.id }, cls: 'sm' }) : ''}</div>`; }).join('') : '<p class="mut">Sin hitos pendientes.</p>'}</div>`;
+    const V_ = (0, ENLACES.fasesVentana)(i).filter(v => v.ini && v.fin);
+    let cr = '<div class="pa-c"><h2>Cronograma</h2><p class="mut">Sin fechas de fase todavía.</p></div>';
+    if (V_.length) {
+      const a = V_.reduce((m, v) => v.ini < m ? v.ini : m, V_[0].ini), b = V_.reduce((m, v) => v.fin > m ? v.fin : m, V_[0].fin), T = Math.max(1, diffD(b, a)), pc = d => Math.max(0, Math.min(100, diffD(d, a) / T * 100));
+      const hoyL = H >= a && H <= b ? `<i class="pa-hoy" style="left:${pc(H).toFixed(1)}%"><em>Hoy</em></i>` : '';
+      cr = `<div class="pa-c"><h2>Cronograma</h2><div class="pa-gt" style="height:${V_.length * 30 + 6}px">${V_.map((v, k) => `<div class="pa-b ${v.actual ? 'cur' : ''}" style="left:${pc(v.ini).toFixed(1)}%;width:${Math.max(4, pc(v.fin) - pc(v.ini)).toFixed(1)}%;top:${k * 30}px;background:${v.color}" title="${esc(v.fase)} · ${rangoTxt(v.ini, v.fin)}">${esc(v.fase)}</div>`).join('')}${hoyL}</div><div class="pa-ax"><span>${fmtD(a)}</span><span>${fmtD(b)}</span></div>${(0, ENLACES.hitosFuera)(i).length ? `<p class="mut" style="margin:6px 0 0;font-size:12px">${(0, ENLACES.hitosFuera)(i).length} hitos con fecha fuera de su fase. ${edit ? `<a class="lnk" data-act="fasefix" data-id="${i.id}">Corregir</a>` : ''}</p>` : ''}</div>`;
+    }
+    return strip + cifras + `<section class="pa-2">${nx}${cr}</section>`;
+  }
+  const rangoTxt = (a, b) => fmtD(a) + ' → ' + fmtD(b);
   function fichaHTML(i) {
     const PR = esProp(i), R = parsePanel(i, 'resumen'), G = {};
     [...R.body.children].forEach(el => { const k = grupoResumen(el); (G[k] = G[k] || []).push(el.outerHTML); });
@@ -302,15 +325,16 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     const tpl = h => { const t = document.createElement('template'); t.innerHTML = h; return t.content; };
     const pf = tpl(R.pills); pf.querySelectorAll('.pill.tp,.pill.soft').forEach(x => x.remove());
     const af = tpl(R.acts), main = [], seg = [], more = [];
-    af.querySelectorAll('button').forEach(b => { const t = b.textContent.trim(); b.classList.remove('sm'); b.setAttribute('title', t); if (/^(Actualizar|Cambiar etapa|Aprobar)/.test(t)) main.push(b.outerHTML.replace('class="btn', 'class="btn')); else if (/^(Reporte|1 a 1|Informe|Editar|Gantt|Presentar)/.test(t)) seg.push(b.outerHTML); else more.push(b.outerHTML); });
+    af.querySelectorAll('button').forEach(b => { const t = b.textContent.trim(); b.classList.remove('sm'); b.setAttribute('title', t); if (/^Cambiar etapa/.test(t)) return; if (/^(Actualizar|Aprobar)/.test(t)) main.push(b.outerHTML); else if (/^(Reporte|1 a 1|Informe|Editar)/.test(t)) seg.push(b.outerHTML); else more.push(b.outerHTML); });
     const kick = R.kicker.replace(/\s*<button[\s\S]*?<\/button>/g, '');
-    const acts = `<div class="fl2-a">${main.join('')}${seg.join('')}${more.length ? `<div class="popw"><button class="btn" data-act="pop" data-id="pop-flmore" aria-label="Más acciones" title="Fase, estado y más">${icon('dots', 16)}<span>Más</span></button><div class="pop" id="pop-flmore" style="right:0">${more.join('')}</div></div>` : ''}</div>`;
+    const acts = `<div class="fl2-a">${seg.join('')}${main.join('')}${more.length ? `<div class="popw"><button class="btn" data-act="pop" data-id="pop-flmore" aria-label="Más acciones" title="Fase, estado y más">${icon('dots', 16)}<span>Más</span></button><div class="pop" id="pop-flmore" style="right:0">${more.join('')}</div></div>` : ''}</div>`;
     const PRIM = ['res', 'pla', 'cif', 'sal', 'log', 'hit', 'rie'], prim = lista.filter(x => PRIM.includes(x[0])), rest = lista.filter(x => !PRIM.includes(x[0]));
     const act0 = UI.flTab && lista.some(x => x[0] === UI.flTab) ? UI.flTab : (prim[0] || lista[0] || [])[0];
     const tab = x => `<button class="fl2-tab ${x[0] === act0 ? 'on' : ''} ${fOculta(x[0]) ? 'off' : ''}" data-act="fltab" data-k="${x[0]}" title="${esc(x[1])}" ${x[0] === act0 ? 'aria-current="true"' : ''}>${esc(({ cif: 'Cifras', sal: 'Salud', log: 'Logros' })[x[0]] || x[1])}</button>`;
     let phX = '', phLab = '';
-    const mkHead = () => { if (phLab) [...pf.querySelectorAll('.pill')].forEach(x => { if (x.textContent.trim() === phLab) x.remove(); }); return `<div class="fl2"><div class="fl2-top"><button class="btn" data-act="flback">${icon('chevl', 13)}<span>Volver</span></button><span class="fl2-k">${kick}</span><div class="fl2-p">${pf.firstElementChild ? [...pf.childNodes].map(n => n.outerHTML || n.textContent).join('') : ''}</div><span class="fl2-sp"></span>${acts}</div><div class="fl2-t2"><h1>${R.title}</h1><span class="fl2-sp"></span>${phX}</div>`; };
-    const bar = `<div class="fl2-bar" role="toolbar" aria-label="Secciones de la ficha"><span class="fl2-l">Secciones:</span>${prim.map(tab).join('')}${rest.length ? `<div class="popw"><button class="fl2-tab ${rest.some(x => x[0] === act0) ? 'on' : ''}" data-act="pop" data-id="pop-flsec">${rest.some(x => x[0] === act0) ? esc(rest.find(x => x[0] === act0)[1]) + ' ▾' : 'Más (' + rest.length + ') ▾'}</button><div class="pop" id="pop-flsec">${rest.map(x => `<button data-act="fltab" data-k="${x[0]}" class="${fOculta(x[0]) ? 'off' : ''}">${icon(x[2], 15)} ${esc(x[1])}${fOculta(x[0]) ? ' <small>(oculta)</small>' : ''}</button>`).join('')}</div></div>` : ''}<span class="fl2-sp"></span><button class="fl2-lk" data-act="flall" data-m="open">Expandir todo</button><span aria-hidden="true">·</span><button class="fl2-lk" data-act="flall" data-m="close">Contraer todo</button></div></div>`;
+    const mkHead = () => { if (phLab) [...pf.querySelectorAll('.pill')].forEach(x => { if (x.textContent.trim() === phLab) x.remove(); }); const ult = i.actualizada ? diffD(hoy(), i.actualizada) : null;
+      return `<div class="fl3"><div class="fl3-top"><button class="btn" data-act="flback">${icon('chevl', 13)}<span>Volver</span></button><span class="fl2-k">${kick}</span><span class="fl2-sp"></span>${acts}</div><div class="fl3-t"><h1>${R.title}</h1><div class="fl2-p">${pf.firstElementChild ? [...pf.childNodes].map(n => n.outerHTML || n.textContent).join('') : ''}</div></div><p class="mut fl3-sub">${[i.lider ? 'Líder ' + esc(i.lider) : '', i.sponsor ? 'Sponsor ' + esc(i.sponsor) : '', ult == null ? '' : 'Actualizado ' + (ult === 0 ? 'hoy' : 'hace ' + ult + (ult === 1 ? ' día' : ' días'))].filter(Boolean).join(' · ')}</p></div>`; };
+    const bar = `<div class="fl3-h"><h2>Todo lo demás</h2><span class="fl2-sp"></span><button class="fl2-lk" data-act="flall" data-m="open">Expandir todo</button><span aria-hidden="true">·</span><button class="fl2-lk" data-act="flall" data-m="close">Contraer todo</button></div>`;
     const grid = lista.map(([k, t, ic, wide]) => {
       const [n, html0] = sec[k], ab = fAbierta(k), oc = fOculta(k); let html = html0, hx = '', fx = '';
       if (k === 'res') {   /* fase actual en la cabecera y «incluir en presentación» en el pie */
@@ -321,7 +345,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       }
       return `<section class="fl-s ${wide ? 'wide' : ''} ${ab ? '' : 'col'} ${oc ? 'fl-hid' : ''}" data-k="${k}" id="fl-${k}"><header class="fl-h"><button class="fl-t" data-act="flcol" data-k="${k}" aria-expanded="${ab}"><span class="chv">${icon('chevd', 14)}</span>${icon(ic, 16)}<span>${esc(t)}</span>${n != null ? `<em>${n}</em>` : ''}</button>${hx}<span class="fl-sa">${secAct(k, i)}</span><button class="icon-btn sm" data-act="fleye" data-k="${k}" title="Ocultar esta sección" aria-label="Ocultar ${esc(t)}">${icon('eye', 15)}</button></header><div class="fl-b">${html}</div>${fx}</section>`;
     }).join('');
-    return mkHead() + bar + `<div class="fl-grid">${grid}</div>`;
+    return mkHead() + panoFicha(i) + bar + `<div class="fl-grid fl-list">${grid}</div>`;
   }
   Views.ficha = {
     render() {
