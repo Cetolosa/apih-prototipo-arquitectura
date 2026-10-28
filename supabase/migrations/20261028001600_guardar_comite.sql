@@ -167,13 +167,14 @@ create or replace function public.apih_eliminar(p_lista text, p_id text) returns
 $$ declare r public.registros; x jsonb; t text;
 begin
   if public.apih_rol() is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
-  if p_lista not in ('APIH_Hitos', 'APIH_Riesgos', 'APIH_Decisiones', 'APIH_Compromisos', 'APIH_Comites') then raise exception 'APIH: no se puede eliminar en %', p_lista using errcode = '42501'; end if;
+  if p_lista not in ('APIH_Hitos', 'APIH_Riesgos', 'APIH_Decisiones', 'APIH_Compromisos', 'APIH_Comites', 'APIH_Cambios') then raise exception 'APIH: no se puede eliminar en %', p_lista using errcode = '42501'; end if;
   select * into r from public.registros where lista = p_lista and id = p_id for update;
   if not found then raise exception 'APIH: el registro % no existe', p_id using errcode = 'P0002'; end if;
   if p_lista = 'APIH_Comites' then
     if not public.apih_escribe(p_lista, p_id, null) then raise exception 'APIH: solo quien gobierna puede gestionar comités' using errcode = '42501'; end if;
   elsif not public.apih_edita_area(r.area) then raise exception 'APIH: sin permiso sobre el área del registro' using errcode = '42501'; end if;
   x := substr(r.datos, 4)::jsonb;
+  if p_lista = 'APIH_Cambios' and coalesce(x ->> 'estado', '') <> 'Solicitado' then raise exception 'APIH: una solicitud de cambio ya resuelta no se elimina' using errcode = '22023'; end if;
   perform set_config('apih.interno', 'on', true);
   if p_lista = 'APIH_Decisiones' then
     update public.registros set datos = 'p1.' || jsonb_set(substr(datos, 4)::jsonb, '{decisiones}',
@@ -189,6 +190,7 @@ begin
                     when 'APIH_Riesgos' then 'Riesgo eliminado: ' || coalesce(x ->> 'desc', p_id)
                     when 'APIH_Compromisos' then 'Compromiso eliminado: ' || coalesce(x ->> 'texto', p_id)
                     when 'APIH_Comites' then 'Comité eliminado: ' || coalesce(x ->> 'nombre', p_id)
+                    when 'APIH_Cambios' then 'Solicitud de cambio eliminada: ' || p_id
                     else 'Decisión eliminada: ' || coalesce(x ->> 'titulo', p_id) end;
   perform public.apih_bitacora_cmd(x ->> 'ini', case p_lista when 'APIH_Riesgos' then 'Riesgo' when 'APIH_Decisiones' then 'Decisión' else 'Cambio' end, t);
   return jsonb_build_object('id', p_id);

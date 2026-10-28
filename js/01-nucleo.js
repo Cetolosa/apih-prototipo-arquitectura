@@ -282,31 +282,11 @@ export function audSnap() {
   Object.keys(AUD).forEach(t => (St[AUD_COL[t]] || []).forEach(r => { const d = {}; Object.keys(AUD[t].f).forEach(k => { d[k] = r[k] == null ? null : r[k]; }); S[t + ':' + r.id] = d; }));
   _audSt = St; _audSnap = S; _audTop = St.bitacora && St.bitacora[0] ? St.bitacora[0].id : null;
 }
+/* La auditoría ya no se calcula en el navegador: cada comando del servidor deja su anotación en la bitácora y la tabla `auditoria`
+   registra cada escritura (quién, qué lista, cuándo). Aquí solo se mantiene la foto base para las pantallas que la consultan. */
 export function audit() {
   if (!St) return;
-  if (St !== _audSt) { audSnap(); return; }        /* St reemplazado (carga remota, importación, restauración): solo se toma la foto base */
-  const nuevos = []; for (const b of St.bitacora) { if (b.id === _audTop) break; nuevos.push(b); }
-  const conCambio = new Set(nuevos.filter(b => b.tipo === 'Cambio' && b.ini).map(b => b.ini));
-  const out = [], S = {};
-  Object.keys(AUD).forEach(t => {
-    const A = AUD[t];
-    (St[AUD_COL[t]] || []).forEach(r => {
-      const key = t + ':' + r.id, cur = {}, prev = _audSnap[key];
-      Object.keys(A.f).forEach(k => { cur[k] = r[k] == null ? null : r[k]; });
-      S[key] = cur; if (!prev) return;
-      const ini = t === 'ini' ? r.id : A.ini(r), diffs = [];
-      Object.keys(A.f).forEach(k => {
-        if (JSON.stringify(prev[k]) === JSON.stringify(cur[k])) return;
-        if (AUD_SEM.includes(k) && conCambio.has(ini)) return;
-        const va = audVal(k, prev[k], r), vb = audVal(k, cur[k], r); if (va === vb) return;   /* N-U-17: sin cambio visible (— → —) */
-        diffs.push(A.f[k] + ': ' + va + ' → ' + vb);
-      });
-      if (diffs.length && ini) out.push({ ini, texto: (t === 'ini' ? '' : A.lbl + ' «' + String(A.nom(r) || r.id).replace(/[«»]/g, '').slice(0, 60) + '» — ') + diffs.join(' | ') });
-    });
-  });
-  if (out.length > 30) { log('Edición', null, 'Edición en lote: ' + out.length + ' registros modificados (detalle no registrado por campo)'); }
-  else out.slice().reverse().forEach(o => log('Edición', o.ini, o.texto));
-  _audSnap = S; _audTop = St.bitacora[0] ? St.bitacora[0].id : null;
+  if (St !== _audSt) audSnap();
 }
 export function audParse(texto) {
   const m = /^(Hito|Riesgo|Decisión|Compromiso|Cambio) «(.*?)» — /.exec(texto || '');

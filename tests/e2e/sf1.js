@@ -16,13 +16,13 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   await p.evaluate(() => Acts.sfnew({ id: 'PRJ-050', f: 'Ejecución' })); await p.waitForTimeout(200);
   r.hereda = await p.evaluate(() => $('#f_inicio').value + '|' + $('#f_fin').value);
   // 2) fuera de la fase: no se guarda
-  await p.fill('#f_nombre', 'C2 · API y datos'); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').fin, 30))); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.fill('#f_nombre', 'C2 · API y datos'); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').fin, 30))); await p.click('[data-act="msave"]'); await p.waitForSelector('.toast.err', { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(300);
   r.bloquea = await p.evaluate(() => !!$('#mform') && subfasesDe(byId('PRJ-050')).length === 0); r.msg = await txt('.toast.err:last-child span');
   // 3) dentro: se guarda
-  await p.fill('#f_inicio', await p.evaluate(() => ventanaDe(byId('PRJ-050'), 'Ejecución').ini)); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').ini, 14))); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.fill('#f_inicio', await p.evaluate(() => ventanaDe(byId('PRJ-050'), 'Ejecución').ini)); await p.fill('#f_fin', await p.evaluate(() => addD(ventanaDe(byId('PRJ-050'), 'Ejecución').ini, 14))); await p.click('[data-act="msave"]'); await p.waitForFunction(n => subfasesDe(byId('PRJ-050')).length === n, 1, { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(200);
   // 4) vacía: hereda
   await p.evaluate(() => Acts.sfnew({ id: 'PRJ-050', f: 'Transición' })); await p.waitForTimeout(200);
-  await p.fill('#f_nombre', 'UAT'); await p.fill('#f_inicio', ''); await p.fill('#f_fin', ''); await p.click('[data-act="msave"]'); await p.waitForTimeout(200);
+  await p.fill('#f_nombre', 'UAT'); await p.fill('#f_inicio', ''); await p.fill('#f_fin', ''); await p.click('[data-act="msave"]'); await p.waitForFunction(n => subfasesDe(byId('PRJ-050')).length === n, 2, { timeout: 8000 }).catch(() => {}); await p.waitForTimeout(200);
   r.subs = await p.evaluate(() => subfasesDe(byId('PRJ-050')).map(s => s.fase + ':' + s.nombre + ':' + s.inicio + '>' + s.fin).join(' | '));
   r.uatHereda = await p.evaluate(() => { const s = subfasesDe(byId('PRJ-050'))[1], v = ventanaDe(byId('PRJ-050'), 'Transición'); return s.inicio === v.ini && s.fin === v.fin; });
   // 5) hito con subfase de otra fase: rechazado; de la misma: aceptado
