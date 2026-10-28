@@ -1,6 +1,6 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, ADMIN_USERS, APIH_CONFIG, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
-import { AuthService } from './02-datos.js';
+import { $, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
 import { diasEnFase, priorScore } from './04-flujos.js';
 import { pasosCocinaHTML, semOf, semSet } from './05-vistas.js';
@@ -375,16 +375,9 @@ export function celebrar(i, antes) {
 /* ============================================================
    APIH · V17 · «Ver como» ampliado + ventanas flotantes
    ============================================================ */
-function verComoLista() {
-  const m = new Map(), me = _nrm(St.cfg.usuario);
-  St.usuarios.forEach(u => m.set(_nrm(u.n), u.n));
-  St.ini.forEach(i => [i.lider, i.sponsor].forEach(n => { n = String(n || '').trim(); if (n && !m.has(_nrm(n))) m.set(_nrm(n), n); }));
-  m.delete(me);
-  return [...m.values()].sort((a, b) => a.localeCompare(b, 'es'));
-}
-function usuarioSintetico(n) {   // persona sin fila en Usuarios: Colaborador con las áreas de lo que lidera
-  const k = _nrm(n), ar = [...new Set(St.ini.filter(i => _nrm(i.lider) === k || _nrm(i.sponsor) === k).flatMap(i => areasDe(i.area)))];
-  return { n, rol: 'Colaborador', cargo: '', area: ar.join(','), correo: '', veTodo: false, sint: true };
+function verComoLista() {   // solo personas con perfil: el servidor es quien simula
+  const me = _nrm(St.cfg.usuario);
+  return St.usuarios.map(u => u.n).filter(n => _nrm(n) !== me).sort((a, b) => a.localeCompare(b, 'es'));
 }
 function ampliable() {
   const mn = $('#main'); if (!mn) return;
@@ -794,7 +787,14 @@ function filtrosHTML() {
 Chg.respG = el => { FL.resp = el.value; ppInval(); refresh(); };
 Acts.mine = () => { FL.mine = !FL.mine; ppInval(); refresh(); };
 Acts.flclear = () => { FL.resp = ''; FL.mine = false; St.cfg.areaGlobal = 'Todas'; ppInval(); refresh(); };
-Acts.vercomo = d => { FL.verComo = d.n || ''; FL.mine = false; FL.resp = ''; ppInval(); if (UI.view === 'admin' && !esAdmin()) UI.view = 'dashboard'; refresh(); };
+Acts.vercomo = async d => {   // «Ver como» lo resuelve el servidor: se pide la simulación y se relee todo bajo ese perfil
+  const n = d.n || '', u = n && St.usuarios.find(x => _nrm(x.n) === _nrm(n));
+  if (n && !u) return toast('Esa persona no tiene perfil en APIH', 'err');
+  try { await DataService.flush(); await DataService.svc.verComo(u ? u.correo : null); }
+  catch (e) { return toast(e.detalle || e.message, 'err'); }
+  FL.mine = false; FL.resp = ''; ppInval(); await DataService.refresh(true, true);
+  if (UI.view === 'admin' && !esAdmin()) UI.view = 'dashboard'; refresh();
+};
 
 /* ---------- acceso a Administración ---------- */
 const _go0 = go;
@@ -893,7 +893,7 @@ Views.personas = {
       <select data-chg="flt" data-v="pers" data-f="rol">${selOpts(roles, f.rol, 'Todos los roles')}</select>
       <small style="display:inline;margin-left:auto">${rows.length} de ${all.length} personas</small></div>
     <div class="tbl-w"><table class="tbl"><thead><tr><th>Persona</th><th>Cargo</th><th>Acceso</th><th>Roles</th><th>Áreas</th><th class="n" title="Proyectos activos">Proy.</th><th class="n" title="Hitos abiertos">Hitos</th><th class="n">Riesgos</th><th class="n" title="Decisiones">Decis.</th><th></th></tr></thead><tbody>
-    ${rows.map(p => `<tr><td><span class="pp">${avatar(p.n, 26)}<b>${esc(p.n)}</b></span></td><td>${esc(p.cargo || '—')}</td><td>${p.acceso ? `<span class="pill ${p.acceso === 'Administra' ? '' : 'soft'}" title="${ADMIN_USERS.includes(p.n) ? 'Titular del Panel de Administración' : ''}">${esc(p.acceso)}${ADMIN_USERS.includes(p.n) ? ' · Panel Admin' : ''}</span>` : '<span class="mut">—</span>'}</td>
+    ${rows.map(p => `<tr><td><span class="pp">${avatar(p.n, 26)}<b>${esc(p.n)}</b></span></td><td>${esc(p.cargo || '—')}</td><td>${p.acceso ? `<span class="pill ${p.acceso === 'Administra' ? '' : 'soft'}" title="${p.acceso === 'Administra' ? 'Titular del Panel de Administración' : ''}">${esc(p.acceso)}${p.acceso === 'Administra' ? ' · Panel Admin' : ''}</span>` : '<span class="mut">—</span>'}</td>
       <td><div class="chips">${Object.entries(p.roles).map(([r, n]) => `<span class="pill soft" title="${n} registro(s)">${esc(r)} · ${n}</span>`).join('') || '<span class="mut">—</span>'}</div></td><td>${[...p.areas].filter(Boolean).map(esc).join(', ') || '—'}</td>
       <td class="n">${p.lidera || '—'}</td><td class="n">${p.hitos ? p.hitos + (p.hitosAtr ? ` <span class="neg" title="vencidos">(${p.hitosAtr})</span>` : '') : '—'}</td><td class="n">${p.riesgos || '—'}</td><td class="n">${p.decis || '—'}</td>
       <td><button class="btn sm" data-act="verlosuyo" data-n="${esc(p.n)}">Ver lo suyo</button>${esAdminReal() && p.n !== St.cfg.usuario ? ` <button class="btn sm" data-act="vercomo" data-n="${esc(p.n)}" title="Ver el sistema como ${esc(p.n)}">Ver como</button>` : ''}</td></tr>`).join('') || `<tr><td colspan="10">${empty('Sin personas con estos filtros', 'users')}</td></tr>`}
@@ -912,40 +912,26 @@ Acts.perscsv = () => { const r = personasData(); download('APIH_personas_' + hoy
    Colaborador   su área (todas si ve_todo)  solo su(s) área(s)    no    no
    Invitado      su área (todas si ve_todo)  nada (solo comenta)   no    no
    · El rol y el área salen de la hoja Usuarios. «Administra» es el único omnipotente.
-   · El Panel de Administración es exclusivo del titular (ADMIN_USERS / ADMIN_EMAILS).
+   · El Panel de Administración es exclusivo del titular (lo decide el servidor).
    · Con «Ver como» el administrador simula el rol y el área de otra persona.
    ========================================================================== */
 const PERM_ROLES = ['Administra', 'Responsable', 'Colaborador', 'Invitado'];
-function usuarioActual() {
-  const n = _nrm(miUsuario()), au = !FL.verComo && typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(), em = _nrm(au && (au.email || au.username));
-  return St.usuarios.find(u => _nrm(u.n) === n) || St.usuarios.find(u => em && _nrm(u.correo) === em) || (FL.verComo ? usuarioSintetico(FL.verComo) : null);
-}
-export function rolActual() {
-  if (!FL.verComo && esAdminReal()) return 'Administra';
-  const u = usuarioActual(); if (!u) return 'Invitado';                       // desconocido ⇒ solo lectura
-  return PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador';
-}
+/* Todo lo que sigue SOLO LEE lo que entregó el servidor (PERM.ctx = apih_contexto; PERM.edit = puede_editar por fila). No decide nada. */
+const ctx = () => PERM.ctx || {};
+export function rolActual() { return ctx().appRol || 'Invitado'; }
 export const areasDe = a => String(Array.isArray(a) ? a.join(',') : a || '').split(',').map(x => x.trim()).filter(Boolean);
-export const areasPropias = () => { const u = usuarioActual(); return u ? areasDe(u.area) : []; };
-function puedeVerTodo() { const r = rolActual(), u = usuarioActual(); return r === 'Administra' || r === 'Responsable' || !!(u && (u.veTodo === true || u.veTodo === 'TRUE')) || (!FL.verComo && esAdminReal()); }
-export const areaVisible = a => puedeVerTodo() || areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x));
-function puedeEditarArea(a) { const r = rolActual(); if (r === 'Administra') return true; if (r === 'Invitado') return false; return areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x)); }
-export const puedeEditarIni = i => !!i && puedeEditarArea(i.area);
-export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && rolActual() === 'Administra';
-export const puedeGobernar = () => ['Administra', 'Responsable'].includes(rolActual());   // comités: agenda, acuerdos
-export const soloLectura = () => !!St.cfg.readOnly || rolActual() === 'Invitado';
-export const areasPermitidas = () => puedeVerTodo() ? St.cfg.areas : St.cfg.areas.filter(a => a === 'Transversal' || areasPropias().includes(a));
+export const areasPropias = () => ctx().areas || [];
+const puedeVerTodo = () => !!ctx().veTodo;
+export const areaVisible = a => puedeVerTodo() || !areasDe(a).length || areasDe(a).some(x => (ctx().areasVisibles || []).includes(x));   // solo afina listas ya filtradas por el servidor
+function puedeEditarArea(a) { const l = ctx().areasEditables || [], v = areasDe(a); return !v.length || v.some(x => l.includes(x)); }   // alta de algo que aún no existe en el servidor
+export const puedeEditarIni = i => !!i && (PERM.edit.has(i.id) ? PERM.edit.get(i.id) : puedeEditarArea(i.area));
+export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && !!ctx().puedeVerAnalisis;
+export const puedeGobernar = () => !!ctx().gobierna;   // comités: agenda, acuerdos
+export const soloLectura = () => !PERM.ctx || !!ctx().soloLectura;
+export const areasPermitidas = () => ctx().areasVisibles || [];
 export const NO_PERM = (m) => toast(m || 'No tienes permiso para esta acción', 'err');
 
-/* área de la entidad a la que apunta una acción (d.id / d.ini / d.c …) */
-function areaDeAccion(d, el) {
-  const id = d.id || (el && el.dataset && el.dataset.id) || d.ini || d.c; if (!id) return null;
-  const i = byId(id); if (i) return i.area;
-  const h = St.hitos.find(x => x.id === id); if (h) return (byId(h.ini) || {}).area || null;
-  const r = St.riesgos.find(x => x.id === id); if (r) return (byId(r.ini) || {}).area || null;
-  const de = St.decisiones.find(x => x.id === id); if (de) return de.area || (byId(de.ini) || {}).area || null;
-  return null;
-}
+/* Compuertas de interfaz: solo evitan viajes inútiles; la decisión final siempre es del servidor (RLS y comandos). */
 const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spsync', 'splogout', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
 const CHG_ADMIN = ['cfg', 'spc', 'impfile', 'impinifile'];
 const ACT_EDIT = ['carmar', 'advance', 'etapa', 'etapago', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota', 'avauto', 'fasefix', 'fasefechas'];
@@ -956,11 +942,12 @@ function guardar(tabla, nombres, fn) {
   nombres.forEach(n => { const o = tabla[n]; if (!o) return; tabla[n] = function (d, el, e) { const m = fn(n, d || {}, el); if (m) return NO_PERM(m); return o.apply(this, arguments); }; });
 }
 const RO_MSG = 'Solo lectura: no puedes editar aquí (puedes ver y comentar)';
+const MSG_COM = 'No tienes permiso para gestionar comités';
 const chequeo = (n, d, el, esCom) => {
-  if (soloLectura()) return RO_MSG;   // U-04: un solo mensaje para Invitado y modo solo lectura
-  if (esCom) return puedeGobernar() ? '' : 'La gestión de comités es del rol Administra o Responsable';
-  if (n === 'edit' && d.t === 'com') return puedeGobernar() ? '' : 'La gestión de comités es del rol Administra o Responsable';
-  const a = areaDeAccion(d, el); if (a && !puedeEditarArea(a)) return 'Sin permiso: la iniciativa es del área ' + areasDe(a).join(', ') + ' y tu rol edita solo ' + (areasPropias().join(', ') || 'ninguna área');
+  if (soloLectura()) return RO_MSG;   // un solo mensaje para Invitado, modo solo lectura y «Ver como»
+  if (esCom || (n === 'edit' && d.t === 'com')) return puedeGobernar() ? '' : MSG_COM;
+  const id = d.id || (el && el.dataset && el.dataset.id) || d.ini || d.c;
+  if (id && PERM.edit.has(id) && !PERM.edit.get(id)) return 'Sin permiso: este elemento es de un área que tu perfil no edita (' + (areasPropias().join(', ') || 'ninguna') + ')';
   return '';
 };
 guardar(Acts, ACT_ADMIN, () => esAdmin() ? '' : 'Acción exclusiva del administrador');
@@ -973,28 +960,29 @@ guardar(Acts, ['new'], (n, d) => d.t === 'com' ? chequeo(n, d, null, true) : (so
 guardar(Acts, ['newevt', 'bitadd'], (n, d) => soloLectura() ? chequeo(n, d, null) : '');
 guardar(Acts, ['go'], (n, d) => d.v === 'analisis' && !puedeVerAnalisis() ? 'La sección Análisis es exclusiva del rol Administra' : '');
 
-/* formularios: se valida el área al GUARDAR (cubre iniciativas, hitos, riesgos, decisiones, eventos…) */
+/* formularios: la validación real ocurre en el servidor al guardar; aquí solo se corta el caso evidente */
 const _openForm0 = openForm;
 ENLACES.openForm = function (o) {
   const os = o && o.onSave, od = o && o.onDanger;
-  if (od) o.onDanger = function () {   // N-U-01: eliminar (subfase, etc.) también exige permiso del área
-    if (soloLectura()) { NO_PERM(chequeo('form', {}, null)); return; }
-    const ini = byId(o.iniId || (o.values || {}).ini), a = ini && ini.area;
-    if (a && !puedeEditarArea(a)) { NO_PERM('Sin permiso para eliminar en el área ' + areasDe(a).join(', ')); return; }
+  if (od) o.onDanger = function () {
+    if (soloLectura()) { NO_PERM(RO_MSG); return; }
+    const ini = byId(o.iniId || (o.values || {}).ini);
+    if (ini && !puedeEditarIni(ini)) { NO_PERM('Sin permiso para eliminar en el área ' + areasDe(ini.area).join(', ')); return; }
     return od.apply(this, arguments);
   };
   if (os) o.onSave = function (out) {
-    if (soloLectura()) { NO_PERM(chequeo('form', {}, null)); return false; }
+    if (soloLectura()) { NO_PERM(RO_MSG); return false; }
     const v = o.values || {}, ini = byId(out && out.ini || v.ini || o.iniId);
     const a = (out && out.areaArr && out.areaArr.length ? out.areaArr : out && out.area) || (ini && ini.area) || v.area;
-    if (a && !puedeEditarArea(a)) { NO_PERM('Sin permiso para guardar en el área ' + areasDe(a).join(', ') + ' (tu rol edita solo ' + (areasPropias().join(', ') || 'ninguna área') + ')'); return false; }
+    const ok = out && out.areaArr || !ini || ini.area !== a ? puedeEditarArea(a) : puedeEditarIni(ini);
+    if (a && !ok) { NO_PERM('Sin permiso para guardar en el área ' + areasDe(a).join(', ') + ' (tu perfil edita ' + (areasPropias().join(', ') || 'ninguna área') + ')'); return false; }
     return os.apply(this, arguments);
   };
   return _openForm0(o);
 };
 
 /* ver: navegación y filtros respetan el alcance de visibilidad */
-function guardAcceso() { if (UI.view === 'analisis' && !puedeVerAnalisis()) UI.view = 'dashboard'; if (UI.view === 'cielo' && St.cfg.cieloOn === false) UI.view = 'dashboard'; if (!puedeVerTodo() && St.cfg.areaGlobal !== 'Todas' && !areasPropias().includes(St.cfg.areaGlobal)) St.cfg.areaGlobal = 'Todas'; }
+function guardAcceso() { if (UI.view === 'analisis' && !puedeVerAnalisis()) UI.view = 'dashboard'; if (UI.view === 'cielo' && St.cfg.cieloOn === false) UI.view = 'dashboard'; if (St.cfg.areaGlobal !== 'Todas' && !areasPermitidas().includes(St.cfg.areaGlobal)) St.cfg.areaGlobal = 'Todas'; }
 
 /* matriz de permisos (se muestra en Personas) */
 function matrizPermisosHTML() {

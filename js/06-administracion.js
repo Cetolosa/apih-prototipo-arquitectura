@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, ADMIN_USERS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
+import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
 import { AuthService, DataService, SETTINGS_KEYS, ESQUEMA } from './02-datos.js';
 import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
 import { cmdServidor, conServidor, diasEnFase, migrateV5 } from './04-flujos.js';
@@ -36,7 +36,7 @@ const NOTIF = [
   { id: 'cambio_res', g: 'gob', l: 'Solicitud de cambio resuelta', d: 'Se aprobó o rechazó una solicitud que hiciste (últimos 14 días).', sev: 1, on: true, dest: ['resp'], ev: true, fijoDest: true }
 ];
 const NOTIF_VENT = 14;   /* días hacia atrás para los avisos por evento */
-const rolDeUser = n => { const k = _nrm(n); if (ADMIN_USERS.some(a => _nrm(a) === k)) return 'Administra'; const u = St.usuarios.find(x => _nrm(x.n) === k); return u && ENLACES.PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador'; };
+const rolDeUser = n => { const k = _nrm(n); const u = St.usuarios.find(x => _nrm(x.n) === k); return u && ENLACES.PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador'; };
 export function notifPref(id, user) {
   const c = NOTIF.find(x => x.id === id), o = ((St.cfg.notif || {}).tipos || {})[id] || {}, p = ((((0, ENLACES.cfgUOf)(user).notif || {}).tipos) || {})[id] || {};
   const can = Object.assign({ app: true, correo: false, teams: false }, o.canales || {}, p.canales || {});

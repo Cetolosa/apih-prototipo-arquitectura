@@ -6,7 +6,7 @@
 --     · apih_personas()      directorio de personas con su rol y área (reemplaza la lista APIH_Roles del cliente)
 --     · registros_v.puede_editar   por fila, con la MISMA función que aplica RLS al escribir (apih_escribe)
 --     · apih_ver_como(email) «Ver como» del administrador resuelto en el servidor (solo lectura; el servidor evalúa los
---                            permisos con el perfil simulado, no la SPA)
+--                            permisos con el perfil elegido, no la SPA)
 --   Reglas que antes solo existían en el navegador y ahora se hacen cumplir aquí:
 --     · gestión de comités (lista APIH_Comites) solo con «gobierna» (Administra, Responsable o marca explícita)
 --     · modo solo lectura de la organización (cfg.readOnly): nadie escribe salvo el administrador sobre la propia configuración

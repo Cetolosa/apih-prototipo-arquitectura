@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
+import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, FL, PERM, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
    CAPA DE DATOS · DataService · SupabaseService · AuthService
    ===================================================================== */
@@ -129,7 +129,7 @@ export const ESQUEMA = {
   }
 };
 const DATOS_COL = { n: 'DatosJSON', t: 'Note' };
-export const SETTINGS_KEYS = ['cfg', 'cfgU', 'usuarios', 'eventos', 'pres', 'ptpl', 'ptema', 'seq'];
+export const SETTINGS_KEYS = ['cfg', 'cfgU', 'eventos', 'pres', 'ptpl', 'ptema', 'seq'];
 const settingKeys = S => [...SETTINGS_KEYS, ...Object.keys((S && S.psnap) || {}).map(i => 'psnap:' + i)];   // psnap:<id> = presentación congelada       // documentos en APIH_Config
 const LOCAL_CFG = ['usuario', 'areaGlobal'];                                // preferencias de sesión: no se comparten
 
@@ -206,7 +206,7 @@ export const DataService = {
       const t0 = performance.now(), S = await this.loadRemote(), raw = S._raw; delete S._raw;
       this.st.msLoad = Math.round(performance.now() - t0); this.fullAt = Date.now(); if (this.svc.stamp) { try { this.stampV = await this.svc.stamp(); } catch (e) { } }
       this.snap = this.snapshot(raw || S); this.dirty = false; this.tries = 0;
-      if (S.empty) { ['usuarios', 'cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
+      if (S.empty) { ['cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       this.startPoll();
       if (raw) { this.dirty = true; setTimeout(() => { this.commit(); if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)('Datos migrados al modelo V5 (Propuestas / Proyectos); sincronizando…'); }, 800); }
@@ -218,13 +218,16 @@ export const DataService = {
     }
   },
   async loadRemote() {
-    const v = this.svc, [prjs, props, riesgos, hitos, decisiones, bitacora, comites, set, compromisos, cambios, notas, docs] = await Promise.all([v.getProjects(), v.getProposals(), v.getRisks(), v.getMilestones(), v.getDecisions(), v.getAudit(), v.getCommittees(), v.getSettings(), v.getCommitments().catch(e => { if (e.status === 404) return []; throw e; }), v.getChanges().catch(e => { if (e.status === 404) return []; throw e; }), v.getNotes().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; }), v.getDocs().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; })]);
+    const v = this.svc; v.edit = new Map();
+    const [prjs, props, riesgos, hitos, decisiones, bitacora, comites, set, compromisos, cambios, notas, docs] = await Promise.all([v.getProjects(), v.getProposals(), v.getRisks(), v.getMilestones(), v.getDecisions(), v.getAudit(), v.getCommittees(), v.getSettings(), v.getCommitments().catch(e => { if (e.status === 404) return []; throw e; }), v.getChanges().catch(e => { if (e.status === 404) return []; throw e; }), v.getNotes().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; }), v.getDocs().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; })]);
     const seed = seedState(), cfg = Object.assign(defaultCfg(), set.cfg || {});
     LOCAL_CFG.forEach(k => { cfg[k] = (St && St.cfg && St.cfg[k]) || defaultCfg()[k]; });
-    const u = AuthService.user(); if (u) { const m = (set.usuarios || seed.usuarios).find(x => x.n.toLowerCase() === (u.name || '').toLowerCase() || (x.correo && u.email && x.correo.toLowerCase() === u.email.toLowerCase())); cfg.usuario = m ? m.n : u.name; }
+    const [ctx, personas] = await Promise.all([v.contexto(), v.personas()]);
+    if (!ctx) throw new Error('Tu correo no tiene perfil activo en APIH. Pide acceso al administrador.');
+    PERM.ctx = ctx; PERM.edit = v.edit; FL.verComo = ctx.comoDe ? ctx.nombre : ''; cfg.usuario = ctx.nombre;   // identidad y permisos: del servidor
     bitacora.sort((a, b) => a.ts < b.ts ? 1 : -1);
     const ini = [...prjs, ...props];
-    let S = { v: 3, cfg, ini, hitos, riesgos, decisiones, comites, bitacora, compromisos: compromisos || [], cambios: cambios || [], notas: notas || [], documentos: docs || [], pres: set.pres || [], ptpl: set.ptpl || [], ptema: set.ptema || {}, psnap: Object.fromEntries(Object.keys(set).filter(k => k.startsWith('psnap:')).map(k => [k.slice(6), set[k]])), usuarios: set.usuarios || seed.usuarios, eventos: set.eventos || [], cfgU: set.cfgU || {}, seq: set.seq || {} };
+    let S = { v: 3, cfg, ini, hitos, riesgos, decisiones, comites, bitacora, compromisos: compromisos || [], cambios: cambios || [], notas: notas || [], documentos: docs || [], pres: set.pres || [], ptpl: set.ptpl || [], ptema: set.ptema || {}, psnap: Object.fromEntries(Object.keys(set).filter(k => k.startsWith('psnap:')).map(k => [k.slice(6), set[k]])), usuarios: personas, eventos: set.eventos || [], cfgU: set.cfgU || {}, seq: set.seq || {} };
     S.empty = !ini.length && !hitos.length && !riesgos.length;
     if (ini.some(i => !i.tipo)) { const raw = JSON.parse(JSON.stringify(S)); S = (0, ENLACES.migrateV5)(S); S._raw = raw; }   // datos de versiones anteriores
     return S;
@@ -450,8 +453,6 @@ export class SupabaseService {
   async _leerAjustes() {
     const items = await this.listItems('settings'), out = {}; this.ids.settings = {}; this.ids.roles = {};
     const raw = {}; items.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.settings[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
-    const ri = await this.listItems('roles');
-    ri.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.roles[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
     Object.keys(raw).forEach(k => { if (/#\d+$/.test(k)) return; try { let v = JSON.parse(raw[k]); if (v && v.__chunks) { let s = ''; for (let n = 1; n <= v.__chunks; n++) s += raw[k + '#' + n] || ''; v = JSON.parse(s); } out[k] = v; } catch (e) { } });
     return out;
   }
@@ -504,15 +505,19 @@ export class SupabaseService {
     if (res.status === 204) return { data: null, res };
     const t = await res.text(); return { data: t ? JSON.parse(t) : null, res };
   }
+  /* Permisos y directorio: los entrega el servidor (apih_contexto / apih_personas); la interfaz solo los lee */
+  async contexto() { return (await this.rpc('apih_contexto', {})) || null; }
+  async personas() { return (await this.rpc('apih_personas', {})) || []; }
+  async verComo(correo) { return await this.rpc('apih_ver_como', { p_email: correo || null }); }
   async listItems(ent) {
     const l = encodeURIComponent(this.listName(ent)), idc = this._idCol(ent), out = [], PAGE = 1000;
     for (let off = 0; ; off += PAGE) {
-      const { data } = await this._rest('registros_v?select=id,datos,actualizado&lista=eq.' + l + '&order=id&limit=' + PAGE + '&offset=' + off);
+      const { data } = await this._rest('registros_v?select=id,datos,actualizado,puede_editar&lista=eq.' + l + '&order=id&limit=' + PAGE + '&offset=' + off);
       for (const r of data || []) {
         let txt;
         if (String(r.datos).startsWith('p1.')) txt = r.datos.slice(3);
         else throw new Error('«' + r.id + '» tiene un formato antiguo (cifrado) y no se puede leer. Avisa al administrador.');
-        (this.ver = this.ver || {})[ent + ':' + r.id] = r.actualizado || null;
+        (this.ver = this.ver || {})[ent + ':' + r.id] = r.actualizado || null; (this.edit = this.edit || new Map()).set(r.id, !!r.puede_editar);
         out.push({ spid: r.id, f: { [idc]: r.id, [DATOS_COL.n]: txt } });
       }
       if (!data || data.length < PAGE) break;

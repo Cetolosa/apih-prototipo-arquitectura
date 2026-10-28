@@ -331,19 +331,14 @@ export const esSB = i => !!i && i.estado === 'Stand By';
 export const isLive = i => !isDone(i) && !esSB(i);
 export const isActive = i => !esProp(i) && FASES_ACT.includes(i.fase) && i.estado === 'En curso';
 /* ---- Filtros globales V6: Área + Responsable + «Solo lo mío» (válidos en todas las pantallas) ---- */
-export const ADMIN_USERS = ['Christian Tolosa'];                          // único administrador (ver también esAdmin())
-export const FL = { resp: '', mine: false, verComo: '' };                  // estado en memoria (no se persiste)
+/* Permisos: los decide el SERVIDOR (apih_contexto + puede_editar por fila). Aquí solo se guarda lo que él entregó; no se calcula nada. */
+export const PERM = { ctx: null, edit: new Map() };
+export const FL = { resp: '', mine: false, verComo: '' };                  // estado en memoria (no se persiste); verComo lo fija el servidor
 export const miUsuario = () => FL.verComo || St.cfg.usuario;                // «yo»: usuario real o el que el admin está simulando
 export const respSel = () => FL.mine ? miUsuario() : FL.resp;
-const ADMIN_EMAILS = ['tolosa-christian@aramark.cl'];                         // + correo corporativo de Aramark si corresponde
 export const _nrm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-export function esAdminReal() {   // tolerante: «Christian Tolosa Delpino», mayúsculas, tildes o correo
-  const u = _nrm(St.cfg.usuario), au = (typeof ENLACES.AuthService !== 'undefined' && ENLACES.AuthService.user && ENLACES.AuthService.user()) || null, em = _nrm(au && (au.email || au.username));
-  // S-17: con sesión autenticada, el administrador se decide solo por el correo de la sesión (el nombre lo escribe cualquiera)
-  if (au) return !!em && ADMIN_EMAILS.some(e => _nrm(e) === em);
-  return ADMIN_USERS.some(a => { const n = _nrm(a); return u === n || u.startsWith(n + ' '); });   // sin sesión (demo/local) solo
-}
-export const esAdmin = () => !FL.verComo && esAdminReal();
+export let esAdminReal = () => !!(PERM.ctx && (PERM.ctx.esAdmin || PERM.ctx.comoDe));   // el administrador de verdad, incluso mientras usa «Ver como»
+export const esAdmin = () => !!(PERM.ctx && PERM.ctx.esAdmin);
 export let _PP = null;                                                     // nombre → Set de iniciativas donde participa (se invalida en render/save)
 export const ppInval = () => { _PP = null; };
 export function personProjects(n) {

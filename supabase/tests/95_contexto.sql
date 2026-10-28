@@ -54,7 +54,7 @@ begin; set local role authenticated;
 select pg_temp.como('tolosa-christian@aramark.cl');
 select pg_temp.ok((public.apih_contexto()->>'esAdmin')::boolean, 'admin: contexto admin');
 select pg_temp.ok((select puede_editar from public.registros_v where id='P-B'), 'admin edita todo');
-select pg_temp.ok((public.apih_ver_como('colab-a@test.cl')->>'rol') = 'editor', 'Ver como devuelve el contexto simulado');
+select pg_temp.ok((public.apih_ver_como('colab-a@test.cl')->>'rol') = 'editor', 'Ver como devuelve el contexto de la persona elegida');
 select pg_temp.ok((public.apih_contexto()->>'comoDe') = 'tolosa-christian@aramark.cl' and (public.apih_contexto()->>'soloLectura')::boolean, 'simulando: solo lectura y se sabe quién');
 select pg_temp.ok((select count(*) from public.registros_v where id='P-B') = 0, 'simulando: ve lo que vería el perfil');
 select pg_temp.falla($$update public.registros set datos = datos where lista='APIH_Proyectos' and id='P-A'$$, 'simulando no escribe', null);
