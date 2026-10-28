@@ -18,5 +18,8 @@ sudo -E env "PATH=$PATH" npm run pruebas-ti   # informe de revisión técnica
 ```
 Node 22 (`.nvmrc`). Las pruebas SQL necesitan Postgres local.
 
+## Aplicar las reglas en Supabase
+Pegar `supabase/aplicar_en_supabase.sql` completo en Supabase → SQL Editor → Run (repetible; no borra datos). Se regenera con `node tools/empaquetar-migraciones.js` y la CI exige que esté al día. Sin esto, la SPA nueva muestra «Sin conexión a Supabase: … puede_editar does not exist».
+
 ## Publicación
 `main` se publica en GitHub Pages (`.github/workflows/pages.yml`) con solo `index.html`, `apih-config.js`, `js/` y `css/`.

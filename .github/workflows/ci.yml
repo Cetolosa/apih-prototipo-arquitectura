@@ -15,6 +15,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y postgresql   # backend de pruebas: Postgres real con las migraciones del repositorio
       - run: npm ci
       - run: node tools/guardia-reglas.js && node tools/lint-terminos.js && node tools/verificar-modulos.js
+      - run: node tools/empaquetar-migraciones.js && git diff --exit-code supabase/aplicar_en_supabase.sql   # el paquete para Supabase debe estar al día
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4
