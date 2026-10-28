@@ -103,8 +103,8 @@ begin
     else
       fc := coalesce(case when public.apih_vacio(j, 'finEst') then null else public.apih_fecha(j, 'finEst') end, fin_plan);
       select max(public.apih_fecha(h, 'fecha')) into ti from jsonb_array_elements(hs) h where h ->> 'completado' is distinct from 'true';
-      if ti is not null and (j ->> 'fase') = any (fases) and fc is not null and ti > fc then fc := ti; end if;
-      if vivo and (j ->> 'fase') = any (fases) and public.apih_num(j, 'avance') < 100 and fc is not null and fc < hoy then fc := hoy; end if;
+      if ti is not null and (j ->> 'fase') = any (fases) and (fc is null or ti > fc) then fc := ti; end if;
+      if vivo and (j ->> 'fase') = any (fases) and public.apih_num(j, 'avance') < 100 and (fc is null or fc < hoy) then fc := hoy; end if;
     end if;
     ds := case when fin_plan is not null and fc is not null then greatest(0, fc - fin_plan) else 0 end;
     -- avance esperado (lineal)

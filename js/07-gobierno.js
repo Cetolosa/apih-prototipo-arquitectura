@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { $, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
 import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
 import { diasEnFase, priorScore } from './04-flujos.js';
@@ -64,7 +64,7 @@ export function starsOf(i, W) {
   /* Riesgos y Gobierno: solo se evalúan en la semana en curso (no hay historial de revisiones) */
   if (cur) {
     const rs = riesgosDe(i.id).filter(riesgoAbierto);
-    out.rsk = !rs.length ? 'na' : rs.some(r => (r.fRev && r.fRev < hoy()) || (expo(r) >= cfgI(i,'umbralCritico') && !String(r.mit || '').trim())) ? 'off' : 'on';
+    out.rsk = !rs.length ? 'na' : rs.some(r => (r.fRev && r.fRev < hoy()) || (riesgoCritico(r) && !String(r.mit || '').trim())) ? 'off' : 'on';
     const f = forecast(i), fuera = f && i.finPlan && desv(i) > cfgI(i,'tolDesv');
     out.gob = fuera && !CAMBIOS().some(c => c.ini === i.id && c.estado !== 'Rechazado') ? 'off' : 'on';
   } else { out.rsk = 'na'; out.gob = 'na'; }
@@ -478,7 +478,7 @@ Acts.myreset = d => { if (FL.verComo || (!esAdministra() && fijo(d.k === '_tema'
 const decMaxDias = () => +St.cfg.decMaxDias || 30, decEscDias = () => +St.cfg.decEscalaDias || 7;
 const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.limite && diffD(hoy(), d.limite) > decEscDias());
 const resultadoOk = i => (i.beneficio > 0) ? (i.ahorroReal > 0) : String(i.resultadoNota || '').trim().length >= 10;
-const riesgoSinMit = (i, r) => riesgoAbierto(r) && expo(r) >= cfgI(i, 'umbralCritico') && !String(r.mit || '').trim();
+const riesgoSinMit = (i, r) => riesgoCritico(r) && !String(r.mit || '').trim();
 function congelarBase(i, rebase) {
   if (i.base && rebase) { i.baseHist = (i.baseHist || []).concat([i.base]); }
   i.base = { fecha: hoy(), inicio: i.inicioPlan || null, fin: i.finPlan || null, pres: i.presupuesto || 0, por: St.cfg.usuario, hitos: hitosDe(i.id).map(h => ({ id: h.id, nombre: h.nombre, fecha: h.fecha })) };
@@ -646,7 +646,7 @@ function findingsRiesgos() {
   const out = [], open = St.riesgos.filter(r => riesgoAbierto(r) && (!byId(r.ini) || (inArea(byId(r.ini)) && isLive(byId(r.ini)))));
   open.forEach(r => {
     const e = expo(r), ref = { grupo: 'Riesgos', ini: r.ini };
-    if (e >= cfgI(byId(r.ini),'umbralCritico')) out.push({ ...ref, regla: 'Impacto alto + Probabilidad alta', sev: 3, titulo: `Riesgo crítico (${e}): ${r.desc}`, detalle: `Impacto ${r.imp}/5 · Probabilidad ${r.prob}/5 · ${r.estado}. Dueño: ${r.dueno || 'sin dueño'}.`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
+    if (riesgoCritico(r)) out.push({ ...ref, regla: 'Impacto alto + Probabilidad alta', sev: 3, titulo: `Riesgo crítico (${e}): ${r.desc}`, detalle: `Impacto ${r.imp}/5 · Probabilidad ${r.prob}/5 · ${r.estado}. Dueño: ${r.dueno || 'sin dueño'}.`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
     else if (r.imp >= 4) out.push({ ...ref, regla: 'Impacto alto', sev: 2, titulo: `Impacto alto: ${r.desc}`, detalle: `Impacto ${r.imp}/5 con probabilidad ${r.prob}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
     else if (r.prob >= 4) out.push({ ...ref, regla: 'Probabilidad alta', sev: 2, titulo: `Probabilidad alta: ${r.desc}`, detalle: `Probabilidad ${r.prob}/5 con impacto ${r.imp}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
     if (e >= 10 && !r.mit) out.push({ ...ref, regla: 'Sin plan de mitigación', sev: 2, titulo: `Sin mitigación definida: ${r.desc}`, detalle: `Exposición ${e}. Define plan y dueño.`, rid: r.id, fx: [{ t: 'Definir mitigación', a: 'fxrisk', id: r.id }] });
@@ -654,7 +654,7 @@ function findingsRiesgos() {
   scope().filter(isLive).forEach(i => i.deps.forEach(did => {
     const d = byId(did); if (!d || !isLive(d)) return; const why = [];
     if (d.rag === 'Rojo') why.push('RAG Rojo'); if (atrasado(d)) why.push(`atrasada +${desv(d)} d`);
-    const rc = riesgosDe(d.id).filter(r => riesgoAbierto(r) && expo(r) >= cfgI(d,'umbralCritico')).length; if (rc) why.push(rc + ' riesgo(s) crítico(s)');
+    const rc = riesgosDe(d.id).filter(riesgoCritico).length; if (rc) why.push(rc + ' riesgo(s) crítico(s)');
     if (why.length) out.push({ grupo: 'Riesgos', regla: 'Dependencias críticas', sev: why.length > 1 ? 3 : 2, ini: i.id, titulo: `${i.titulo} depende de ${d.titulo} (${why.join(', ')})`, detalle: `Fin proyectado de la predecesora: ${fmtD(forecast(d))}. Un retraso se propaga a ${i.titulo}.`, fx: [{ t: 'Registrar riesgo de dependencia', a: 'fxdeprisk', id: i.id, dep: d.id }] });
   }));
   return out;

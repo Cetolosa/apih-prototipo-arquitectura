@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, FL, PERM, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
+import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, CALC, FL, PERM, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
    CAPA DE DATOS · DataService · SupabaseService · AuthService
    ===================================================================== */
@@ -222,7 +222,8 @@ export const DataService = {
     const [prjs, props, riesgos, hitos, decisiones, bitacora, comites, set, compromisos, cambios, notas, docs] = await Promise.all([v.getProjects(), v.getProposals(), v.getRisks(), v.getMilestones(), v.getDecisions(), v.getAudit(), v.getCommittees(), v.getSettings(), v.getCommitments().catch(e => { if (e.status === 404) return []; throw e; }), v.getChanges().catch(e => { if (e.status === 404) return []; throw e; }), v.getNotes().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; }), v.getDocs().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; })]);
     const seed = seedState(), cfg = Object.assign(defaultCfg(), set.cfg || {});
     LOCAL_CFG.forEach(k => { cfg[k] = (St && St.cfg && St.cfg[k]) || defaultCfg()[k]; });
-    const [ctx, personas] = await Promise.all([v.contexto(), v.personas()]);
+    const [ctx, personas, calc] = await Promise.all([v.contexto(), v.personas(), v.calculos()]);
+    Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {} }, calc);   // valores calculados: del servidor
     if (!ctx) throw new Error('Tu correo no tiene perfil activo en APIH. Pide acceso al administrador.');
     PERM.ctx = ctx; PERM.edit = v.edit; FL.verComo = ctx.comoDe ? ctx.nombre : ''; cfg.usuario = ctx.nombre;   // identidad y permisos: del servidor
     bitacora.sort((a, b) => a.ts < b.ts ? 1 : -1);
@@ -311,9 +312,19 @@ export const DataService = {
       clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), Math.min(60000, 5000 * this.tries));
     } else {
       this.tries = 0; this.dirty = false;
+      await this.recalcular();   // los valores calculados los entrega el servidor tras cada escritura
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       if (this.again) { this.again = false; this.commit(); }
     }
+  },
+  /* pide al servidor los valores calculados y repinta solo si cambiaron */
+  async recalcular() {
+    if (!this.svc) return;
+    try {
+      const c = await this.svc.calculos(), antes = JSON.stringify(CALC);
+      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {} }, c);
+      if (JSON.stringify(CALC) !== antes) { ENLACES._alertCache = null; if (typeof ENLACES.render === 'function') (0, ENLACES.render)(); }
+    } catch (e) { console.warn('APIH: no se pudieron leer los valores calculados', e); }
   },
   /* relectura desde Supabase (manual o periódica). force = descarta cambios locales */
   async refresh(silent, force) {
@@ -508,6 +519,7 @@ export class SupabaseService {
   /* Permisos y directorio: los entrega el servidor (apih_contexto / apih_personas); la interfaz solo los lee */
   async contexto() { return (await this.rpc('apih_contexto', {})) || null; }
   async personas() { return (await this.rpc('apih_personas', {})) || []; }
+  async calculos() { return (await this.rpc('apih_calculos', {})) || { hoy: '', ini: {}, hitos: {}, riesgos: {} }; }
   async verComo(correo) { return await this.rpc('apih_ver_como', { p_email: correo || null }); }
   async listItems(ent) {
     const l = encodeURIComponent(this.listName(ent)), idc = this._idCol(ent), out = [], PAGE = 1000;

@@ -371,46 +371,25 @@ export let _ixGen = 0; const _ix = {};
 const _porIni = (k, id) => { const arr = St[k]; let c = _ix[k]; if (!c || c.arr !== arr || c.n !== arr.length || c.g !== _ixGen) { const m = new Map(); arr.forEach(x => { let l = m.get(x.ini); if (!l) m.set(x.ini, l = []); l.push(x); }); _ix[k] = c = { arr, n: arr.length, g: _ixGen, m }; } return (c.m.get(id) || []).slice(); };
 export const hitosDe = id => _porIni('hitos', id);
 export const riesgosDe = id => _porIni('riesgos', id);
-export function hitoEstado(h) {   // semaforización automática
-  if (h.completado) return (h.fechaReal && h.fechaReal > h.fecha) ? { k: 'late', t: 'Completado con retraso', c: '#F2A100' } : { k: 'done', t: 'Completado', c: '#107C10' };
-  const d = diffD(h.fecha, hoy());
-  if (d < 0) return { k: 'over', t: 'Vencido (' + (-d) + ' d)', c: '#D13438' };
-  if (d <= 7) return { k: 'soon', t: 'Vence ' + rel(h.fecha), c: '#F2A100' };
-  return { k: 'ok', t: 'En plazo', c: '#0D446A' };
-}
-export function forecast(i) {   // fin proyectado
-  if (i.estado === 'Completado') return i.finReal || i.finEst || i.finPlan;
-  let f = i.finEst || i.finPlan;
-  const open = hitosDe(i.id).filter(h => !h.completado).map(h => h.fecha);
-  if (open.length) { const m = open.reduce((a, b) => a > b ? a : b); if (FASES_ACT.includes(i.fase) && m > f) f = m; }
-  if (isLive(i) && FASES_ACT.includes(i.fase) && i.avance < 100 && f < hoy()) f = hoy();
-  return f;
-}
-export const desv = i => (i.finPlan && forecast(i)) ? Math.max(0, diffD(forecast(i), i.finPlan)) : 0;
-export const atrasado = i => isLive(i) && FASES_ACT.includes(i.fase) && desv(i) > (0, ENLACES.cfgI)(i,'tolDesv');
-export const esperado = i => {   // avance esperado lineal
-  const s = i.inicioPlan, e = i.finPlan; if (!s || !e) return 0; const t = diffD(hoy(), s), T = Math.max(1, diffD(e, s));
-  return Math.max(0, Math.min(100, t / T * 100));
-};
-export const roi = i => i.presupuesto > 0 ? (((+i.beneficio || 0) - i.presupuesto) / i.presupuesto) * 100 : null;   // F-09: sin beneficio = 0, no NaN
-export const expo = r => r.prob * r.imp;
-export const nivelRiesgo = e => e >= (0, ENLACES.cfgMi)('umbralCritico') ? { n: 'Crítico', c: '#D13438' } : e >= 10 ? { n: 'Alto', c: '#CA5010' } : e >= 5 ? { n: 'Medio', c: '#F2A100' } : { n: 'Bajo', c: '#107C10' };
+/* Valores calculados: los entrega el SERVIDOR (apih_calculos). Aquí solo se leen; si aún no llegó el dato (registro recién creado, sin sincronizar)
+   se devuelve un valor neutro y la pantalla se completa en cuanto el servidor responde. No hay fórmulas en el navegador. */
+export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {} };
+const _ci = i => (i && CALC.ini[i.id]) || null;
+const HITO_NEUTRO = { k: 'ok', t: 'En plazo', c: '#0D446A' }, NIVEL_NEUTRO = { n: 'Bajo', c: '#107C10' };
+export const hitoEstado = h => (h && CALC.hitos[h.id]) || HITO_NEUTRO;
+export const forecast = i => { const c = _ci(i); return c ? c.forecast : (i.finEst || i.finPlan); };
+export const desv = i => { const c = _ci(i); return c ? c.desv : 0; };
+export const atrasado = i => { const c = _ci(i); return !!(c && c.atrasado); };
+export const esperado = i => { const c = _ci(i); return c ? c.esperado : 0; };
+export const roi = i => { const c = _ci(i); return c ? c.roi : null; };
+export const expo = r => { const c = r && CALC.riesgos[r.id]; return c ? c.expo : 0; };
+export const nivelRiesgo = r => { const c = r && CALC.riesgos[r.id]; return c ? c.nivel : NIVEL_NEUTRO; };
 export const riesgoAbierto = r => r.estado !== 'Cerrado';
-export const riesgosCriticos = () => RIESGOS().filter(r => riesgoAbierto(r) && expo(r) >= (0, ENLACES.cfgI)(byId(r.ini),'umbralCritico') && (!byId(r.ini) || (isLive(byId(r.ini)) && inArea(byId(r.ini)))));   // F-16
-export const diasSinUpd = i => i.actualizada ? diffD(hoy(), i.actualizada) : 999;
-export function ragSugerido(i) {   // RAG automático sugerido
-  let p = 0; const why = [];
-  const d = desv(i); if (d > 30) { p += 2; why.push('desviación de ' + d + ' d'); } else if (d > (0, ENLACES.cfgI)(i,'tolDesv')) { p += 1; why.push('desviación de ' + d + ' d'); }
-  const hv = hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).length; if (hv >= 2) { p += 2; why.push(hv + ' hitos vencidos'); } else if (hv) { p += 1; why.push('1 hito vencido'); }
-  const rc = riesgosDe(i.id).filter(r => riesgoAbierto(r) && expo(r) >= (0, ENLACES.cfgI)(i,'umbralCritico')).length; if (rc) { p += 2; why.push(rc + ' riesgo(s) crítico(s)'); }
-  if (FASES_ACT.includes(i.fase) && esperado(i) - i.avance > 25) { p += 1; why.push('avance bajo lo esperado'); }
-  if (isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > (0, ENLACES.cfgI)(i,'diasSinUpdate') * 2) { p += 1; why.push('sin actualización'); }
-  return { rag: p >= 4 ? 'Rojo' : p >= 2 ? 'Ámbar' : 'Verde', why };
-}
-export function critScore(i) {   // ranking de proyectos críticos
-  const r = { 'Rojo': 40, 'Ámbar': 20, 'Verde': 0 }[i.rag] || 0;
-  return r + Math.min(30, desv(i) / 2) + sum(riesgosDe(i.id).filter(riesgoAbierto), x => expo(x)) / 2 + ({ Alta: 12, Media: 6, Baja: 0 }[i.prioridad] || 0) + hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).length * 4;
-}
+export const riesgoCritico = r => !!(r && CALC.riesgos[r.id] && CALC.riesgos[r.id].critico);
+export const riesgosCriticos = () => RIESGOS().filter(r => riesgoCritico(r) && (!byId(r.ini) || (isLive(byId(r.ini)) && inArea(byId(r.ini)))));   // F-16
+export const diasSinUpd = i => { const c = _ci(i); return c ? c.dsu : 999; };
+export const ragSugerido = i => { const c = _ci(i); return c ? c.rag : { rag: i.rag, why: [] }; };
+export const critScore = i => { const c = _ci(i); return c ? c.crit : 0; };
 export function kpis() {
   const L = scope(), live = L.filter(isLive), act = L.filter(isActive), P = scopeP(), pl = P.filter(isLive);
   const M = { pres: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.presupuesto), gas: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.gastado), presPipe: sumM(pl, i => i.presupuesto), valorPipe: sumM(pl, i => i.beneficio), beneficio: sumM(live, i => i.beneficio) };
@@ -453,16 +432,7 @@ export function gatesAprobar(i) {
   return g;
 }
 function canon(i) { return ['id', 'titulo', 'sponsor', 'lider', 'area', 'estado', 'rag', 'prioridad', 'presupuesto', 'avance']; }
-export function completitud(i) {
-  const crit = [['sponsor', 'Sponsor'], ['lider', 'Líder'], ['area', 'Área'], ['prioridad', 'Prioridad'], ['inicioPlan', 'Inicio plan'], ['finPlan', 'Fin plan']];
-  const rec = [['presupuesto', 'Presupuesto'], ['beneficio', 'Beneficio'], ['desc', 'Descripción'], ['bc', 'Business case'], ['negocio', 'Resp. negocio']];
-  const opt = [['proveedor', 'Proveedor'], ['resumen', 'Resumen ejecutivo'], ['proximos', 'Próximos pasos']];
-  const miss = l => l.filter(([k]) => !i[k]).map(([, n]) => n);
-  const mc = miss(crit), mr = miss(rec), mo = miss(opt);
-  if (!hitosDe(i.id).length) mr.push('Hitos');
-  const tot = crit.length * 3 + rec.length * 2 + opt.length + 2, got = tot - mc.length * 3 - mr.length * 2 - mo.length;
-  return { crit: mc, rec: mr, opt: mo, pct: Math.max(0, Math.round(got / tot * 100)) };
-}
+export const completitud = i => { const c = _ci(i); return c ? c.compl : { crit: [], rec: [], opt: [], pct: 0 }; };
 
 
 // Enlaces para módulos anteriores (ver 00-registro.js)

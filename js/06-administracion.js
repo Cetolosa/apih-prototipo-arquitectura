@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
+import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
 import { AuthService, DataService, SETTINGS_KEYS, ESQUEMA } from './02-datos.js';
 import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
 import { cmdServidor, conServidor, diasEnFase, migrateV5 } from './04-flujos.js';
@@ -64,7 +64,7 @@ export function notifPara(user) {
     if (d < 0 && aplica('comp_venc', i, a.resp)) add('comp_venc', a.id, i, `«${cut(a.texto, 70)}» venció hace ${-d} d · ${a.resp || 'sin responsable'}`, { ts: a.limite });
     else if (d >= 0 && d <= pC && aplica('comp_prox', i, a.resp)) add('comp_prox', a.id, i, `«${cut(a.texto, 70)}» vence ${d === 0 ? 'hoy' : 'en ' + d + ' d'} · ${a.resp || 'sin responsable'}`, { ts: a.limite });
   });
-  St.riesgos.filter(r => riesgoAbierto(r)).forEach(r => { const i = byId(r.ini); if (!i || !isLive(i) || !visible(i)) return; const e = expo(r); if (e >= (0, ENLACES.cfgI)(i, 'umbralCritico') && aplica('riesgo_crit', i, r.dueno)) add('riesgo_crit', r.id, i, `Exposición ${e}: ${cut(r.desc, 80)} · ${i.titulo}`, { ts: r.fIdent || hy }); });
+  St.riesgos.filter(r => riesgoAbierto(r)).forEach(r => { const i = byId(r.ini); if (!i || !isLive(i) || !visible(i)) return; const e = expo(r); if (riesgoCritico(r) && aplica('riesgo_crit', i, r.dueno)) add('riesgo_crit', r.id, i, `Exposición ${e}: ${cut(r.desc, 80)} · ${i.titulo}`, { ts: r.fIdent || hy }); });
   DECS().filter(d => d.estado === 'Pendiente' && d.limite && d.limite < hy).forEach(d => { const i = byId(d.ini); if (d.ini && !visible(i)) return; if (aplica('dec_venc', i, d.solicita)) add('dec_venc', d.id, i, `«${cut(d.titulo, 70)}» venció hace ${diffD(hy, d.limite)} d`, { ts: d.limite }); });
   vivas.filter(isActive).forEach(i => {
     if (atrasado(i) && aplica('atraso', i)) add('atraso', i.id, i, `${i.titulo}: +${desv(i)} d sobre el plan`);
@@ -284,7 +284,7 @@ function archPendientes(i) {
   FASES_PRJ.forEach(f => { if (!esProp(i) && !hs.some(h => h.fase === f) && f !== 'Cierre') p.push('Sin hitos en la fase ' + f); });
   hs.filter(h => !h.completado && h.fecha < hoy()).forEach(h => p.push('Hito vencido sin cerrar: ' + h.id + ' «' + h.nombre + '» (' + h.fecha + '): ¿se completó? ¿nueva fecha?'));
   if (!rs.length) p.push('Sin riesgos registrados: preguntar por los 3 a 5 principales (técnico, alcance, recursos, proveedor, cronograma, financiero, regulatorio)');
-  rs.filter(r => riesgoAbierto(r) && expo(r) >= um && !String(r.mit || '').trim()).forEach(r => p.push('Riesgo crítico sin mitigación: ' + r.id + ' «' + r.desc + '»'));
+  rs.filter(r => riesgoCritico(r) && !String(r.mit || '').trim()).forEach(r => p.push('Riesgo crítico sin mitigación: ' + r.id + ' «' + r.desc + '»'));
   rs.filter(r => riesgoAbierto(r) && r.fRev && r.fRev < hoy()).forEach(r => p.push('Riesgo con revisión vencida: ' + r.id + ' (' + r.fRev + ')'));
   if (i.finPlan && i.finPlan < hoy() && i.estado === 'En curso') p.push('Fin plan vencido (' + i.finPlan + ') y sigue En curso: ¿nueva fecha o está completado?');
   return p;
