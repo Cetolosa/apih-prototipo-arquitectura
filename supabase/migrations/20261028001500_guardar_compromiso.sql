@@ -38,31 +38,7 @@ begin
   return jsonb_build_object('id', id_);
 end $$;
 
--- Eliminar: se agregan los compromisos
-create or replace function public.apih_eliminar(p_lista text, p_id text) returns jsonb language plpgsql security definer set search_path = public as
-$$ declare r public.registros; x jsonb; t text;
-begin
-  if public.apih_rol() is null then raise exception 'APIH: sin perfil' using errcode = '42501'; end if;
-  if p_lista not in ('APIH_Hitos', 'APIH_Riesgos', 'APIH_Decisiones', 'APIH_Compromisos') then raise exception 'APIH: no se puede eliminar en %', p_lista using errcode = '42501'; end if;
-  select * into r from public.registros where lista = p_lista and id = p_id for update;
-  if not found then raise exception 'APIH: el registro % no existe', p_id using errcode = 'P0002'; end if;
-  if not public.apih_edita_area(r.area) then raise exception 'APIH: sin permiso sobre el área del registro' using errcode = '42501'; end if;
-  x := substr(r.datos, 4)::jsonb;
-  if p_lista = 'APIH_Decisiones' then
-    perform set_config('apih.interno', 'on', true);
-    update public.registros set datos = 'p1.' || jsonb_set(substr(datos, 4)::jsonb, '{decisiones}',
-        coalesce((select jsonb_agg(v) from jsonb_array_elements(substr(datos, 4)::jsonb -> 'decisiones') v where v #>> '{}' <> p_id), '[]'::jsonb))::text
-      where lista = 'APIH_Comites' and jsonb_typeof(substr(datos, 4)::jsonb -> 'decisiones') = 'array' and substr(datos, 4)::jsonb -> 'decisiones' ? p_id;
-    perform set_config('apih.interno', 'off', true);
-  end if;
-  delete from public.registros where lista = p_lista and id = p_id;
-  t := case p_lista when 'APIH_Hitos' then 'Hito eliminado: ' || coalesce(x ->> 'nombre', p_id)
-                    when 'APIH_Riesgos' then 'Riesgo eliminado: ' || coalesce(x ->> 'desc', p_id)
-                    when 'APIH_Compromisos' then 'Compromiso eliminado: ' || coalesce(x ->> 'texto', p_id)
-                    else 'Decisión eliminada: ' || coalesce(x ->> 'titulo', p_id) end;
-  perform public.apih_bitacora_cmd(x ->> 'ini', case p_lista when 'APIH_Riesgos' then 'Riesgo' when 'APIH_Decisiones' then 'Decisión' else 'Cambio' end, t);
-  return jsonb_build_object('id', p_id);
-end $$;
+-- (apih_eliminar se amplía a compromisos y comités en 20261028001600)
 
 revoke all on function public.apih_guardar_compromiso(text, jsonb) from public, anon;
 grant execute on function public.apih_guardar_compromiso(text, jsonb) to authenticated;
