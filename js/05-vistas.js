@@ -417,7 +417,7 @@ function subfaseForm(s, iniId, fase) {
   });
 }
 /* V22.59 · importación de subfases (archivo de iniciativas y «Con archivo»): valida la regla y resuelve referencias por id o nombre */
-export function sfImportar(i, lista, warn) {
+export function sfImportar(i, lista, warn, sink) {   /* sink: si se pasa, los hitos que siguen a su subfase se anotan ahí (los cambia el servidor) en vez de editarse aquí */
   (Array.isArray(lista) ? lista : []).forEach(x => {
     if (!x || typeof x !== 'object' || typeof x.nombre !== 'string' || !x.nombre.trim() || x.nombre.length > 120) return warn('Subfase sin nombre válido (texto de hasta 120 caracteres; se omite)');
     if (x.resp != null && typeof x.resp !== 'string') return warn('Subfase «' + x.nombre + '»: responsable inválido');
@@ -429,7 +429,7 @@ export function sfImportar(i, lista, warn) {
     const ya = subfasesDe(i).find(s => (x.id && s.id === x.id) || (s.fase === x.fase && _nrm(s.nombre) === _nrm(x.nombre)));
     if (ya) { const faseAnt = ya.fase; Object.assign(ya, { nombre: x.nombre.trim(), fase: x.fase, inicio: ini, fin, resp: x.resp != null ? x.resp : (ya.resp || '') });
       // N-F-04: si la subfase cambia de fase, sus hitos la siguen (y los que no cuadran quedan sin subfase)
-      if (faseAnt !== x.fase) (St.hitos || []).forEach(h => { if (h.ini === i.id && h.subfase === ya.id) { h.fase = x.fase; } }); if (typeof x.desc === 'string') { if (x.desc.trim()) ya.desc = cutDesc(x.desc.trim()); else delete ya.desc; } }
+      if (faseAnt !== x.fase) (St.hitos || []).forEach(h => { if (h.ini === i.id && h.subfase === ya.id) { if (sink) sink.push({ id: h.id, fase: x.fase }); else h.fase = x.fase; } }); if (typeof x.desc === 'string') { if (x.desc.trim()) ya.desc = cutDesc(x.desc.trim()); else delete ya.desc; } }
     else { if (subfasesDe(i).length >= 60) return warn('Subfase «' + x.nombre + '»: máximo 60 por iniciativa'); i.subfases = subfasesDe(i).concat([{ id: sfNextId(i), nombre: x.nombre.trim(), fase: x.fase, inicio: ini, fin, resp: x.resp || '', ...(typeof x.desc === 'string' && x.desc.trim() ? { desc: cutDesc(x.desc.trim()) } : {}) }]); }
   });
 }

@@ -230,15 +230,6 @@ export function syncFases() {
   let k = 0; FASES.forEach(f => { if (!FASE_COLOR[f]) FASE_COLOR[f] = FASE_PALETA[k++ % FASE_PALETA.length]; });
 }
 const tipoDe = n => ((St.cfg.metodo || {}).tipos || []).find(t => t.nombre === n);
-/* crea los hitos de la plantilla del tipo para las fases indicadas (propuesta: fases de propuesta; proyecto: fases de proyecto) */
-export function aplicarPlantilla(i, tipoNombre, fasesSet, base) {
-  const t = tipoDe(tipoNombre); if (!t) return 0; let n = 0;
-  (t.hitos || []).filter(h => fasesSet.includes(h.fase)).forEach(h => {
-    if (St.hitos.some(x => x.ini === i.id && x.nombre === h.n && x.fase === h.fase)) return;
-    St.hitos.push({ id: nextId('HIT', St.hitos), ini: i.id, nombre: h.n, fase: h.fase, fecha: addD(base || hoy(), +h.dias || 0), completado: false, fechaReal: null, resp: i.lider || '' }); n++;
-  });
-  return n;
-}
 export const defaultCfg = () => ({
   metodo: METODO_DEF(), cieloOn: true, cieloMeta: 80,
   unidad: 'MM CLP', diasSinUpdate: 14, tolDesv: 7, umbralCritico: 15, hoyFija: '', readOnly: false, anio: 2026,

@@ -33,9 +33,8 @@ archivos.forEach(({ f, s }) => { for (const m of s.matchAll(/(?:rpc|cmdServidor|
 
 // 4) entidades que se guardan solo por comando del servidor (apih_guardar_* / apih_eliminar): la SPA no las crea ni las borra en su copia local
 const POR_COMANDO = [['hitos', 'apih_guardar_hito'], ['riesgos', 'apih_guardar_riesgo'], ['decisiones', 'apih_guardar_decision']];
-/* Residuales declarados (archivo → entidades): flujos que aún escriben en bloque y se migran en la siguiente iteración
-   (plantillas, «Con archivo», eliminar iniciativa con sus registros). Ver docs/arquitectura-front.md. */
-const RESIDUAL_ESCRITURA = { '01-nucleo.js': ['hitos'], '03-interfaz.js': ['hitos', 'riesgos', 'decisiones'], '06-administracion.js': ['hitos', 'riesgos'] };
+/* Sin residuales: ninguna carga escribe hitos, riesgos ni decisiones directo; todo pasa por los comandos del servidor. */
+const RESIDUAL_ESCRITURA = {};
 archivos.forEach(({ f, s }) => POR_COMANDO.forEach(([c, cmd]) => {
   if (new RegExp('St\\.' + c + '\\s*(\\.push\\(|=(?!=))').test(s) && !(RESIDUAL_ESCRITURA[f] || []).includes(c)) fallas.push(`${f}: escribe St.${c} directamente (se guarda con ${cmd})`);
 }));

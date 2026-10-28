@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, CALC, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
 import { DataService } from './02-datos.js';
 import { Acts, Chg, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
 /* =====================================================================
