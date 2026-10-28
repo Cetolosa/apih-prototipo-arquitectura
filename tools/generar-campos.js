@@ -9,6 +9,7 @@ if (!arg || !fs.existsSync(arg)) { console.error('Falta el archivo de captura (C
 const EXTRAS = {
   APIH_Proyectos: ['base', 'baseHist', 'snapFase', 'legacyId', 'avanceCalc', 'fasesFechas', 'avanceManual'],   // avanceCalc y fasesFechas los escribe el servidor (apih_calculos, Cambiar etapa); avanceManual, el formulario     // línea base y su historial (07-gobierno), instantáneas de fase (06-administracion), id de versiones anteriores (04-flujos)
   APIH_Propuestas: ['base', 'baseHist', 'snapFase', 'legacyId'],
+  APIH_Hitos: ['desc'],                                            // descripción del hito (V22.61; el e2e la inyecta sin pasar por el formulario)
   APIH_Decisiones: ['escalada']                                     // fecha de escalamiento automático (07-gobierno)
 };
 const cap = JSON.parse(fs.readFileSync(arg, 'utf8')), cat = {};

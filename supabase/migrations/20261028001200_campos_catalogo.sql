@@ -76,6 +76,7 @@ insert into public.apih_campos (lista, campo) values
   ('APIH_Documentos', 'url'),
   ('APIH_Hitos', 'cat'),
   ('APIH_Hitos', 'completado'),
+  ('APIH_Hitos', 'desc'),
   ('APIH_Hitos', 'fase'),
   ('APIH_Hitos', 'fecha'),
   ('APIH_Hitos', 'fechaReal'),

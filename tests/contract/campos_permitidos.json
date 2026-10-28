@@ -86,6 +86,7 @@
  "APIH_Hitos": [
   "cat",
   "completado",
+  "desc",
   "fase",
   "fecha",
   "fechaReal",
