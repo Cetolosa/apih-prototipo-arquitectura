@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
+import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
 import { AuthService, DataService, ESQUEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
@@ -563,7 +563,7 @@ Acts.xlsxall = () => { downloadBlob('APIH_listas_' + hoy() + '.xlsx', xlsxBlob(O
    APIH · Carga de planificación e hitos desde Excel
    Plantilla descargable + lector .xlsx propio (sin librerías) + vista previa con validación
    ============================================================ */
-const CX = { res: null, name: '' };
+export const CX = { res: null, name: '' };
 const _nz = s => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 async function zipRead(buf) {
   const dv = new DataView(buf), u8 = new Uint8Array(buf); let e = u8.length - 22;
@@ -711,14 +711,16 @@ Chg.cxfile = async el => {
 };
 Acts.cxapply = () => {
   const R = CX.res; if (!R || (!R.plan.length && !R.hitos.length)) return;
-  const go = () => {
-    R.plan.forEach(p => { Object.assign(p.i, p.ch); p.i.actualizada = hoy(); if (p.ch.avance !== undefined && !esProp(p.i)) p.i.avanceManual = p.ch.avance; });   /* el servidor reparte/reescala las fases según el rango plan; el avance cargado queda como ajuste manual */
-    const tocadas = new Set(R.plan.map(p => p.i.id));
-    R.hitos.forEach(h => { if (h.nuevo) St.hitos.push({ id: nextId('HIT', St.hitos), ...h.nuevo }); else Object.assign(h.cur, h.ch); const i = byId(h.id); if (i) { i.actualizada = hoy(); tocadas.add(i.id); } });
-    const nN = R.hitos.filter(h => h.nuevo).length;
-    log('Cambio', null, `Carga desde Excel (${CX.name}): ${R.plan.length} planificaciones actualizadas, ${nN} hitos nuevos, ${R.hitos.length - nN} hitos actualizados`);
-    if (St.bitacora[0]) St.bitacora[0].inPres = false;
-    Modal.close(); toast(`Carga aplicada: ${R.plan.length} planificaciones, ${R.hitos.length} hitos`); CX.res = null; refresh();
+  /* El navegador solo lee el archivo; el servidor aplica cada fila con las reglas y permisos de los formularios (apih_cargar_lote) */
+  const go = async () => {
+    const items = [];
+    R.plan.forEach(p => { const d = Object.assign({}, p.ch); if (d.avance !== undefined && !esProp(p.i)) { d.avanceManual = d.avance; } delete d.avance; items.push({ k: 'ini', id: p.i.id, datos: d }); });
+    R.hitos.forEach(h => { if (h.nuevo) { const d = Object.assign({}, h.nuevo); if (!d.fase) { const i = byId(h.id); d.fase = i ? i.fase : ''; } items.push({ k: 'hito', id: null, datos: d }); } else items.push({ k: 'hito', id: h.cur.id, datos: h.ch }); });
+    const r = await (0, ENLACES.cmdServidor)('apih_cargar_lote', { p_origen: 'Carga desde Excel (' + CX.name + ')', p_ini: null, p_items: items }, null);
+    if (r === null) return;
+    Modal.close(); CX.res = null;
+    toast(`Carga aplicada: ${r.ok} de ${items.length} filas` + ((r.errores || []).length ? ` · ${(r.errores || []).length} omitidas: ${(r.errores || []).slice(0, 2).join(' | ')}` : ''), (r.errores || []).length ? 'warn' : undefined);
+    refresh();
   };
   if (R.errs.length) confirmBox(`El archivo tiene ${R.errs.length} filas con error que se omitirán. ¿Aplicar solo las filas válidas?`, go, 'Aplicar válidas'); else go();
 };

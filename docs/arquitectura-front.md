@@ -32,7 +32,7 @@ Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromi
 `apih_calculos().notif` entrega el catálogo, la preferencia efectiva (catálogo → organización → persona) y los avisos de quien llama (hitos y compromisos, riesgo crítico, decisiones, atraso, sin actualizar, propuestas estancadas, cambios y eventos de bitácora), con sus canales. La campana y la matriz de Notificaciones solo presentan; guardar la configuración hace que el servidor vuelva a evaluar. Lo leído sigue por navegador (localStorage).
 
 ### Reglas que aún no se mueven (residuales declarados)
-Contenido de las anotaciones de bitácora que escribe el cliente (autor y hora ya los fija el servidor), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
+Contenido de las anotaciones de bitácora que escribe el cliente (autor y hora ya los fija el servidor), validaciones de formulario de otras pantallas, además el `hist` del avance semanal (el servidor guarda su propio historial).
 
 ## Resumen ejecutivo y KPIs
 `apih_resumen(calc)` (dentro de `apih_calculos`) entrega qué proyectos están «on track», los tramos del % On Track (texto y nivel) y las ventanas de días del resumen. El cliente solo los muestra (`CALC.resumen`, `tonoOnTrack`).
@@ -48,3 +48,6 @@ Contenido de las anotaciones de bitácora que escribe el cliente (autor y hora y
 
 ## Bitácora: autoría y hora
 El disparador `apih_bitacora_sello` fija el autor (la persona autenticada) y la hora (Santiago) de toda anotación nueva que escribe el cliente (`log()`), y deja inmutables autor, hora, tipo, iniciativa y texto de las existentes. La administración y los comandos del servidor quedan fuera (cargan historial o ya firman bien).
+
+## Cargas por lote
+La carga desde Excel y «Completar con archivo» siguen leyendo y previsualizando el archivo en el navegador, pero ya no escriben datos: arman la lista de cambios y la envían a `apih_cargar_lote`, que aplica cada fila con las mismas reglas y permisos de los formularios (`apih_guardar_iniciativa` / `_hito` / `_riesgo`), omite e informa las inválidas y deja una sola anotación en la bitácora. La fecha real de un hito la fija el servidor. `aplicarPlantilla` se eliminó (la plantilla de hitos la aplica el servidor al crear). La guardia ya no admite escrituras directas de hitos, riesgos ni decisiones. Además se corrigió `apih_guardar_iniciativa`: al cambiar el rango de un proyecto con fases ya fechadas, las fases se reescalan (antes volvía el rango anterior).

@@ -101,6 +101,9 @@ begin
     if not nw and public.apih_ciclo_deps(p_id, i -> 'deps') then perform public.apih_err('las dependencias generan un ciclo', 'deps'); end if;
   else i := i || jsonb_build_object('deps', '[]'::jsonb); end if;
   i := i || jsonb_build_object('finEst', case when es_prop then null else coalesce(i -> 'finEst', i -> 'finPlan') end, 'actualizada', hoy::text);
+  -- si cambia el rango del proyecto, las fechas de sus fases se reescalan aquí (si no, las fases guardadas devolverían el rango anterior)
+  if not nw and not es_prop and ((i ->> 'inicioPlan') is distinct from (i0 ->> 'inicioPlan') or (i ->> 'finPlan') is distinct from (i0 ->> 'finPlan')) then
+    i := public.apih_set_rango_plan(i, coalesce(i ->> 'inicioPlan', ''), coalesce(i ->> 'finPlan', ''), public.apih_fases(false)); end if;
   if nw then
     fs := public.apih_fases(es_prop);
     i := jsonb_build_object('tipo', case when es_prop then 'Propuesta' else 'Proyecto' end, 'legacy', '', 'creada', hoy::text, 'faseDesde', hoy::text, 'origen', 'usuario',
