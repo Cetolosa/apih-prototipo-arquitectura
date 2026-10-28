@@ -38,7 +38,7 @@ begin
            || case when public.apih_txt(d, 'issue') is not null then '. Issue: ' || (d ->> 'issue') else '' end;
   end if;
   i := i || jsonb_build_object('actualizada', hoy::text);
-  perform public.apih_escribir('APIH_Proyectos', p_id, i);
+  perform public.apih_escribir_cmd('APIH_Proyectos', p_id, i);
   -- foto semanal de la fase actual y de cada subfase (la usa el informe para comparar con la semana anterior)
   select substr(datos, 4)::jsonb into i from public.registros where lista = 'APIH_Proyectos' and id = p_id;
   w := (select x from jsonb_array_elements(public.apih_ventanas(i, p_id, false)) x where x ->> 'fase' = i ->> 'fase' limit 1);
@@ -53,7 +53,7 @@ begin
   i := i || jsonb_build_object('snapFase', (select coalesce(jsonb_agg(x order by x ->> 0), '[]'::jsonb) from (
           select x from (select x from jsonb_array_elements(case when jsonb_typeof(i -> 'snapFase') = 'array' then i -> 'snapFase' else '[]'::jsonb end) x where x ->> 0 <> hoy::text
                           union all select jsonb_build_array(hoy::text, snap)) y order by x ->> 0 desc limit 26) z));
-  perform public.apih_escribir('APIH_Proyectos', p_id, i);
+  perform public.apih_escribir_cmd('APIH_Proyectos', p_id, i);
   perform public.apih_bitacora_cmd(p_id, 'Actualización', txt);
   return jsonb_build_object('id', p_id, 'avisos', '[]'::jsonb);
 end $$;

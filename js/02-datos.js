@@ -224,7 +224,11 @@ export const DataService = {
     LOCAL_CFG.forEach(k => { cfg[k] = (St && St.cfg && St.cfg[k]) || defaultCfg()[k]; });
     const [ctx, personas, calc] = await Promise.all([v.contexto(), v.personas(), v.calculos()]);
     Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {} }, calc);   // valores calculados: del servidor
-    if (!ctx) throw new Error('Tu correo no tiene perfil activo en APIH. Pide acceso al administrador.');
+    if (!ctx) {   // cuenta creada pero sin rol: queda pendiente hasta que Administra la habilite
+      const a = await v.rpc('apih_solicitar_acceso', { p_nombre: null }).catch(() => null);
+      SBLogin.espera(a && a.estado === 'inactivo' ? 'inactivo' : 'pendiente', a && a.email);
+      throw new Error('Tu cuenta espera que Administra te asigne un rol.');
+    }
     PERM.ctx = ctx; PERM.edit = v.edit; FL.verComo = ctx.comoDe ? ctx.nombre : ''; cfg.usuario = ctx.nombre;   // identidad y permisos: del servidor
     bitacora.sort((a, b) => a.ts < b.ts ? 1 : -1);
     const ini = [...prjs, ...props];
@@ -534,6 +538,7 @@ export class SupabaseService {
   }
   /* Permisos y directorio: los entrega el servidor (apih_contexto / apih_personas); la interfaz solo los lee */
   async contexto() { return (await this.rpc('apih_contexto', {})) || null; }
+  async usuarios() { return (await this.rpc('apih_usuarios', {})) || []; }
   async personas() { return (await this.rpc('apih_personas', {})) || []; }
   async calculos() { return (await this.rpc('apih_calculos', {})) || { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, notif: null, resumen: null }; }
   async verComo(correo) { return await this.rpc('apih_ver_como', { p_email: correo || null }); }

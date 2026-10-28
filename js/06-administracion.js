@@ -100,7 +100,7 @@ Views.admin = {
     } else if (f.tab === 'met') {
       b = metTab();
     } else if (f.tab === 'usr') {
-      b = `<div class="card"><header><h2>Usuarios y roles</h2><small>${St.usuarios.length} usuarios · basados en la hoja Usuarios de Gene</small></header><table class="tbl"><thead><tr><th>Usuario</th><th>Cargo</th><th>Rol</th><th>Áreas</th><th>Proyectos liderados</th></tr></thead><tbody>${St.usuarios.map(u => `<tr><td><span class="pp">${avatar(u.n, 24)}<b>${esc(u.n)}</b></span></td><td>${esc(u.cargo)}</td><td><span class="pill soft">${esc(u.rol)}</span></td><td>${esc(u.area)}</td><td class="n">${St.ini.filter(i => i.lider === u.n && isLive(i)).length}</td></tr>`).join('')}</tbody></table></div>`;
+      b = DataService.svc ? usrServidor() : `<div class="card"><header><h2>Usuarios y roles</h2><small>${St.usuarios.length} usuarios · basados en la hoja Usuarios de Gene</small></header><table class="tbl"><thead><tr><th>Usuario</th><th>Cargo</th><th>Rol</th><th>Áreas</th><th>Proyectos liderados</th></tr></thead><tbody>${St.usuarios.map(u => `<tr><td><span class="pp">${avatar(u.n, 24)}<b>${esc(u.n)}</b></span></td><td>${esc(u.cargo)}</td><td><span class="pill soft">${esc(u.rol)}</span></td><td>${esc(u.area)}</td><td class="n">${St.ini.filter(i => i.lider === u.n && isLive(i)).length}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (f.tab === 'cal') {
       const rows = St.ini.map(i => ({ i, c: completitud(i) })).sort(by(r => r.c.pct));
       b = `<div class="card"><header><h2>Auditoría de calidad de datos</h2><small>Promedio ${pct(avg(rows, r => r.c.pct))} · críticos = Sponsor, Líder, Área, Prioridad, Fechas plan</small></header><div class="tbl-w"><table class="tbl"><thead><tr><th>Iniciativa</th><th>Completitud</th><th>Faltan (crítico)</th><th>Faltan (recomendado)</th><th>Faltan (opcional)</th></tr></thead><tbody>${rows.map(({ i, c }) => `<tr data-act="sel" data-t="ini" data-id="${i.id}"><td><b>${esc(i.titulo)}</b><small>${i.id}</small></td><td style="min-width:130px">${prog(c.pct, c.pct > 80 ? 'Verde' : c.pct > 60 ? 'Ámbar' : 'Rojo', 6)}<small>${c.pct}%</small></td><td class="${c.crit.length ? 'neg' : ''}">${esc(c.crit.join(', ') || '—')}</td><td>${esc(c.rec.join(', ') || '—')}</td><td>${esc(c.opt.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div></div>`;
@@ -262,6 +262,44 @@ Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = '
   } catch (e) { toast(e instanceof SyntaxError ? 'El archivo no es un JSON válido' : 'No se pudo leer: ' + e.message, 'err'); } }; r.readAsText(fl); };
 Acts.reset = () => confirmBox(DataService.svc ? 'Se reemplazarán TODOS los datos de ' + BK() + ' por los datos del archivo original. ¿Continuar?' : 'Se perderán los cambios y se restaurarán los datos de demostración. ¿Continuar?', () => { ENLACES.St = seedState(); UI.sel = null; shell(); toast('Datos restaurados'); refresh(); }, 'Restaurar', true);
 
+
+/* ---------- Administración → Usuarios (servidor): cuentas pendientes, rol, áreas y proyectos asignados ---------- */
+const USR_ROLES = ['Administra', 'Responsable', 'Colaborador', 'Invitado'];
+function usrCargar() {
+  UI.usrs = 'cargando';
+  DataService.svc.usuarios().then(l => { UI.usrs = l; UI.usrsErr = ''; }).catch(e => { UI.usrs = []; UI.usrsErr = e.message; }).then(() => { if (F('adm', {}).tab === 'usr') render(); });
+}
+function usrServidor() {
+  if (!Array.isArray(UI.usrs)) { if (UI.usrs !== 'cargando') usrCargar(); return `<div class="card"><header><h2>Usuarios y roles</h2></header><p class="mut">Cargando usuarios…</p></div>`; }
+  const L = UI.usrs, pend = L.filter(u => u.pendiente).length;
+  const estado = u => u.pendiente ? '<span class="pill" style="background:#FFF4CE;color:#7A5200">Pendiente</span>' : u.activo ? '<span class="pill soft">Activo</span>' : '<span class="pill" style="background:#F3D6D6;color:#8A1F1F">Inactivo</span>';
+  const fila = u => `<tr><td><span class="pp">${avatar(u.nombre || u.email, 24)}<span><b>${esc(u.nombre || u.email)}</b><br><small class="mut">${esc(u.email)}</small></span></span></td><td>${u.pendiente ? '<span class="mut">Sin rol</span>' : `<span class="pill soft">${esc(u.appRol)}</span>`}</td><td>${esc((u.areas || []).join(', ') || '—')}</td><td>${(u.proyectos || []).length ? esc(u.proyectos.join(', ')) : '—'}</td><td>${estado(u)}</td><td class="n">${btn(u.pendiente ? 'Asignar rol' : 'Editar', 'usredit', { d: { id: u.email }, cls: 'sm' })}${u.pendiente || u.activo ? btn(u.pendiente ? 'Rechazar' : 'Desactivar', 'usroff', { d: { id: u.email }, cls: 'sm danger' }) : ''}</td></tr>`;
+  return `<div class="card"><header><h2>Usuarios y roles</h2><small>${L.length} cuentas${pend ? ' · <b>' + pend + ' pendiente(s) de rol</b>' : ''}</small></header>
+    <div class="note">${icon('info', 14)}<span>Cualquiera puede crear su cuenta; queda <b>pendiente</b> y no ve nada hasta que le asignes un rol. Además del rol y las áreas, puedes asignarle <b>proyectos en particular</b>: los verá (y, si es Colaborador o Responsable, los podrá editar) aunque no sean de su área.</span></div>
+    ${UI.usrsErr ? `<p class="mut" style="color:var(--red)">${esc(UI.usrsErr)}</p>` : ''}
+    <div class="tbl-w"><table class="tbl"><thead><tr><th>Persona</th><th>Rol</th><th>Áreas</th><th>Proyectos asignados</th><th>Estado</th><th></th></tr></thead><tbody>${L.map(fila).join('') || '<tr><td colspan="6" class="mut">Sin cuentas</td></tr>'}</tbody></table></div></div>`;
+}
+Acts.usredit = d => {
+  const u = (UI.usrs || []).find(x => x.email === d.id); if (!u) return;
+  openForm({
+    title: (u.pendiente ? 'Asignar rol a ' : 'Editar a ') + (u.nombre || u.email), saveLabel: u.pendiente ? 'Asignar y activar' : 'Guardar', wide: true,
+    values: { nombre: u.nombre, cargo: u.cargo, appRol: u.pendiente ? 'Colaborador' : u.appRol, areas: u.areas || [], proyectos: u.proyectos || [], veTodo: !!u.veTodo, veMontos: !!u.veMontos, gobierna: !!u.gobierna, activo: true },
+    fields: [
+      { k: 'nombre', l: 'Nombre', w: 2 }, { k: 'cargo', l: 'Cargo', w: 1 },
+      { k: 'appRol', l: 'Rol', t: 'select', opts: USR_ROLES, req: true, w: 1, hint: 'Administra: todo · Responsable: ve todo y gobierna · Colaborador: edita su área · Invitado: solo lectura' },
+      { k: 'areas', l: 'Áreas que ve y edita', t: 'multi', opts: St.cfg.areas.map(a => ({ v: a, t: a })), w: 3 },
+      { k: 'proyectos', l: 'Proyectos asignados (además de su área)', t: 'multi', opts: iniOpts(), w: 3 },
+      { k: 'veTodo', l: 'Alcance', t: 'check', lbl: 'Ve todas las áreas (solo lectura fuera de las suyas)', w: 3 },
+      { k: 'veMontos', l: 'Montos', t: 'check', lbl: 'Ve presupuestos y montos', w: 3 },
+      { k: 'gobierna', l: 'Gobierno', t: 'check', lbl: 'Gestiona comités y decisiones', w: 3 }
+    ],
+    onSave: o => { cmdServidor('apih_guardar_usuario', { p_email: u.email, p_datos: Object.assign({}, o, { activo: true }) }, u.pendiente ? 'Cuenta activada' : 'Usuario guardado', true).then(r => { if (r !== null) usrCargar(); }); }
+  });
+};
+Acts.usroff = d => {
+  const u = (UI.usrs || []).find(x => x.email === d.id); if (!u) return;
+  confirmBox(`¿${u.pendiente ? 'Rechazar la cuenta de' : 'Desactivar a'} <b>${esc(u.nombre || u.email)}</b>? No podrá ver ni editar nada.`, () => { cmdServidor('apih_desactivar_usuario', { p_email: u.email }, 'Acceso desactivado').then(r => { if (r !== null) usrCargar(); }); }, u.pendiente ? 'Rechazar' : 'Desactivar', true);
+};
 
 /* ---------- Administración → Conexión ---------- */
 function spTab() {

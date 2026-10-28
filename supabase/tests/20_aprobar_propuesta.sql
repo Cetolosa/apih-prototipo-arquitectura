@@ -58,7 +58,7 @@ reset role;
 select pg_temp.ok(pg_temp.j('APIH_Propuestas','PROP-001') ->> 'estado' = 'Aprobada' and pg_temp.j('APIH_Propuestas','PROP-001') ->> 'proyecto' = 'PRJ-051', 'propuesta cerrada como Aprobada → PRJ-051 (sigue al máximo existente)');
 select pg_temp.ok(pg_temp.j('APIH_Proyectos','PRJ-051') ->> 'fase' = 'Planificación' and pg_temp.j('APIH_Proyectos','PRJ-051') ->> 'propuestaOrigen' = 'PROP-001', 'proyecto creado en Planificación con su origen');
 select pg_temp.ok((pg_temp.j('APIH_Proyectos','PRJ-051') ->> 'presupuesto')::numeric = 1000, 'el presupuesto se conserva aunque quien aprueba no vea montos');
-select pg_temp.ok(pg_temp.j('APIH_Proyectos','PRJ-051') ->> 'area' = 'A' and (select area from public.registros where id='PRJ-051') = 'A', 'área derivada');
+select pg_temp.ok(pg_temp.j('APIH_Proyectos','PRJ-051') ->> 'area' = 'A' and (select area from public.registros where id='PRJ-051') = 'A,@PRJ-051', 'área derivada');
 select pg_temp.ok(pg_temp.j('APIH_Riesgos','RSK-1') ->> 'ini' = 'PRJ-051', 'el riesgo pasa al proyecto');
 select pg_temp.ok(pg_temp.j('APIH_Hitos','HIT-900') ->> 'ini' = 'PRJ-051' and (pg_temp.j('APIH_Hitos','HIT-900') ->> 'completado')::boolean, 'hito de etapa superada queda completado y pasa al proyecto');
 select pg_temp.ok((select count(*) from public.registros where lista='APIH_Hitos' and substr(datos,4)::jsonb ->> 'ini' = 'PRJ-051') = 3, 'plantilla: Kick-off y Cierre formal creados (Evaluación no se duplica ni crea hitos de otra fase)');

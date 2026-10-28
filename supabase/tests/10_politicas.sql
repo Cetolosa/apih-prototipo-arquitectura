@@ -148,7 +148,7 @@ select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral
 rollback;
 
 -- alta de usuarios: dominio configurable
-select pg_temp.falla($$insert into auth.users(email) values ('alguien@otro.com')$$, 'dominio no autorizado', '%no autorizado%');
+insert into auth.users(email) values ('alguien@otro.com');   -- registro abierto: cualquiera crea su cuenta (sin perfil activo no ve nada)
 insert into auth.users(email) values ('nuevo@aramark.cl');
 insert into auth.users(email) values ('cetolosa@gmail.com');
 \echo TODAS LAS PRUEBAS SQL OK

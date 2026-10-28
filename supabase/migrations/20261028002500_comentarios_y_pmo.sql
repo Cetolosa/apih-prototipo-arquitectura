@@ -35,7 +35,7 @@ begin
   c := public.apih_calculos_base() -> 'ini' -> p_id;
   sug := c -> 'rag' ->> 'rag';
   if sug is null then raise exception 'APIH: no hay un RAG sugerido para %', p_id using errcode = '22023'; end if;
-  perform public.apih_escribir(ir.lista, p_id, i || jsonb_build_object('rag', sug, 'actualizada', public.apih_hoy()::text));
+  perform public.apih_escribir_cmd(ir.lista, p_id, i || jsonb_build_object('rag', sug, 'actualizada', public.apih_hoy()::text));
   perform public.apih_bitacora_cmd(p_id, 'Cambio', 'RAG ' || coalesce(i ->> 'rag', '—') || ' → ' || sug || ' (sugerido por reglas automáticas)');
   return jsonb_build_object('id', p_id, 'rag', sug);
 end $$;
@@ -48,7 +48,7 @@ declare ir public.registros; i jsonb;
 begin
   ir := public.apih_puede_ini(p_id); i := substr(ir.datos, 4)::jsonb;
   if ir.lista <> 'APIH_Proyectos' then raise exception 'APIH: el avance automático es de proyectos' using errcode = '22023'; end if;
-  perform public.apih_escribir(ir.lista, p_id, i || jsonb_build_object('avanceManual', null, 'actualizada', public.apih_hoy()::text));
+  perform public.apih_escribir_cmd(ir.lista, p_id, i || jsonb_build_object('avanceManual', null, 'actualizada', public.apih_hoy()::text));
   perform public.apih_bitacora_cmd(p_id, 'Actualización', 'Avance: se usa el calculado');
   return jsonb_build_object('id', p_id);
 end $$;

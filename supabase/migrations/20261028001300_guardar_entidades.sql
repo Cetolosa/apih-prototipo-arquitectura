@@ -117,6 +117,16 @@ $$ begin
   on conflict (lista, id) do update set datos = excluded.datos;
 end $$;
 
+-- Igual que apih_escribir, para comandos que cambian una iniciativa que ya existe con campos que gobierna el servidor
+-- (avance, RAG, actualización semanal): el disparador los trata como internos; se restituye el valor previo de la marca.
+create or replace function public.apih_escribir_cmd(p_lista text, p_id text, j jsonb) returns void language plpgsql security definer set search_path = public as
+$$ declare prev text := coalesce(current_setting('apih.interno', true), 'off');
+begin
+  perform set_config('apih.interno', 'on', true);
+  perform public.apih_escribir(p_lista, p_id, j);
+  perform set_config('apih.interno', prev, true);
+end $$;
+
 create or replace function public.apih_bitacora_cmd(p_ini text, p_tipo text, p_texto text, p_meta text default null) returns void language plpgsql security definer set search_path = public as
 $$ begin
   perform set_config('apih.interno', 'on', true);
@@ -255,7 +265,7 @@ begin
     ir := public.apih_puede_ini(x ->> 'ini'); es_prop := ir.lista = 'APIH_Propuestas';
     if x ->> 'tipo' = 'Iniciar' and not es_prop then perform public.apih_err('«Iniciar» aplica solo a propuestas', 'tipo'); end if;
     if x ->> 'tipo' = 'Acelerar' and es_prop then perform public.apih_err('«Acelerar» aplica solo a proyectos', 'tipo'); end if;
-    x := x || jsonb_build_object('area', coalesce(ir.area, 'BISE'));
+    x := x || jsonb_build_object('area', coalesce(public.apih_area_vis(ir.area), 'BISE'));
   else
     x := (x - 'ini') || jsonb_build_object('area', coalesce(x0 ->> 'area', 'BISE'));
   end if;
@@ -302,7 +312,7 @@ begin
   return jsonb_build_object('id', p_id);
 end $$;
 
-revoke all on function public.apih_ini(text), public.apih_nuevo_id(text, text), public.apih_escribir(text, text, jsonb), public.apih_bitacora_cmd(text, text, text, text),
+revoke all on function public.apih_ini(text), public.apih_nuevo_id(text, text), public.apih_escribir(text, text, jsonb), public.apih_escribir_cmd(text, text, jsonb), public.apih_bitacora_cmd(text, text, text, text),
   public.apih_puede_ini(text, text) from public, anon, authenticated;
 revoke all on function public.apih_guardar_hito(text, jsonb), public.apih_guardar_riesgo(text, jsonb), public.apih_guardar_decision(text, jsonb), public.apih_eliminar(text, text) from public, anon;
 grant execute on function public.apih_guardar_hito(text, jsonb), public.apih_guardar_riesgo(text, jsonb), public.apih_guardar_decision(text, jsonb), public.apih_eliminar(text, text) to authenticated;
