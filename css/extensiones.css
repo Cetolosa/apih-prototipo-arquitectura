@@ -162,3 +162,13 @@
 /* tarjetas más anchas: columnas de 272 px con desplazamiento horizontal */
 .icard.ic2{height:196px}.ic2 .ic-t{padding-right:26px}.ic2 .ic-t .sp{flex:1}.ic2 h3{font-size:15px;min-height:2.6em}.ic2-ft .pp small{max-width:none}
 .icard.ic2{height:216px}
+/* Encabezado de Iniciativas (alternativa A): Tabla/Tablero junto al título y un solo «Nuevo ▾» */
+.ph-act .menu-tabs.in-ph{margin:0;border:0;background:#E9ECEF;padding:3px;border-radius:12px;gap:2px;overflow:visible;width:fit-content}
+.ph-act .menu-tabs.in-ph a{padding:0 14px;height:32px;border:0;margin:0;border-radius:9px;font-weight:600;color:var(--tx2);display:inline-flex;align-items:center}
+.ph-act .menu-tabs.in-ph a.on{background:#fff;color:var(--pri-d,var(--pri));box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.ph-act .menu-tabs.in-ph{order:-1}
+.v22-nuevo{position:relative;display:inline-block}.v22-nuevo>.btn{display:inline-flex;align-items:center;gap:7px}
+.v22-nuevo .pop{display:none;position:absolute;top:calc(100% + 6px);min-width:230px;background:var(--card);border:1px solid var(--bd);border-radius:12px;box-shadow:var(--sh2,0 8px 24px rgba(0,0,0,.16));padding:6px;z-index:40;flex-direction:column;gap:2px}
+.v22-nuevo .pop.open,.v22-nuevo .pop.on,.v22-nuevo .pop.show{display:flex}
+.v22-nuevo .pop .btn{width:100%;justify-content:flex-start;border:0;background:transparent;height:38px;font-weight:600}.v22-nuevo .pop .btn:hover{background:var(--bg2)}
+#main>.ph+.v22-row .flt select{width:104px!important;max-width:104px!important}#main>.ph+.v22-row .search{flex:1 1 140px;max-width:240px}
