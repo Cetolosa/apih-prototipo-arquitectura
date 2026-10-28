@@ -7,93 +7,22 @@ import { DESC_MAX, cutDesc, faseNotaP, fasesVentana, hitosSub, rangoTx, sfImport
 /* ======================= ADMINISTRACIÓN ======================= */
 const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info', 14)}<span>Los umbrales de alerta (desviación, días sin actualización, riesgo crítico, semáforo de propuestas y meta de «Mi cocina») se ajustan en <button class="lnk" data-act="go" data-v="miconfig">Mi configuración</button>, donde Administra los fija para todos y cada líder puede personalizarlos.</span></div>` + ((0, ENLACES.esAdministra)() && window.V22 && V22.MENU ? (0, ENLACES.menuRolCard)() : '');
 /* ============================================================
-   V22.44 · Notificaciones (estructura paramétrica)
-   · Catálogo NOTIF: qué se avisa, a quién (destinatarios), con qué parámetros y por qué canal.
-   · Generación SIN estado: notifPara(usuario) se calcula desde los datos (reglas) y la Bitácora (eventos). El mismo cálculo
-     servirá a un proceso servidor (Power Automate / función Supabase) que recorra a todos los usuarios y envíe correo o Teams.
+   Notificaciones (estructura paramétrica)
+   · El servidor decide: catálogo de avisos, a quién llegan, con qué parámetros y por qué canal, y los avisos de cada persona (apih_calculos → notif).
    · Canales: app (campana) activo; correo y Teams quedan declarados y apagados hasta que TI entregue SMTP / webhook.
-   · Preferencias: valores por defecto de la organización (St.cfg.notif, solo Administra) y ajuste personal (St.cfgU[usuario].notif).
+   · Preferencias: valores por defecto de la organización (St.cfg.notif, solo Administra) y ajuste personal (St.cfgU[usuario].notif): son datos; el servidor los interpreta.
    · Lectura: por navegador (localStorage) para no pisar la configuración compartida.
    ============================================================ */
-const NOTIF_CANALES = [['app', 'En la app', true], ['correo', 'Correo', false], ['teams', 'Teams', false]];   /* [id, etiqueta, disponible hoy] */
-export const NOTIF_DEST = [['lider', 'Líder'], ['sponsor', 'Sponsor'], ['resp', 'Responsable directo'], ['pmo', 'PMO (Administra)']];
-export const NOTIF_GRUPOS = { plazos: 'Plazos y compromisos', riesgos: 'Riesgos y decisiones', salud: 'Salud y avance', colab: 'Colaboración', gob: 'Gobierno y cambios' };
-const NOTIF = [
-  { id: 'hito_prox', g: 'plazos', l: 'Hito por vencer', d: 'Un hito pendiente vence en los próximos días.', sev: 1, on: true, dest: ['resp', 'lider'], dias: 3, diasL: 'días de anticipación' },
-  { id: 'hito_venc', g: 'plazos', l: 'Hito vencido', d: 'Un hito de un proyecto en curso pasó su fecha sin completarse.', sev: 2, on: true, dest: ['resp', 'lider'] },
-  { id: 'comp_prox', g: 'plazos', l: 'Compromiso por vencer', d: 'Un compromiso abierto vence en los próximos días.', sev: 1, on: true, dest: ['resp'], dias: 3, diasL: 'días de anticipación' },
-  { id: 'comp_venc', g: 'plazos', l: 'Compromiso vencido', d: 'Un compromiso abierto pasó su fecha límite.', sev: 2, on: true, dest: ['resp', 'pmo'] },
-  { id: 'riesgo_crit', g: 'riesgos', l: 'Riesgo crítico abierto', d: 'Un riesgo abierto supera el umbral de exposición crítica.', sev: 3, on: true, dest: ['resp', 'lider'] },
-  { id: 'dec_venc', g: 'riesgos', l: 'Decisión vencida', d: 'Una decisión pendiente pasó su fecha límite.', sev: 2, on: true, dest: ['resp', 'pmo'] },
-  { id: 'atraso', g: 'salud', l: 'Proyecto atrasado', d: 'La fecha proyectada supera la tolerancia de desviación.', sev: 2, on: true, dest: ['lider', 'sponsor'] },
-  { id: 'sin_update', g: 'salud', l: 'Proyecto sin actualización', d: 'Se superó el plazo sin actualizar el avance.', sev: 1, on: true, dest: ['lider'] },
-  { id: 'prop_estancada', g: 'salud', l: 'Propuesta estancada', d: 'Una propuesta lleva más días de lo esperado en su fase.', sev: 1, on: false, dest: ['lider'] },
-  { id: 'ev_rag', g: 'salud', l: 'Salud pasa a Rojo', d: 'Un proyecto cambió su RAG a Rojo (últimos 14 días).', sev: 3, on: true, dest: ['lider', 'sponsor', 'pmo'], ev: true },
-  { id: 'ev_fase', g: 'salud', l: 'Cambio de fase', d: 'Una iniciativa avanzó de fase (últimos 14 días).', sev: 1, on: true, dest: ['lider', 'sponsor'], ev: true },
-  { id: 'ev_asigna', g: 'colab', l: 'Te asignaron como responsable', d: 'Quedaste como responsable o dueño de una iniciativa, hito o riesgo.', sev: 1, on: true, dest: ['resp'], ev: true, fijoDest: true },
-  { id: 'ev_comentario', g: 'colab', l: 'Comentario nuevo', d: 'Otra persona comentó una iniciativa que lideras o patrocinas.', sev: 1, on: true, dest: ['lider', 'sponsor'], ev: true },
-  { id: 'cambio_pend', g: 'gob', l: 'Solicitud de cambio pendiente', d: 'Hay una solicitud de cambio esperando aprobación.', sev: 2, on: true, dest: ['pmo'] },
-  { id: 'cambio_res', g: 'gob', l: 'Solicitud de cambio resuelta', d: 'Se aprobó o rechazó una solicitud que hiciste (últimos 14 días).', sev: 1, on: true, dest: ['resp'], ev: true, fijoDest: true }
-];
-const NOTIF_VENT = 14;   /* días hacia atrás para los avisos por evento */
-const rolDeUser = n => { const k = _nrm(n); const u = St.usuarios.find(x => _nrm(x.n) === k); return u && ENLACES.PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador'; };
-export function notifPref(id, user) {
-  const c = NOTIF.find(x => x.id === id), o = ((St.cfg.notif || {}).tipos || {})[id] || {}, p = ((((0, ENLACES.cfgUOf)(user).notif || {}).tipos) || {})[id] || {};
-  const can = Object.assign({ app: true, correo: false, teams: false }, o.canales || {}, p.canales || {});
-  return { on: p.on != null ? p.on : o.on != null ? o.on : c.on, dest: o.dest || c.dest, dias: o.dias != null ? o.dias : c.dias, canales: can };
-}
-export function notifPara(user) {
-  if (!St || !user) return [];
-  const u = _nrm(user), hy = hoy(), rol = rolDeUser(user), out = [];
-  const visible = i => i && (0, ENLACES.areaVisible)(i.area);
-  /* rel(i, extra): relación de «user» con la iniciativa/ítem → lista de roles que cumple */
-  const rel = (i, resp) => { const r = []; if (i && _nrm(i.lider) === u) r.push('lider'); if (i && _nrm(i.sponsor) === u) r.push('sponsor'); if (resp && _nrm(resp) === u) r.push('resp'); if (rol === 'Administra') r.push('pmo'); return r; };
-  const aplica = (id, i, resp) => { const p = notifPref(id, user); if (!p.on) return false; const r = rel(i, resp); return p.dest.some(k => r.includes(k)); };
-  const add = (id, key, i, texto, extra) => { const c = NOTIF.find(x => x.id === id); out.push(Object.assign({ key: id + ':' + key, tipo: id, g: c.g, sev: c.sev, ini: i ? i.id : null, titulo: c.l, texto, ts: hy }, extra || {})); };
-  const vivas = St.ini.filter(i => isLive(i) && visible(i));
-  /* --- reglas --- */
-  const pH = notifPref('hito_prox', user).dias, pC = notifPref('comp_prox', user).dias;
-  St.hitos.filter(h => !h.completado).forEach(h => {
-    const i = byId(h.ini); if (!i || !isLive(i) || !visible(i) || i.estado !== 'En curso') return;
-    const d = diffD(h.fecha, hy);
-    if (d < 0 && aplica('hito_venc', i, h.resp)) add('hito_venc', h.id, i, `«${h.nombre}» venció hace ${-d} d (${fmtD(h.fecha)}) · ${i.titulo}`, { ts: h.fecha, sev: -d > 30 ? 3 : 2 });
-    else if (d >= 0 && d <= pH && aplica('hito_prox', i, h.resp)) add('hito_prox', h.id, i, `«${h.nombre}» vence ${d === 0 ? 'hoy' : 'en ' + d + ' d'} (${fmtD(h.fecha)}) · ${i.titulo}`, { ts: h.fecha });
-  });
-  ACUERDOS().filter(a => a.estado === 'Abierto' && a.limite).forEach(a => {
-    const i = byId(a.ini); if (a.ini && !visible(i)) return; const d = diffD(a.limite, hy);
-    if (d < 0 && aplica('comp_venc', i, a.resp)) add('comp_venc', a.id, i, `«${cut(a.texto, 70)}» venció hace ${-d} d · ${a.resp || 'sin responsable'}`, { ts: a.limite });
-    else if (d >= 0 && d <= pC && aplica('comp_prox', i, a.resp)) add('comp_prox', a.id, i, `«${cut(a.texto, 70)}» vence ${d === 0 ? 'hoy' : 'en ' + d + ' d'} · ${a.resp || 'sin responsable'}`, { ts: a.limite });
-  });
-  St.riesgos.filter(r => riesgoAbierto(r)).forEach(r => { const i = byId(r.ini); if (!i || !isLive(i) || !visible(i)) return; const e = expo(r); if (riesgoCritico(r) && aplica('riesgo_crit', i, r.dueno)) add('riesgo_crit', r.id, i, `Exposición ${e}: ${cut(r.desc, 80)} · ${i.titulo}`, { ts: r.fIdent || hy }); });
-  DECS().filter(d => d.estado === 'Pendiente' && d.limite && d.limite < hy).forEach(d => { const i = byId(d.ini); if (d.ini && !visible(i)) return; if (aplica('dec_venc', i, d.solicita)) add('dec_venc', d.id, i, `«${cut(d.titulo, 70)}» venció hace ${diffD(hy, d.limite)} d`, { ts: d.limite }); });
-  vivas.filter(isActive).forEach(i => {
-    if (atrasado(i) && aplica('atraso', i)) add('atraso', i.id, i, `${i.titulo}: +${desv(i)} d sobre el plan`);
-    const du = diasSinUpd(i); if (du > (0, ENLACES.cfgI)(i, 'diasSinUpdate') && aplica('sin_update', i)) add('sin_update', i.id, i, `${i.titulo}: ${du >= 999 ? 'sin registro de actualización' : du + ' d sin actualizar'}`);
-  });
-  scopeP().filter(i => isLive(i) && visible(i) && i.estado === 'Vigente').forEach(i => { const d = diasEnFase(i), amb = (0, ENLACES.cfgI)(i, 'propDiasAmb') || 30; if (d > amb && aplica('prop_estancada', i)) add('prop_estancada', i.id, i, `${i.titulo}: ${d} d en la fase ${i.fase}`); });
-  CAMBIOS().filter(c => c.estado === 'Solicitado').forEach(c => { const i = byId(c.ini); if (!visible(i)) return; if (aplica('cambio_pend', i, c.aprobador)) add('cambio_pend', c.id, i, `${c.tipo}: ${cut(c.desc || c.id, 70)} · pide ${c.solicita || '—'}`, { ts: c.creada || hy }); });
-  /* --- eventos (últimos NOTIF_VENT días; no avisan al autor del cambio) --- */
-  CAMBIOS().filter(c => c.estado !== 'Solicitado' && c.fDec && diffD(hy, c.fDec) <= NOTIF_VENT).forEach(c => { const i = byId(c.ini); if (!visible(i)) return; if (aplica('cambio_res', i, c.solicita)) add('cambio_res', c.id, i, `Tu solicitud de ${String(c.tipo).toLowerCase()} fue ${String(c.estado).toLowerCase()} · ${cut(c.desc || c.id, 60)}`, { ts: c.fDec }); });
-  St.bitacora.forEach(b => {
-    if (!b.ini || diffD(hy, String(b.ts).slice(0, 10)) > NOTIF_VENT || _nrm(b.autor) === u) return;
-    const i = byId(b.ini); if (!visible(i)) return; const ts = String(b.ts).slice(0, 10), T = b.texto || '';
-    if (b.tipo === 'Comentario' && !/^Estrella Michelin/.test(T) && aplica('ev_comentario', i)) add('ev_comentario', b.id, i, `${b.autor}: «${cut(T, 90)}» · ${i.titulo}`, { ts });
-    if (b.tipo === 'Cambio' && /^Cambio de fase/.test(T) && aplica('ev_fase', i)) add('ev_fase', b.id, i, `${i.titulo}: ${T.replace(/^Cambio de fase: /, '').replace(/ \(forzado.*$/, '')}`, { ts });
-    if (b.tipo === 'Cambio' && /^RAG .*→ Rojo/.test(T) && aplica('ev_rag', i)) add('ev_rag', b.id, i, `${i.titulo}: ${T}`, { ts });
-    if (b.tipo === 'Edición' && notifPref('ev_asigna', user).on) { const P = audParse(T); (P.rows || []).forEach(r => { if (/^(Responsable|Dueño)$/.test(r[0]) && _nrm(r[2]) === u) add('ev_asigna', b.id + r[0], i, `${P.ent ? P.kind + ' «' + P.ent + '»' : i.titulo}: ahora eres ${r[0] === 'Dueño' ? 'dueño' : 'responsable'} (antes ${r[1]}) · ${i.titulo}`, { ts }); }); }
-  });
-  /* canales activos para cada aviso (hoy solo «app» se entrega; el resto queda en la cola de salida) */
-  out.forEach(n => { const p = notifPref(n.tipo, user); n.canales = NOTIF_CANALES.filter(c => p.canales[c[0]] && (c[0] === 'app' || (St.cfg.notif || {}).canalOn && St.cfg.notif.canalOn[c[0]])).map(c => c[0]); });
-  return out.sort((a, b) => (b.ts > a.ts ? 1 : b.ts < a.ts ? -1 : b.sev - a.sev));
-}
+/* El catálogo, las preferencias efectivas y los avisos los entrega el servidor (apih_calculos → notif); aquí solo se presentan. */
+const NC = () => CALC.notif || { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] };
+export const notifPref = id => NC().prefs[id] || { on: false, dest: [], dias: null, canales: { app: true } };
 /* cola de salida para canales externos: la consumirá el proceso servidor cuando TI habilite correo / Teams */
-export function notifOutbox(user, canal) { return notifPara(user).filter(n => n.canales.includes(canal)); }
+export function notifOutbox(user, canal) { return NC().avisos.filter(n => n.canales.includes(canal)); }
 const _nlg = k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, _nls = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { } };
 const nlKey = () => 'apih_nl_' + _nrm(miUsuario());
 const nlLeidas = () => { try { return new Set(JSON.parse(_nlg(nlKey()) || '[]')); } catch (e) { return new Set(); } };
 const nlGuardar = (set, vigentes) => { const keep = [...set].filter(k => vigentes.has(k)).slice(-600); _nls(nlKey(), JSON.stringify(keep)); };
-let _notifC = null;
-export function notifMias() { const k = St.ini.length + '|' + St.bitacora.length + '|' + _ixGen + '|' + hoy() + '|' + miUsuario(); if (_notifC && _notifC.k === k) return _notifC.v; const v = notifPara(miUsuario()).filter(n => n.canales.includes('app')); _notifC = { k, v }; return v; }
+export function notifMias() { return NC().avisos.filter(n => n.canales.includes('app')); }
 function bellPop() {
   const pb = $('#pop-bell'), bn = $('#bellN'); if (!pb) return;
   const al = typeof ENLACES.motorAlertas === 'function' ? (0, ENLACES.motorAlertas)() : [], alc = al.filter(a => a.sev === 3).length, av = notifMias(), L = nlLeidas(), nl = av.filter(n => !L.has(n.key)), tab = UI.bellTab || 'avisos';
@@ -108,16 +37,16 @@ Acts.avisogo = d => { const L = nlLeidas(); L.add(d.k); nlGuardar(L, new Set(not
 Acts.avisoleer = () => { const av = notifMias(), L = nlLeidas(); av.forEach(n => L.add(n.key)); nlGuardar(L, new Set(av.map(n => n.key))); bellPop(); bellKeep(); };
 /* ---- matriz de configuración (modo 'org' para Administra en Admin · 'user' en Mi configuración) ---- */
 function notifMatriz(modo) {
-  const org = modo === 'org', me = miUsuario(), can = NOTIF_CANALES, onOrg = (St.cfg.notif || {}).canalOn || {};
+  const org = modo === 'org', K = NC().catalogo, can = K.canales, onOrg = (St.cfg.notif || {}).canalOn || {};
   const head = `<tr><th>Aviso</th><th class="n">Activo</th>${can.map(c => `<th class="n">${c[1]}</th>`).join('')}${org ? '<th>Destinatarios</th><th class="n">Parámetro</th>' : ''}</tr>`;
   let rows = '';
-  Object.keys(NOTIF_GRUPOS).forEach(g => {
-    rows += `<tr class="grp"><td colspan="${3 + can.length + (org ? 1 : 0)}"><b>${NOTIF_GRUPOS[g]}</b></td></tr>`;
-    NOTIF.filter(c => c.g === g).forEach(c => {
-      const p = notifPref(c.id, me), dis = FL.verComo ? 'disabled' : '';
+  Object.keys(K.grupos).forEach(g => {
+    rows += `<tr class="grp"><td colspan="${3 + can.length + (org ? 1 : 0)}"><b>${K.grupos[g]}</b></td></tr>`;
+    K.tipos.filter(c => c.g === g).forEach(c => {
+      const p = notifPref(c.id), dis = FL.verComo ? 'disabled' : '';
       rows += `<tr><td><b>${esc(c.l)}</b><br><small>${esc(c.d)}${c.ev ? ' · por evento' : ''}</small></td><td class="n"><input type="checkbox" ${p.on ? 'checked' : ''} ${dis} data-chg="notifon" data-m="${modo}" data-id="${c.id}" aria-label="Activar ${esc(c.l)}"></td>` +
         can.map(([k, l, disp]) => { const off = !disp && !(onOrg[k]); return `<td class="n"><input type="checkbox" ${p.canales[k] ? 'checked' : ''} ${k === 'app' ? 'disabled' : off || dis ? 'disabled' : ''} data-chg="notifcan" data-m="${modo}" data-id="${c.id}" data-c="${k}" aria-label="${esc(l)}: ${esc(c.l)}" ${off ? 'title="Canal aún no habilitado"' : ''}></td>`; }).join('') +
-        (org ? `<td><div class="dst">${c.fijoDest ? '<small>' + (c.id === 'ev_asigna' ? 'La persona asignada' : 'Quien solicitó') + '</small>' : NOTIF_DEST.map(([k, l]) => `<label class="chk"><input type="checkbox" ${p.dest.includes(k) ? 'checked' : ''} data-chg="notifdest" data-id="${c.id}" data-k="${k}"> <span>${l}</span></label>`).join('')}</div></td><td class="n">${c.dias != null ? `<input type="number" min="1" max="30" value="${p.dias}" style="width:56px" data-chg="notifdias" data-id="${c.id}" aria-label="${esc(c.diasL)}"> <small>${c.diasL}</small>` : '—'}</td>` : '') + '</tr>';
+        (org ? `<td><div class="dst">${c.fijoDest ? '<small>' + (c.id === 'ev_asigna' ? 'La persona asignada' : 'Quien solicitó') + '</small>' : K.destinos.map(([k, l]) => `<label class="chk"><input type="checkbox" ${p.dest.includes(k) ? 'checked' : ''} data-chg="notifdest" data-id="${c.id}" data-k="${k}"> <span>${l}</span></label>`).join('')}</div></td><td class="n">${c.dias != null ? `<input type="number" min="1" max="30" value="${p.dias}" style="width:56px" data-chg="notifdias" data-id="${c.id}" aria-label="${esc(c.diasL)}"> <small>${c.diasL}</small>` : '—'}</td>` : '') + '</tr>';
     });
   });
   return `<div class="tbl-w" style="max-height:none;overflow-x:auto"><table class="tbl notif-t"><thead>${head}</thead><tbody>${rows}</tbody></table></div>`;
@@ -125,7 +54,7 @@ function notifMatriz(modo) {
 function notifCanalesCard() {
   const on = (St.cfg.notif || {}).canalOn || {};
   return `<div class="note" style="margin-bottom:10px">${icon('info', 14)}<span><b>En la app</b> funciona hoy (campana). <b>Correo</b> y <b>Teams</b> quedan listos en la estructura: cuando TI entregue el servicio de correo (SMTP) o el webhook de Teams, se habilitan aquí y se envía lo que cada persona haya marcado.</span></div>
-    <div class="chips" style="margin-bottom:10px">${NOTIF_CANALES.filter(c => !c[2]).map(c => `<label class="chk"><input type="checkbox" ${on[c[0]] ? 'checked' : ''} data-chg="notifcanon" data-c="${c[0]}"> <span>Habilitar ${c[1]} (requiere integración)</span></label>`).join('')}</div>`;
+    <div class="chips" style="margin-bottom:10px">${NC().catalogo.canales.filter(c => !c[2]).map(c => `<label class="chk"><input type="checkbox" ${on[c[0]] ? 'checked' : ''} data-chg="notifcanon" data-c="${c[0]}"> <span>Habilitar ${c[1]} (requiere integración)</span></label>`).join('')}</div>`;
 }
 function notifAdminHTML() {
   return `<div class="card"><header><h2>Notificaciones · valores por defecto</h2><small>Qué se avisa, a quién y por qué canal. Cada persona puede ajustar lo suyo en Mi configuración.</small></header>${notifCanalesCard()}${notifMatriz('org')}<div class="chips" style="margin-top:10px">${btn('Restablecer valores', 'notifreset')}</div></div>`;
@@ -134,15 +63,17 @@ export function notifUserCard() {
   const n = notifMias().length;
   return `<section class="card c12"><header><h2>Notificaciones</h2><small>Qué quieres que te avise APIH · hoy te llegan ${n} avisos en la campana</small></header>${notifMatriz('user')}<div class="chips" style="margin-top:10px">${btn('Restablecer mis avisos', 'notifmyreset')}</div></section>`;
 }
+/* Guardar la configuración y pedir al servidor que vuelva a evaluar los avisos con ella */
+async function notifSync() { refresh(); await DataService.flush(); await DataService.refresh(false, true); }
 const notifOrg = () => (St.cfg.notif = St.cfg.notif || { tipos: {}, canalOn: {} });
 const notifOrgT = id => { const o = notifOrg(); o.tipos = o.tipos || {}; return (o.tipos[id] = o.tipos[id] || {}); };
-Chg.notifon = el => { if (FL.verComo) return; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; notifOrgT(el.dataset.id).on = el.checked; } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); u.tipos[el.dataset.id] = Object.assign({}, u.tipos[el.dataset.id], { on: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
-Chg.notifcan = el => { if (FL.verComo) return; const id = el.dataset.id, c = el.dataset.c; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; const t = notifOrgT(id); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); const t = u.tipos[id] = Object.assign({}, u.tipos[id]); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } _notifC = null; refresh(); };
-Chg.notifdest = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const id = el.dataset.id, t = notifOrgT(id), cur = (t.dest || NOTIF.find(x => x.id === id).dest).slice(), k = el.dataset.k, p = cur.indexOf(k); if (el.checked && p < 0) cur.push(k); if (!el.checked && p >= 0) cur.splice(p, 1); if (!cur.length) { toast('Debe quedar al menos un destinatario', 'err'); refresh(); return; } t.dest = cur; _notifC = null; refresh(); };
-Chg.notifdias = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; notifOrgT(el.dataset.id).dias = Math.min(30, Math.max(1, +el.value || 1)); _notifC = null; refresh(); };
-Chg.notifcanon = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const o = notifOrg(); o.canalOn = Object.assign({}, o.canalOn, { [el.dataset.c]: el.checked }); _notifC = null; refresh(); };
-Acts.notifreset = () => { if (!(0, ENLACES.esAdministra)()) return; confirmBox('Se restablecerán los destinatarios, parámetros y canales por defecto de toda la organización. ¿Continuar?', () => { delete St.cfg.notif; _notifC = null; toast('Valores restablecidos'); refresh(); }, 'Restablecer', true); };
-Acts.notifmyreset = () => { if (FL.verComo) return; const u = (0, ENLACES.cfgUOf)(miUsuario()); delete u.notif; _notifC = null; toast('Avisos restablecidos'); refresh(); };
+Chg.notifon = el => { if (FL.verComo) return; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; notifOrgT(el.dataset.id).on = el.checked; } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); u.tipos[el.dataset.id] = Object.assign({}, u.tipos[el.dataset.id], { on: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } notifSync(); };
+Chg.notifcan = el => { if (FL.verComo) return; const id = el.dataset.id, c = el.dataset.c; if (el.dataset.m === 'org') { if (!(0, ENLACES.esAdministra)()) return; const t = notifOrgT(id); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); } else { const u = Object.assign({}, (0, ENLACES.cfgUOf)(miUsuario()).notif || {}); u.tipos = Object.assign({}, u.tipos); const t = u.tipos[id] = Object.assign({}, u.tipos[id]); t.canales = Object.assign({}, t.canales, { [c]: el.checked }); (0, ENLACES.cfgSet)(miUsuario(), { notif: u }); } notifSync(); };
+Chg.notifdest = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const id = el.dataset.id, t = notifOrgT(id), cur = (t.dest || NC().catalogo.tipos.find(x => x.id === id).dest).slice(), k = el.dataset.k, p = cur.indexOf(k); if (el.checked && p < 0) cur.push(k); if (!el.checked && p >= 0) cur.splice(p, 1); if (!cur.length) { toast('Debe quedar al menos un destinatario', 'err'); refresh(); return; } t.dest = cur; notifSync(); };
+Chg.notifdias = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; notifOrgT(el.dataset.id).dias = Math.min(30, Math.max(1, +el.value || 1)); notifSync(); };
+Chg.notifcanon = el => { if (!(0, ENLACES.esAdministra)() || FL.verComo) return; const o = notifOrg(); o.canalOn = Object.assign({}, o.canalOn, { [el.dataset.c]: el.checked }); notifSync(); };
+Acts.notifreset = () => { if (!(0, ENLACES.esAdministra)()) return; confirmBox('Se restablecerán los destinatarios, parámetros y canales por defecto de toda la organización. ¿Continuar?', () => { delete St.cfg.notif; toast('Valores restablecidos'); notifSync(); }, 'Restablecer', true); };
+Acts.notifmyreset = () => { if (FL.verComo) return; const u = (0, ENLACES.cfgUOf)(miUsuario()); delete u.notif; toast('Avisos restablecidos'); notifSync(); };
 
 export const ADM_TABS = [['param', 'Parámetros'], ['cat', 'Catálogos'], ['met', 'Metodología'], ['usr', 'Usuarios y roles'], ['not', 'Notificaciones'], ['cal', 'Calidad de datos'], ['dat', 'Datos y exportación'], ['sp', 'Conexión']];
 Views.admin = {

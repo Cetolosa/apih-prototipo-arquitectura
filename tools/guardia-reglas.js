@@ -15,7 +15,7 @@ const fallas = [];
 // 1) reglas y cálculos que ya no deben existir en la SPA
 const RETIRADOS = ['ADMIN_EMAILS', 'ADMIN_USERS', 'PESO_FASES', 'TOPE_SIN_AVANCE', 'aplicarCambioFase', 'aplicarEtapaLocal', 'aplicarFasesFechas', 'autoCompletar', 'avanceEn', 'avanceFaseCalc',
   'avanzoSemana', 'capCls', 'capDe', 'capFin', 'capIni', 'capMeses', 'congelarBase', 'distribuirFases', 'esAprobadorDe', 'escalarSync', 'etapasPosibles', 'fasesMaterializadas',
-  'findingsPMO', 'findingsRiesgos', 'findingsRoadmap', 'gatesAprobar', 'michelinCalc', 'michelinSync', 'hitoATiempo', 'cambioAprob', 'resultadoOk', 'riesgoSinMit', 'moverFinPlan', 'normIni', 'planCambioFase',
+  'findingsPMO', 'findingsRiesgos', 'findingsRoadmap', 'gatesAprobar', 'michelinCalc', 'michelinSync', 'hitoATiempo', 'cambioAprob', 'resultadoOk', 'riesgoSinMit', 'moverFinPlan', 'notifPara', 'rolDeUser', 'normIni', 'planCambioFase',
   'rangoFases', 'reconciliarAvance', 'setRangoPlan', 'sinAvanceSostenido', 'sincAvance', 'starsHist', 'usuarioActual', 'usuarioSintetico', 'validarFasesFechas'];
 archivos.forEach(({ f, s }) => RETIRADOS.forEach(n => { if (new RegExp('(^|[^\\w$.])' + n.replace(/\$/g, '\\$') + '(?![\\w$])').test(s)) fallas.push(`${f}: reapareció «${n}» (regla que vive en el servidor)`); }));
 
