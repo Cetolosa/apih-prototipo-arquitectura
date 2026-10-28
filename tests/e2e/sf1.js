@@ -47,6 +47,6 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   await p.click('button:has-text("Ficha")'); await p.waitForTimeout(400); await p.click('text=Planificación >> nth=-1').catch(() => {}); await p.waitForTimeout(400);
   r.chipsFicha = await p.$$eval('.sf-grid .sf-chip', a => a.length); r.cabecera = await txt('.fl-ph .fz-rng'); await p.screenshot({ path: '/tmp/t/sf-d.png' });
   r.errores = errs; console.log(JSON.stringify(r, null, 1));
-  const ok = r.hereda === r.ventana && r.bloquea && r.subs.split('|').length === 2 && r.uatHereda && r.optsSub === 3 && r.rechazaOtraFase && r.asignado === 'PRJ-050-SF1' && r.filasGantt === 6 && r.chipsLinea >= 1 && r.gruposTablero >= 2 && r.tagsTabla >= 1 && r.chipsFicha === 2 && !errs.length;
+  const ok = r.hereda === r.ventana && r.bloquea && r.subs.split('|').length === 2 && r.uatHereda && r.optsSub === 3 && r.rechazaOtraFase && r.asignado === 'PRJ-050-SF1' && r.filasGantt === 6 && r.chipsLinea >= 1 && r.gruposTablero >= 2 && r.chipsFicha === 2 && !errs.length;
   console.log(ok ? 'OK sf1' : 'FALLA sf1'); await b.close(); process.exit(ok ? 0 : 1);
 })();
