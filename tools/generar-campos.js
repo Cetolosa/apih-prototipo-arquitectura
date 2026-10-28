@@ -7,8 +7,8 @@ const fs = require('fs'), path = require('path');
 const RAIZ = path.join(__dirname, '..'), arg = process.argv[2];
 if (!arg || !fs.existsSync(arg)) { console.error('Falta el archivo de captura (CAPTURA_CLAVES) como argumento'); process.exit(1); }
 const EXTRAS = {
-  APIH_Proyectos: ['base', 'baseHist', 'snapFase', 'legacyId', 'avanceCalc', 'fasesFechas', 'avanceManual'],   // avanceCalc y fasesFechas los escribe el servidor (apih_calculos, Cambiar etapa); avanceManual, el formulario     // línea base y su historial (07-gobierno), instantáneas de fase (06-administracion), id de versiones anteriores (04-flujos)
-  APIH_Propuestas: ['base', 'baseHist', 'snapFase', 'legacyId'],
+  APIH_Proyectos: ['base', 'baseHist', 'snapFase', 'legacyId', 'avanceCalc', 'fasesFechas', 'avanceManual', 'motivoAlta', 'objetivos', 'problema', 'resultadoNota', 'solicitante', 'usuarios'],   // avanceCalc y fasesFechas los escribe el servidor (apih_calculos, Cambiar etapa); avanceManual, el formulario     // línea base y su historial (07-gobierno), instantáneas de fase (06-administracion), id de versiones anteriores (04-flujos)
+  APIH_Propuestas: ['base', 'baseHist', 'snapFase', 'legacyId', 'motivoAlta', 'objetivos', 'problema', 'resultadoNota', 'usuarios'],   // campos del formulario de iniciativa (alta directa, propuesta)
   APIH_Hitos: ['desc'],                                            // descripción del hito (V22.61; el e2e la inyecta sin pasar por el formulario)
   APIH_Decisiones: ['escalada']                                     // fecha de escalamiento automático (07-gobierno)
 };
@@ -20,7 +20,8 @@ for (const [l, ks] of Object.entries(EXTRAS)) ks.forEach(k => (cat[l] = cat[l] |
 const out = {}; for (const l of Object.keys(cat).sort()) out[l] = [...cat[l]].filter(k => k && k !== 'undefined' && k !== 'null').sort();
 fs.writeFileSync(path.join(RAIZ, 'tests', 'contract', 'campos_permitidos.json'), JSON.stringify(out, null, 1) + '\n');
 const filas = Object.entries(out).flatMap(([l, ks]) => ks.map(k => "  ('" + l + "', '" + k.replace(/'/g, "''") + "')"));
-fs.writeFileSync(path.join(RAIZ, 'supabase', 'migrations', '20261028001200_campos_catalogo.sql'),
+const MIG = process.env.MIGRACION;   // nombre de la migración NUEVA (las ya aplicadas no se editan); sin MIGRACION solo se actualiza el JSON
+if (MIG) fs.writeFileSync(path.join(RAIZ, 'supabase', 'migrations', MIG),
 `-- GENERADO por tools/generar-campos.js: catálogo de campos permitidos por lista (fuente: tests/contract/campos_permitidos.json).
 -- Mientras la rama no se publique se regenera en este mismo archivo; después, el generador debe emitir una migración nueva.
 delete from public.apih_campos;

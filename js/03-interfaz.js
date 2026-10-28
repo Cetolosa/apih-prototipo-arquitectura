@@ -782,27 +782,14 @@ function iniForm(i, isPropArg) {
   tabs.push({ k: 'dep', t: 'Dependencias', secs: ['Dependencias'] }, { k: 'bit', t: 'Bitácora' });
   openForm({ pres: true,
     title: nw ? (PR ? 'Nueva propuesta' : 'Nuevo proyecto (alta directa)') : 'Editar ' + T.toLowerCase() + ' · ' + i.titulo, fields, values: v, wide: true, tabs, tabExtra: iniTabExtra(i), saveLabel: nw ? 'Crear' : 'Guardar cambios', danger: nw ? null : 'Eliminar',
-    onDanger: () => confirmBox(`¿Eliminar ${T.toLowerCase()} <b>${esc(i.titulo)}</b> junto con sus hitos, riesgos, decisiones, compromisos y cambios? Esta acción no se puede deshacer.`, () => { St.ini = St.ini.filter(x => x.id !== i.id); St.hitos = St.hitos.filter(h => h.ini !== i.id); St.riesgos = St.riesgos.filter(r => r.ini !== i.id); ['decisiones', 'compromisos', 'cambios', 'notas'].forEach(k => { if (Array.isArray(St[k])) St[k] = St[k].filter(x => x.ini !== i.id); }); (St.comites || []).forEach(c => { if (Array.isArray(c.decisiones)) c.decisiones = c.decisiones.filter(d => !(St.decisiones || []).some(x => x.id === d && x.ini === i.id) && !(St.decisiones || []).some(x => x.id === d && !St.decisiones.includes(x))); }); /* F-12: sin huérfanos */ St.ini.forEach(x => x.deps = (x.deps || []).filter(d => d !== i.id)); log('Cambio', null, T + ' eliminada: ' + i.titulo); UI.sel = null; toast(T + ' eliminada'); refresh(); }, 'Eliminar', true),
-    onSave(o) {
-      if (!nw && hasCycle(i.id, o.deps || [])) { toast('Las dependencias generan un ciclo', 'err'); return false; }
-      if (o.inicioPlan && o.finPlan && o.finPlan < o.inicioPlan) { toast('El fin plan no puede ser anterior al inicio', 'err'); return false; }
-      if (['presupuesto', 'gastado', 'beneficio', 'ahorroReal'].some(k => o[k] != null && o[k] !== '' && (!isFinite(+o[k]) || +o[k] < 0))) { toast('Los montos deben ser números no negativos', 'err'); return false; }   // F-11
-      if (o.avanceManual != null && o.avanceManual !== '' && (!isFinite(+o.avanceManual) || +o.avanceManual < 0 || +o.avanceManual > 100)) { toast('El ajuste de avance debe estar entre 0 y 100', 'err'); return false; }
-      const areaStr = (o.areaArr && o.areaArr.length ? o.areaArr : ['BISE']).join(',');
-      const patch = { ...o, area: areaStr }; if (PR) patch.score = { estrategia: o.sE, valor: o.sV, esfuerzo: o.sF, riesgo: o.sR }; patch.finEst = PR ? null : (o.finEst || o.finPlan);
-      ['areaArr', 'sE', 'sV', 'sF', 'sR'].forEach(k => delete patch[k]);
-      if (!PR) { patch.avanceManual = o.avanceManual === '' || o.avanceManual == null ? null : Math.round(+o.avanceManual); delete patch.avance; }   /* V23: el avance se calcula; aquí solo el ajuste manual */
-      if (nw) {
-        const pre = PR ? 'PROP' : 'PRJ', ids = St.ini.filter(x => x.id.startsWith(pre + '-'));
-        const n = Object.assign({ id: nextId(pre, ids), tipo: T, legacy: '', creada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, estado: PR ? 'Vigente' : 'En curso', propuestaOrigen: null, estadoMotivo: '', estadoRev: null, rag: 'Verde', avance: 0, gastado: 0, proyecto: null }, patch, { actualizada: hoy() });
-        St.ini.push(n); const nh = n.tipoIni ? aplicarPlantilla(n, n.tipoIni, PR ? FASES_PROP : FASES_PRJ, PR ? hoy() : (n.inicioPlan || hoy())) : 0; log('Cambio', n.id, (nh ? '[' + nh + ' hitos precargados del tipo «' + n.tipoIni + '»] ' : '') + (PR ? 'Propuesta creada: ' : 'Proyecto creado directamente: ') + n.titulo + (n.motivoAlta ? ' — ' + n.motivoAlta : '')); toast(T + ' ' + n.id + (PR ? ' creada' : ' creado')); UI.sel = { t: 'ini', id: n.id };
-      } else {
-        const diffs = []; [['rag', 'RAG'], ['prioridad', 'Prioridad'], ['lider', 'Líder'], ['finPlan', PR ? 'Fecha objetivo' : 'Fin plan'], ['finEst', 'Fin estimado'], ['presupuesto', PR ? 'Costo estimado' : 'Presupuesto']].forEach(([k, l]) => { if (k in patch && String(i[k]) !== String(patch[k])) diffs.push(`${l}: ${i[k] ?? '—'} → ${patch[k] ?? '—'}`); });
-        if (patch.tipoIni && patch.tipoIni !== i.tipoIni && !hitosDe(i.id).length) { const nh = aplicarPlantilla(i, patch.tipoIni, fasesDe(i), (PR ? hoy() : i.inicioPlan) || hoy()); if (nh) toast(nh + ' hitos precargados del tipo «' + patch.tipoIni + '»'); }
-        Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i);
-        log(diffs.some(d => d.startsWith('Avance')) ? 'Actualización' : 'Cambio', i.id, diffs.length ? 'Actualizada: ' + diffs.join('; ') : 'Ficha actualizada', null); toast('Cambios guardados');
-      }
-      refresh();
+    onDanger: () => confirmBox(`¿Eliminar ${T.toLowerCase()} <b>${esc(i.titulo)}</b> junto con sus hitos, riesgos, decisiones, compromisos y cambios? Esta acción no se puede deshacer.`, () => (0, ENLACES.cmdServidor)('apih_eliminar_iniciativa', { p_id: i.id }, T + ' eliminada').then(r => { if (r) { UI.sel = null; refresh(); } }), 'Eliminar', true),
+    onSave(o) {   // normalización, reglas (ciclos, fechas, montos, avance), id, plantilla de hitos y bitácora: el servidor
+      return (0, ENLACES.guardarEnServidor)('apih_guardar_iniciativa', i && i.id, o, null, { p_tipo: nw ? T : null }).then(r => {
+        if (r === null) return false;
+        if (nw) { UI.sel = { t: 'ini', id: r.id }; toast(T + ' ' + r.id + (PR ? ' creada' : ' creado') + (r.hitosPlantilla ? ' · ' + r.hitosPlantilla + ' hitos precargados' : '')); }
+        else toast(r.hitosPlantilla ? 'Cambios guardados · ' + r.hitosPlantilla + ' hitos precargados' : 'Cambios guardados');
+        refresh(); return true;
+      });
     }
   });
 }
