@@ -14,7 +14,7 @@ const puertoLibre = () => new Promise(ok => { const s = net.createServer().liste
 const RAIZ = path.join(__dirname, '..');
 const SECRETO = 'secreto-solo-para-pruebas-locales-0123456789abcdef';
 const CLAVE_PRUEBA = 'prueba-apih';
-const COLS = new Set(['lista', 'id', 'datos', 'actualizado', 'area', 'modificado_por']);
+const COLS = new Set(['lista', 'id', 'datos', 'actualizado', 'area', 'modificado_por', 'puede_editar']);
 const esRoot = typeof process.getuid === 'function' && process.getuid() === 0;
 
 /* ---------- Postgres temporal ---------- */

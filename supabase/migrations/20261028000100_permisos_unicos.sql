@@ -100,11 +100,17 @@ begin
   select * into p from public.perfiles where email = public.apih_email() and activo;
   if not found then return null; end if;
   ve_todo := p.rol = 'admin' or p.app_rol = 'Responsable' or p.ve_todo;
-  todas := coalesce(case when jsonb_typeof(cfg -> 'areas') = 'array' then cfg -> 'areas' end, '[]'::jsonb);
+  -- catálogo de áreas: el de la configuración; si aún no existe, las que aparecen en perfiles y registros
+  todas := case when jsonb_typeof(cfg -> 'areas') = 'array' and jsonb_array_length(cfg -> 'areas') > 0 then cfg -> 'areas'
+                else coalesce((select jsonb_agg(a order by a) from (
+                       select unnest(areas) a from public.perfiles union
+                       select btrim(x) from public.registros r, unnest(string_to_array(coalesce(r.area, ''), ',')) x where btrim(x) <> '') q
+                       where a <> ''), '[]'::jsonb) end;
   return jsonb_build_object(
     'email', p.email, 'nombre', coalesce(nullif(p.nombre, ''), p.email), 'cargo', p.cargo, 'rol', p.rol, 'appRol', p.app_rol,
     'areas', to_jsonb(p.areas), 'veTodo', ve_todo, 'veMontos', p.rol = 'admin' or p.ve_montos,
     'gobierna', public.apih_gobierna(), 'esAdmin', p.rol = 'admin', 'puedeVerAnalisis', p.rol = 'admin',
+    'editaTodo', p.rol = 'admin' and not public.apih_solo_lectura(),
     'soloLectura', public.apih_solo_lectura(), 'congelado', public.apih_congelado(),
     'comoDe', case when public.apih_impersonando() then public.apih_email_real() end,
     -- áreas que el perfil puede ver / en las que puede crear y editar (la SPA solo las muestra)

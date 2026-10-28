@@ -30,6 +30,14 @@ const llamar = (metodo, ruta, cuerpo, token, h = {}) => new Promise((ok, mal) =>
   const ed = await llamar('POST', '/auth/v1/token?grant_type=password', { email: 'cetolosa@gmail.com', password: CLAVE_PRUEBA });
   const ini = await llamar('POST', '/rest/v1/registros', [{ lista: 'APIH_Proyectos', id: 'PRJ-100', datos: 'p1.' + JSON.stringify({ id: 'PRJ-100', titulo: 'Fuera de mi área', area: 'Otra', tipo: 'Proyecto' }) }], ed.body.access_token);
   ok(ini.status === 403, 'el servidor rechaza escribir fuera del área del colaborador (' + ini.status + ')');
+  const pe = await llamar('GET', '/rest/v1/registros_v?select=id,puede_editar&lista=eq.APIH_Riesgos', undefined, T);
+  ok(pe.status === 200 && pe.body[0] && pe.body[0].puede_editar === true, 'registros_v entrega puede_editar (admin: true)');
+  const cx = await llamar('POST', '/rest/v1/rpc/apih_contexto', {}, ed.body.access_token);
+  ok(cx.status === 200 && cx.body.appRol === 'Colaborador' && cx.body.esAdmin === false && cx.body.editaTodo === false, 'apih_contexto del colaborador viene del servidor');
+  const vc = await llamar('POST', '/rest/v1/rpc/apih_ver_como', { p_email: 'cetolosa@gmail.com' }, T);
+  ok(vc.status === 200 && vc.body.comoDe === 'tolosa-christian@aramark.cl' && vc.body.soloLectura === true, 'Ver como lo resuelve el servidor (solo lectura)');
+  const vx = await llamar('POST', '/rest/v1/rpc/apih_ver_como', { p_email: null }, T);
+  ok(vx.status === 200 && vx.body.esAdmin === true, 'salir de Ver como');
   const cnt = await llamar('GET', '/rest/v1/registros_v?select=actualizado&order=actualizado.desc&limit=1', undefined, T, { Prefer: 'count=exact' });
   ok(/\/1$/.test(cnt.headers['content-range'] || ''), 'Content-Range con conteo');
   srv.close(); await b.cerrar();
