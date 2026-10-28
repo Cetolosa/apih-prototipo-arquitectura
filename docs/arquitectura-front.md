@@ -32,7 +32,7 @@ Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromi
 `apih_calculos().notif` entrega el catálogo, la preferencia efectiva (catálogo → organización → persona) y los avisos de quien llama (hitos y compromisos, riesgo crítico, decisiones, atraso, sin actualizar, propuestas estancadas, cambios y eventos de bitácora), con sus canales. La campana y la matriz de Notificaciones solo presentan; guardar la configuración hace que el servidor vuelva a evaluar. Lo leído sigue por navegador (localStorage).
 
 ### Reglas que aún no se mueven (residuales declarados)
-`log()` de bitácora en el cliente (otros flujos), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
+«Siguientes pasos» (`pasosDe`), `log()` de bitácora en el cliente (otros flujos), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
 
 ## Resumen ejecutivo y KPIs
 `apih_resumen(calc)` (dentro de `apih_calculos`) entrega qué proyectos están «on track», los tramos del % On Track (texto y nivel) y las ventanas de días del resumen. El cliente solo los muestra (`CALC.resumen`, `tonoOnTrack`).
