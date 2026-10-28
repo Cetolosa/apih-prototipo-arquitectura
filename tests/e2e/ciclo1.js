@@ -27,7 +27,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.fase = await ev(() => byId('V23-A').fase);
   // sin botones sueltos de Fase/Estado en el panel
   await ev(() => { render(); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(300);
-  r.panelActs = await p.$$eval('#panel .pn-a button', a => a.map(x => x.textContent.trim()).sort().join('|'));   // el panel solo resume: Ficha, Informe, 1 a 1
+  r.panelActs = await p.$$eval('#panel .pn-a button', a => a.map(x => x.textContent.trim()).sort().join('|'));   // el panel solo resume: solo Abrir ficha
   r.panelEdita = await p.$$eval('#panel [data-act="etapa"], #panel [data-act="edit"], #panel [data-act="wk"], #panel [data-act="advance"], #panel .composer', a => a.length);
   await ev(() => Acts.ficha({ id: 'V23-A' })); await p.waitForTimeout(400);
   r.btnCambiar = (await p.$$eval('#main [data-act="etapa"]', a => a.length)) >= 1 ? 1 : 0;   // los cambios y las herramientas viven en la ficha
@@ -35,9 +35,8 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await ev(() => { go('portafolio'); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(400);
 
   r.btnViejos = await p.$$eval('[data-act="estado"]', a => a.length);
-  // pestañas del panel: cambian de contenido (Resumen → Hitos)
-  await p.click('#panel .tabs [data-tab="hitos"]'); await p.waitForTimeout(200);
-  r.pestana = await p.$eval('#panel .tabs .on', e => e.dataset.tab);
+  // el panel de proyectos resume en 3 bloques y no tiene pestañas
+  r.bloques = await p.$$eval('#panel .pn-sec', a => a.length); r.pestana = await p.$$eval('#panel .tabs', a => a.length);
   // 2) formulario de edición: sin fase ni avance libre; sí el ajuste manual
   await ev(() => Acts.edit({ t: 'ini', id: 'V23-A' })); await p.waitForTimeout(250);
   r.editSinFase = await p.$$eval('#f_fase', a => a.length) === 0;
@@ -78,7 +77,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   // 9) arrastrar en el tablero ya no salta compuertas: abre el mismo diálogo
   const mal = [];
   const w = (k, v) => { if (JSON.stringify(r[k]) !== JSON.stringify(v)) mal.push(k + ' = ' + JSON.stringify(r[k]) + ' (esperado ' + JSON.stringify(v) + ')'); };
-  w('fase', 'Ejecución'); w('pestana', 'hitos'); w('panelActs', '1 a 1|Ficha|Informe'); w('panelEdita', 0); w('btnCambiar', 1); w('fichaEdita', 3); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
+  w('fase', 'Ejecución'); w('pestana', 0); w('bloques', 3); w('panelActs', 'Abrir ficha'); w('panelEdita', 0); w('btnCambiar', 1); w('fichaEdita', 3); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
   w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('gateLeeCalc', 'Avance al 100%,Todos los hitos completados'.split(',').filter(x => x === 'Avance al 100%').join(',')); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75); w('legacyAuto', '30|30|30'); w('formCierra', 'Completado|100');
   w('reparto', '2026-01-01>2026-01-15 2026-01-16>2026-03-11 2026-03-12>2026-03-26 2026-03-27>2026-04-10'); w('derivaFin', '2026-04-10'); w('moverFin', '2026-05-10|2026-05-10');
   w('auto', 'Completado|100|true'); w('sbCampo', 1); w('sbSinMotivo', 'En curso'); w('sbOk', 'Stand By');

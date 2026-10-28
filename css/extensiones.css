@@ -120,3 +120,22 @@
 .v22-docs{display:flex;flex-direction:column;gap:6px}.v22-doc{display:flex;align-items:center;gap:10px;border:1px solid var(--bd);border-radius:10px;padding:8px 10px;background:var(--card)}
   .v22-doc-i{flex:none;width:32px;height:32px;border-radius:8px;background:rgba(13,68,106,.1);color:var(--pri);display:flex;align-items:center;justify-content:center}.v22-doc-m{flex:1;min-width:0;display:flex;flex-direction:column}.v22-doc-m b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v22-doc-m small{color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .v22-doc-a{flex:none;display:flex;gap:6px;align-items:center}.v22-doc-a .edit-only{display:inline-flex;gap:6px}
+
+/* V23 · Tarjeta de proyecto (¿dónde está y cómo va?) */
+.icard.ic2{display:flex;flex-direction:column;gap:9px}
+.ic2 .ic-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.ic2 .sp{flex:1}
+.ic2 h3{font-size:14px;line-height:1.3}
+.ic2-f{display:flex;flex-direction:column;gap:5px}.ic2-ph{display:flex;align-items:center;gap:8px}.ic2-ph small{display:inline}
+.ic2-seg{display:flex;gap:3px}.ic2-seg i{flex:1;height:4px;border-radius:2px;background:var(--bd)}.ic2-seg i.done,.ic2-seg i.cur{background:var(--pri)}.ic2-seg i.cur{opacity:.55}
+.ic2-l{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+.ic2-bar{position:relative;height:8px;border-radius:4px;background:var(--bd)}.ic2-bar i{display:block;height:8px;border-radius:4px;background:var(--pri)}.ic2-bar u{position:absolute;top:-3px;width:2px;height:14px;background:var(--tx);text-decoration:none}
+.ic2-nx{display:flex;align-items:center;gap:8px;font-size:12px;border-top:1px solid var(--bd2);padding-top:8px}.ic2-nx{flex-wrap:wrap}.ic2-nx svg{flex:none}.ic2-nx>span{flex:1 1 calc(100% - 24px);min-width:0}.ic2-nx em{margin-left:22px}.ic2-nx em{font-style:normal;background:var(--bd2);border-radius:6px;padding:1px 7px;white-space:nowrap}.ic2-nx em.bad{background:var(--redbg);color:#9B0019;font-weight:700}
+.ic2-ft{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.ic2-ft .pp{display:inline-flex;align-items:center;gap:6px}.ic2-ft .pp small{display:inline}
+.chip-bad{background:var(--redbg);color:#9B0019;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700;white-space:nowrap}
+/* V23 · Panel de proyecto (¿por qué está así y qué sigue?) */
+.pn-upd{margin:0 0 6px;font-size:12px}.pn-note{font-size:12px;margin:4px 0 0}
+.pn-sig{display:flex;flex-direction:column;gap:7px;font-size:13px;line-height:1.4}.pn-sig .sg{display:flex;gap:8px}
+.pn-sig .tg{flex:none;width:68px;text-align:center;border-radius:6px;font-size:11px;font-weight:700;padding:2px 0;height:max-content}.pn-sig .bad .tg{background:var(--redbg);color:#9B0019}.pn-sig .ok .tg{background:#E4F3E6;color:#0B5D1E}
+.pn-nx{display:flex;flex-direction:column;font-size:13px}.pn-nx>div{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--bd2)}.pn-nx>div:last-child{border-bottom:0}.pn-nx .d{width:76px;color:var(--tx2);flex:none;white-space:nowrap}.pn-nx b{flex:1}.pn-nx .r{color:var(--tx2)}
+.pn-gt{margin-top:10px;background:var(--pri-l);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5}.pn-gt .bar{height:6px;background:rgba(13,68,106,.18);border-radius:3px;margin:6px 0}.pn-gt .bar i{display:block;height:6px;background:var(--pri);border-radius:3px}
+.pn-pd{display:flex;flex-direction:column;gap:6px;font-size:13px;line-height:1.4}.bad-t{color:#9B0019;font-weight:700}

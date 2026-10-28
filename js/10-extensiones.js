@@ -1,8 +1,8 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
+import { $, fasesDe, gates, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
 import { AuthService, SB, SBLogin } from './02-datos.js';
-import { Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
-import { faseTag, pasosDe, planFichaHTML, subfasesDe } from './05-vistas.js';
+import { estPill, pnHead, ragPill, Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
+import { faseTag, pasosDe, planFichaHTML, senalesIni, subfasesDe } from './05-vistas.js';
 import { ADM_TABS, cut } from './06-administracion.js';
 import { NIV, NO_PERM, actSemana, areaVisible, areasDe, areasPermitidas, areasPropias, cfgI, cieloOn, cieloPersona, cocFit, esAdministra, hoyW, insignias, modoUI, proyActivos, puedeEditarIni, puedeGobernar, puedeVerAnalisis, rolActual, soloLectura, starsOf, starsRow, vencidosA } from './07-gobierno.js';
 import { GUIA, presLayout } from './09-presentaciones.js';
@@ -343,7 +343,28 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   document.addEventListener('dblclick', e => { const el = e.target.closest('[data-act="sel"][data-t="ini"]'); if (el && !e.target.closest('input,button:not([data-act="sel"]),select,textarea')) Acts.ficha({ id: el.dataset.id }); });
 
   /* botón «Ficha completa» en el panel contextual + estado vacío de hitos en el panel */
+  /* Panel de proyectos = RESUMEN en 3 bloques (por qué está así · qué sigue · pendientes con otras personas); los cambios y los reportes viven en la ficha */
+  function panelResumen(i) {
+    const H = hoy(), FS = fasesDe(i), idx = FS.indexOf(i.fase), fin = isDone(i), sig = FS[idx + 1] || null, to = fin ? null : (sig || 'Cierre');
+    const sen = senalesIni(i), hs = hitosDe(i.id).filter(h => !h.completado).sort(by('fecha')).slice(0, 3);
+    const g = to ? gates(i, to) : [], gok = g.filter(x => x.ok).length, falta = g.filter(x => !x.ok).map(x => x.t);
+    const dec = St.decisiones.filter(d => d.ini === i.id && d.estado === 'Pendiente').map(d => ({ o: d.limite || '9', h: `<div><b>Decisión</b> «${esc(d.titulo)}» · ${d.limite && d.limite < H ? '<span class="bad-t">vencida hace ' + diffD(H, d.limite) + ' d</span>' : d.limite ? 'vence ' + rel(d.limite) : 'sin fecha límite'}${d.area ? ' · ' + esc(d.area) : ''}</div>` }));
+    const cmp = (St.compromisos || []).filter(c => c.ini === i.id && c.estado === 'Abierto').map(c => ({ o: c.limite || '9', h: `<div><b>${c.limite && c.limite < H ? '<span class="bad-t">Compromiso vencido</span>' : 'Compromiso'}</b> «${esc(c.texto)}»${c.resp ? ' · ' + esc(c.resp) : ''}${c.limite && c.limite < H ? ' · hace ' + diffD(H, c.limite) + ' d' : c.limite ? ' · ' + rel(c.limite) : ''}</div>` }));
+    const dep = (i.deps || []).map(id => byId(id)).filter(Boolean).map(x => ({ o: '99', h: `<div><b>Depende de</b> ${esc(x.id)} ${esc(x.titulo)} · ${esc(x.estado)}${x.tipo === 'Proyecto' ? ', ' + Math.round(+x.avance || 0) + ' %' : ''}</div>` }));
+    const pend = [...dec, ...cmp, ...dep].sort((a, b) => String(a.o).localeCompare(String(b.o))).slice(0, 6);
+    const ult = i.actualizada ? diffD(H, i.actualizada) : null;
+    const head = pnHead(`Proyecto ${esc(i.id)} · ${esc(i.area)}`, esc(i.titulo), `${ragPill(i.rag)} ${faseTag(i)} ${i.estado !== 'En curso' ? estPill(i.estado) : ''}`,
+      `<button class="btn pri pn-main" data-act="ficha" data-id="${esc(i.id)}" title="Ver y editar todo en una sola página">${icon('full', 14)}<span>Abrir ficha</span></button>`);
+    const sub = ult == null ? '' : `<p class="mut pn-upd">Actualizado ${ult === 0 ? 'hoy' : 'hace ' + ult + (ult === 1 ? ' día' : ' días')}${i.lider ? ' · ' + esc(i.lider) : ''}</p>`;
+    return head + `<div class="pn-b">${sub}
+      <div class="pn-sec"><h4>1 · Por qué está en ${esc(i.rag)}</h4><div class="pn-sig">${sen.map(x => `<div class="sg ${x.bad ? 'bad' : 'ok'}"><span class="tg">${x.bad ? 'Atención' : 'En orden'}</span><span><b>${esc(x.t)}</b> ${esc(x.d)}</span></div>`).join('')}</div></div>
+      <div class="pn-sec"><h4>2 · Qué sigue</h4>${hs.length ? `<div class="pn-nx">${hs.map(h => `<div><span class="d">${fmtD(h.fecha)}</span><b>${esc(h.nombre)}</b><span class="r">${esc(h.resp || '')}</span></div>`).join('')}</div>` : '<p class="mut">Sin hitos pendientes.</p>'}
+        ${to ? `<div class="pn-gt"><b>Para ${sig ? 'pasar a ' + esc(sig) : 'completar el proyecto'}: ${gok} de ${g.length} compuertas</b><div class="bar"><i style="width:${g.length ? Math.round(gok / g.length * 100) : 100}%"></i></div>${falta.length ? `<div>Faltan: ${falta.map(esc).join(' · ')}.</div>` : '<div>Cumple todas las compuertas.</div>'}</div>` : ''}</div>
+      <div class="pn-sec"><h4>3 · Pendientes con otras personas</h4>${pend.length ? `<div class="pn-pd">${pend.map(x => x.h).join('')}</div>` : '<p class="mut">Sin pendientes con otras personas.</p>'}</div>
+      <p class="mut pn-note">Para cambiar algo, informes y herramientas: abre la ficha.</p></div>`;
+  }
   ENLACES.panelIni = function (i) {
+    if (!esProp(i)) return panelResumen(i);
     let h = panelIni0(i);
     h = h.replace('<div class="pn-a">', `<div class="pn-a"><button class="btn sm" data-act="ficha" data-id="${esc(i.id)}" title="Ver todo en una sola página">${icon('full', 14)}<span>Ficha</span></button>`);
     /* panel = RESUMEN: Ficha, Informe y 1 a 1. Todo lo que cambia datos (actualizar, editar, etapa, herramientas) vive en la ficha */
