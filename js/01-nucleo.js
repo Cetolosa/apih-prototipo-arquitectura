@@ -160,8 +160,11 @@ export const planTipo = () => { if (!ENLACES.UI.planTipo) { try { ENLACES.UI.pla
 export const porTipo = i => { const t = planTipo(); return !i || t === 'all' || (t === 'prop') === esProp(i); };
 export const planSeg = () => `<label class="flt"><small>Tipo</small><select data-chg="ptipo" aria-label="Tipo de iniciativa" style="width:118px!important;max-width:118px!important;min-width:0!important">${(0, ENLACES.selOpts)(PLAN_TIPOS.map(([v, t]) => ({ v, t })), planTipo())}</select></label>`;
 export const tipoPF = () => ({ prj: 'Proyecto', prop: 'Propuesta', all: 'Todo' })[planTipo()] || 'Todo';
+/* Un solo botón «Nuevo» con las tres formas de crear (propuesta, alta directa, carga desde Excel) */
+const nuevoMenu = () => { const B = ENLACES.btn, ic = icon;
+  return `<span class="popw v22-nuevo"><button class="btn pri v22-main" data-act="pop" data-id="pop-nuevo" aria-haspopup="menu" type="button">${ic('plus', 15)}<span>Nuevo</span>${ic('chevd', 13)}</button><div class="pop v22-pop" id="pop-nuevo" role="menu" style="right:0">${B('Nueva propuesta', 'new', { d: { t: 'prop' }, ic: 'bulb' })}${B('Alta directa de proyecto', 'new', { d: { t: 'prj' }, ic: 'plus' })}${B('Cargar Excel', 'cargaxl', { ic: 'up', title: 'Cargar planificación e hitos desde Excel (con plantilla descargable)' })}</div></span>`; };
 /* Encabezado común de Iniciativas (Tabla y Tablero) */
-export const iniHead = (rows, extra) => (0, ENLACES.pageHead)('Iniciativas', `${rows.length} iniciativa${rows.length === 1 ? '' : 's'} · ${rows.filter(esProp).length} propuestas · ${rows.filter(i => !esProp(i)).length} proyectos`, `<span class="edit-only">${(0, ENLACES.btn)('Nueva propuesta', 'new', { d: { t: 'prop' }, ic: 'bulb', cls: 'pri' })}${(0, ENLACES.btn)('Alta directa de proyecto', 'new', { d: { t: 'prj' }, ic: 'plus' })}</span>${extra || ''}`);
+export const iniHead = (rows, extra) => (0, ENLACES.pageHead)('Iniciativas', `${rows.length} iniciativa${rows.length === 1 ? '' : 's'} · ${rows.filter(esProp).length} propuestas · ${rows.filter(i => !esProp(i)).length} proyectos`, `<span class="edit-only">${nuevoMenu()}</span>${extra || ''}`);
 export const RISK_ESTADOS = ['Abierto', 'En mitigación', 'Materializado', 'Cerrado'];
 export const BIT_TIPOS = ['Cambio', 'Actualización', 'Riesgo', 'Comentario', 'Decisión', 'Edición'];
 export const BIT_C = { 'Cambio': '#0D446A', 'Actualización': '#107C10', 'Riesgo': '#D13438', 'Comentario': '#8764B8', 'Decisión': '#CA5010', 'Edición': '#5a6b7d' };

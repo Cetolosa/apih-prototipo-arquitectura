@@ -401,7 +401,8 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   function primaria() {
     const ph = sr('#main .ph-act'); if (ph) {
       const P = PRIM[UI.view], pri = sra('.btn.pri', ph);
-      if (!P || UI.view === 'dashboard') pri.forEach(b => b.classList.remove('pri', 'v22-main'));
+      if (sr('.v22-nuevo', ph)) { /* «Nuevo ▾» ya es la acción principal */ }
+      else if (!P || UI.view === 'dashboard') pri.forEach(b => b.classList.remove('pri', 'v22-main'));
       else {
         pri.forEach(b => b.classList.remove('pri'));
         let b = sra('[data-act="' + P.act + '"]', ph).find(x => Object.entries(P.d).every(([k, v]) => x.dataset[k] === v));
@@ -517,6 +518,8 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       m.insertAdjacentHTML('afterbegin', ht); return;
     }
     const h = `<div class="menu-tabs" role="tablist" aria-label="${esc(g.t)}">${g.vs.map(x => { const b = +navBadge(x[0]) || 0; return `<a role="tab" class="${UI.view === x[0] ? 'on' : ''}" data-act="go" data-v="${x[0]}" href="#/${x[0]}" aria-selected="${UI.view === x[0]}">${esc(x[1])}${b ? `<em>${b}</em>` : ''}</a>`; }).join('')}</div>`;
+    const ia = g.k === 'iniciativas' && sr(':scope>.ph .ph-act', m);
+    if (ia) { ia.insertAdjacentHTML('afterbegin', h.replace('class="menu-tabs"', 'class="menu-tabs in-ph"')); return; }   /* Tabla / Tablero junto al título */
     m.insertAdjacentHTML('afterbegin', h);
   }
   const go0 = go;
@@ -528,7 +531,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     const p = sr('p', ph); if (p) p.title = p.textContent;
     const act = sr('.ph-act', ph);
     if (act && !sr('.v22-more', act)) {
-      const keep = b => b.classList.contains('v22-main') || b.classList.contains('sxbtn') || b.closest('.v22-more') || /^\s*(Alta directa|Presentar|Ir a hoy|Nuev[oa]\b)/.test(b.textContent);   /* N-U-10/U-29: la acción principal de cada pantalla queda visible */
+      const keep = b => b.classList.contains('v22-main') || b.classList.contains('sxbtn') || b.closest('.v22-more') || b.closest('.v22-nuevo') || /^\s*(Alta directa|Presentar|Ir a hoy|Nuev[oa]\b)/.test(b.textContent);   /* N-U-10/U-29: la acción principal de cada pantalla queda visible */
       const sec = sra('.btn', act).filter(b => !keep(b));
       if (sec.length >= 2) {
         const w = document.createElement('span'); w.className = 'popw v22-more'; const id = 'pop-ph-more';
