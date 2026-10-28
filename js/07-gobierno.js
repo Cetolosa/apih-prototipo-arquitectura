@@ -1,8 +1,8 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, ADMIN_USERS, APIH_CONFIG, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
-import { AuthService } from './02-datos.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq } from './01-nucleo.js';
+import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
-import { diasEnFase, priorScore } from './04-flujos.js';
+import { cmdServidor, diasEnFase, priorScore } from './04-flujos.js';
 import { pasosCocinaHTML, semOf, semSet } from './05-vistas.js';
 import { cut, informeTxt, notifUserCard, rondaIds, todosAcu } from './06-administracion.js';
 /* ============================================================
@@ -24,70 +24,26 @@ const STAR_SVG = (s, sz = 16) => s === 'na'
   ? `<svg class="fk fk-na" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/></svg>`
   : `<svg class="fk fk-${s}" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 2h1.6v7.4H6.2zM11.2 2h1.6v7.4h-1.6zM16.2 2h1.6v7.4h-1.6zM6.2 8h11.6v1.8c0 1.8-1.7 3-4.6 3.2V22h-2.4V13c-2.9-.2-4.6-1.4-4.6-3.2z"/></svg>`;
 
-/* --- ¿qué hizo el proyecto en la semana W (lunes)? --- */
-export function actSemana(i, W) {
-  const E = addD(W, 6); let real = false, nc = false;
-  St.bitacora.forEach(b => { if (b.ini !== i.id || b.tipo !== 'Actualización') return; const d = String(b.ts).slice(0, 10); if (d < W || d > E) return; if (/sin novedades/i.test(b.texto || '')) nc = true; else real = true; });
-  if (!real && !nc && i.actualizada && i.actualizada >= W && i.actualizada <= E) real = true;
-  return real ? 'real' : nc ? 'nc' : null;
-}
-export const hoyW = () => wkIni(hoy());
-/* Tope anti-vanidad: el tenedor «Al día» no puede ganarse si el proyecto lleva TOPE_SIN_AVANCE semanas seguidas actualizándose sin avance real
-   (ni % de avance ni hitos cerrados). Es una señal de gestión desconectada del progreso, no un castigo: se levanta con cualquier avance. */
-const TOPE_SIN_AVANCE = 3;
-const avanceEn = (i, d) => { let v = 0; (i.hist || []).forEach(h => { if (h[0] <= d) v = +h[1]; }); return v; };
-function avanzoSemana(i, W) {
-  const E = addD(W, 6);
-  return avanceEn(i, E) > avanceEn(i, addD(W, -1)) || hitosDe(i.id).some(h => h.completado && h.fechaReal && h.fechaReal >= W && h.fechaReal <= E);
-}
-function sinAvanceSostenido(i, W) {
-  if (+i.avance >= 100 && !hitosDe(i.id).some(h => !h.completado)) return false;   // nada pendiente que avanzar
-  for (let k = 0; k < TOPE_SIN_AVANCE; k++) { const w = addD(W, -7 * k); if (avanzoSemana(i, w) || !actSemana(i, w)) return false; }
-  return true;
-}
+/* --- «Mi cocina»: los tenedores, la racha, el nivel y las insignias los calcula el servidor (apih_cielo); aquí solo se leen y se suman --- */
+const CIELO = () => CALC.cielo || { W: '', proy: {}, hist: {}, personas: {}, impecables: {}, yo: null };
+export const hoyW = () => CIELO().W || wkIni(hoy());
+export const actSemana = i => { const p = CIELO().proy[i && i.id]; return p ? p.act || null : null; };   // 'real' | 'nc' | null
 export function vencidosA(arr, f, E, doneF) { return arr.filter(x => x[f] && x[f] < E && !doneF(x, E)); }
-export function starsOf(i, W) {
-  const cur = W === hoyW(), E = cur ? hoy() : addD(W, 6), out = {};
-  /* Al día */
-  const a = actSemana(i, W); let dia = a === 'real';
-  if (a === 'nc') dia = !(actSemana(i, addD(W, -7)) === 'nc' && actSemana(i, addD(W, -14)) === 'nc');
-  const tope = dia && sinAvanceSostenido(i, W); if (tope) dia = false;
-  out.dia = dia ? 'on' : 'off';
-  /* Hitos */
-  const hs = hitosDe(i.id), expl = CAMBIOS().some(c => c.ini === i.id && c.estado !== 'Rechazado' && c.tipo === 'Fecha' && (c.creada || '') <= E);
-  const hv = vencidosA(hs, 'fecha', E, (h, e) => h.completado && (h.fechaReal || '') <= e);
-  out.hit = !hs.length ? 'na' : (!hv.length || expl) ? 'on' : 'off';
-  /* Compromisos */
-  const cs = ACUERDOS().filter(c => c.ini === i.id && c.estado !== 'Cancelado' && (c.creada || '') <= addD(W, 6));
-  const cv = vencidosA(cs, 'limite', E, (c, e) => c.estado === 'Cumplido' && (c.fechaReal || '') <= e);
-  out.cmp = !cs.length ? 'na' : !cv.length ? 'on' : 'off';
-  /* Riesgos y Gobierno: solo se evalúan en la semana en curso (no hay historial de revisiones) */
-  if (cur) {
-    const rs = riesgosDe(i.id).filter(riesgoAbierto);
-    out.rsk = !rs.length ? 'na' : rs.some(r => (r.fRev && r.fRev < hoy()) || (expo(r) >= cfgI(i,'umbralCritico') && !String(r.mit || '').trim())) ? 'off' : 'on';
-    const f = forecast(i), fuera = f && i.finPlan && desv(i) > cfgI(i,'tolDesv');
-    out.gob = fuera && !CAMBIOS().some(c => c.ini === i.id && c.estado !== 'Rechazado') ? 'off' : 'on';
-  } else { out.rsk = 'na'; out.gob = 'na'; }
-  return STAR_DEF.map(d => ({ ...d, s: out[d.k], ...(d.k === 'dia' && tope ? { tip: 'Llevas ' + TOPE_SIN_AVANCE + ' semanas actualizando sin avance real: sube el % de avance o cierra un hito y se enciende.' } : {}) }));
+export function starsOf(i) {
+  const p = CIELO().proy[i && i.id], r = STAR_DEF.map(d => ({ ...d, s: p ? p.st[d.k] || 'na' : 'na', ...(d.k === 'dia' && p && p.tope ? { tip: 'Llevas 3 semanas actualizando sin avance real: sube el % de avance o cierra un hito y se enciende.' } : {}) }));
+  r.lleno = !!(p && p.lleno); return r;
 }
-const cieloLleno = st => !st.some(x => x.s === 'off') && st.some(x => x.s === 'on');
-const starsHist = st => st.filter(x => ['dia', 'hit', 'cmp'].includes(x.k));        // criterio histórico (calculable hacia atrás)
-export const proyActivos = (me, W) => St.ini.filter(i => !esProp(i) && isLive(i) && FASES_ACT.includes(i.fase) && (!me || i.lider === me) && (i.creada || '0') <= addD(W, 6));
+const cieloLleno = st => !!st.lleno;
+export const proyActivos = me => St.ini.filter(i => CIELO().proy[i.id] && (!me || i.lider === me));
+const NIV_COLOR = { 'Pinche': '#8A8886', 'Cocinero': '#C98A00', 'Chef de partida': '#0B5394', 'Chef ejecutivo': '#7A5AF8' };
 export function cieloPersona(me) {
-  const W0 = hoyW(), mine = proyActivos(me, W0), cur = mine.map(i => ({ i, st: starsOf(i, W0) }));
-  let racha = 0, total = 0;
-  if (mine.length) {
-    const wk = W => { const ps = proyActivos(me, W); return ps.length && ps.every(i => { const h = starsHist(starsOf(i, W)); return !h.some(x => x.s === 'off'); }); };
-    for (let k = 1, run = true; k <= 26; k++) { const ok = wk(addD(W0, -7 * k)); if (ok) total++; if (run) { if (ok) racha++; else run = false; } }
-    if (cur.every(x => cieloLleno(x.st))) { racha++; total++; }
-  }
-  const lv = total >= 12 ? ['Chef ejecutivo', 12, '#7A5AF8'] : total >= 4 ? ['Chef de partida', 12, '#0B5394'] : total >= 1 ? ['Cocinero', 4, '#C98A00'] : ['Pinche', 1, '#8A8886'];
-  return { cur, racha, total, nivel: lv[0], sig: lv[1], color: lv[2], on: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0) };
+  const W0 = hoyW(), mine = proyActivos(me), cur = mine.map(i => ({ i, st: starsOf(i, W0) })), p = CIELO().personas[me] || { racha: 0, total: 0, nivel: 'Pinche', sig: 1 };
+  return { cur, racha: p.racha, total: p.total, nivel: p.nivel, sig: p.sig, color: NIV_COLOR[p.nivel], on: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0) };
 }
 function cieloColectivo() {
-  const W0 = hoyW(), ps = proyActivos(null, W0).filter(i => inArea(i)), cur = ps.map(i => ({ i, st: starsOf(i, W0) }));
+  const W0 = hoyW(), ps = proyActivos(null).filter(i => inArea(i)), cur = ps.map(i => ({ i, st: starsOf(i, W0) }));
   const on = cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off = cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0);
-  const serie = []; for (let k = 7; k >= 0; k--) { const W = addD(W0, -7 * k); let a = 0, b = 0; proyActivos(null, W).filter(i => inArea(i)).forEach(i => starsHist(starsOf(i, W)).forEach(x => { if (x.s === 'on') a++; else if (x.s === 'off') b++; })); serie.push(a + b ? Math.round(a / (a + b) * 100) : 0); }
+  const serie = []; for (let k = 0; k < 8; k++) { let a = 0, b = 0; ps.forEach(i => { const h = (CIELO().hist[i.id] || [])[k]; if (h) { a += h[0]; b += h[1]; } }); serie.push(a + b ? Math.round(a / (a + b) * 100) : 0); }
   const prjs = scope();
   return { n: ps.length, prom: ps.length ? on / ps.length : 0, msTot: prjs.reduce((a, i) => a + msN(i), 0), ms3: prjs.filter(i => msN(i) === 3).length, llenas: cur.filter(x => cieloLleno(x.st)).length, pct: on + off ? Math.round(on / (on + off) * 100) : 0, serie, ayuda: cur.filter(x => x.st.some(y => y.s === 'off')).sort(by(x => -x.st.filter(y => y.s === 'off').length)) };
 }
@@ -107,34 +63,23 @@ function anillo(pct, meta, sz = 120) {
 }
 /* ---------- Insignias (se calculan con datos existentes; no se guardan) ---------- */
 const hashN = t => { let h = 2166136261; for (const c of String(t)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-function impecable(i) {
-  if (esProp(i) || i.estado !== 'Completado' || !(i.avance >= 100)) return false;
-  if (hitosDe(i.id).some(h => !h.completado)) return false;
-  if (riesgosDe(i.id).some(riesgoAbierto)) return false;
-  if (i.finReal && i.finPlan && i.finReal > i.finPlan && !CAMBIOS().some(c => c.ini === i.id && c.estado === 'Aprobado' && c.tipo === 'Fecha')) return false;
-  return true;
-}
-export function insignias(me) {
-  const P = cieloPersona(me), C = cieloColectivo(), meta = cfgMi('cieloMeta') || 80, W0 = hoyW();
-  let cs = 0; for (let k = 0; k < 26; k++) { const W = addD(W0, -7 * k), ps = proyActivos(me, W); if (!ps.length) break; if (ps.every(i => starsOf(i, W)[1].s !== 'off')) cs++; else break; }
-  const aviso = CAMBIOS().filter(c => c.solicita === me && c.fAnt && c.creada && c.creada <= c.fAnt).length;
-  const cump = ACUERDOS().filter(a => a.resp === me && a.estado === 'Cumplido' && a.fechaReal && a.limite && a.fechaReal <= a.limite).length;
-  const cierres = St.ini.filter(i => !esSB(i) && i.lider === me && impecable(i)).length;
-  const sem = new Set(St.bitacora.filter(b => b.autor === me && b.tipo === 'Actualización' && /^Actualización semanal/.test(b.texto || '')).map(b => wkIni(String(b.ts).slice(0, 10)))).size;
-  const mk = (k, n, d, ic, c, v, of) => ({ k, n, d, ic, c, v: Math.min(v, of), of, ok: v >= of });
-  const misPrj = St.ini.filter(i => !esProp(i) && !esSB(i) && i.lider === me), msLed = misPrj.filter(i => msN(i) >= 1).length, ms3Led = misPrj.filter(i => msN(i) === 3).length;
-  return [
-    mk('p1', 'Mesa perfecta', 'Completa los 5 tenedores de todos tus proyectos en una semana.', 'fork', '#0B5394', P.total, 1),
-    mk('r4', 'Racha de 4', 'Cuatro semanas seguidas con los 5 tenedores.', 'spark', '#7A5AF8', P.racha, 4),
-    mk('cs', 'Cero sorpresas', 'Cuatro semanas seguidas sin hitos vencidos sin explicar.', 'shield', '#107C10', cs, 4),
-    mk('av', 'Primero en avisar', 'Registra un cambio de fecha o presupuesto antes de que venza el plazo.', 'bell', '#CA5010', aviso, 1),
-    mk('cu', 'Cumplidor', 'Cumple a tiempo 10 compromisos.', 'check', '#038387', cump, 10),
-    mk('ci', 'Cierre impecable', 'Cierra un proyecto con todos sus hitos, sin riesgos abiertos y con su plan al día.', 'flag', '#C98A00', cierres, 1),
-    mk('bv', 'Bitácora viva', 'Actualiza tus proyectos en 8 semanas distintas.', 'book', '#B146C2', sem, 8),
-    mk('m1', 'Estrella Michelin', 'Un proyecto tuyo gana su primera estrella Michelin.', 'flag', '#C8102E', msLed, 1),
-    mk('m3', 'Tres estrellas', 'Cierra un proyecto con las tres estrellas Michelin.', 'target', '#C8102E', ms3Led, 1),
-    mk('eq', 'Meta del equipo', 'Los tenedores del portafolio alcanzan la meta del mes. Se comparte entre todos.', 'users', '#D13438', C.pct >= meta ? 1 : 0, 1)
-  ];
+const impecable = i => !!(i && CIELO().impecables[i.id]);   // lo decide el servidor
+const INS_DEF = [
+  ['p1', 'Mesa perfecta', 'Completa los 5 tenedores de todos tus proyectos en una semana.', 'fork', '#0B5394'],
+  ['r4', 'Racha de 4', 'Cuatro semanas seguidas con los 5 tenedores.', 'spark', '#7A5AF8'],
+  ['cs', 'Cero sorpresas', 'Cuatro semanas seguidas sin hitos vencidos sin explicar.', 'shield', '#107C10'],
+  ['av', 'Primero en avisar', 'Registra un cambio de fecha o presupuesto antes de que venza el plazo.', 'bell', '#CA5010'],
+  ['cu', 'Cumplidor', 'Cumple a tiempo 10 compromisos.', 'check', '#038387'],
+  ['ci', 'Cierre impecable', 'Cierra un proyecto con todos sus hitos, sin riesgos abiertos y con su plan al día.', 'flag', '#C98A00'],
+  ['bv', 'Bitácora viva', 'Actualiza tus proyectos en 8 semanas distintas.', 'book', '#B146C2'],
+  ['m1', 'Estrella Michelin', 'Un proyecto tuyo gana su primera estrella Michelin.', 'flag', '#C8102E'],
+  ['m3', 'Tres estrellas', 'Cierra un proyecto con las tres estrellas Michelin.', 'target', '#C8102E'],
+  ['eq', 'Meta del equipo', 'Los tenedores del portafolio alcanzan la meta del mes. Se comparte entre todos.', 'users', '#D13438']
+];
+/* Insignias: el servidor entrega el avance y la meta de cada una (apih_cielo); aquí solo se les pone nombre e ícono */
+export function insignias() {
+  const yo = (CIELO().yo || {}).insignias || {};
+  return INS_DEF.map(([k, n, d, ic, c]) => { const x = yo[k] || { v: 0, of: 1, ok: false }; return { k, n, d, ic, c, v: x.v, of: x.of, ok: !!x.ok }; });
 }
 const insigniasSet = me => new Set(insignias(me).filter(x => x.ok).map(x => x.k));
 function chkInsignias() {   // aviso al ganar una insignia nueva (la primera lectura es silenciosa)
@@ -322,7 +267,7 @@ function hisHTML(me) {
 const CIELO_TABS = [['sem', 'Esta semana'], ['his', 'Mi historial'], ['ins', 'Insignias'], ['gal', 'Galería Michelin']];
 Views.cielo = {
   render() {
-    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = cfgMi('cieloMeta') || 80, adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
+    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = ((CIELO().yo || {}).meta) || cfgMi('cieloMeta') || 80, adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
     const tabs = `<div class="seg" style="margin-bottom:12px">${CIELO_TABS.map(([k, l]) => `<button class="${f.tab === k ? 'on' : ''}" data-act="cielotab" data-k="${k}">${l}</button>`).join('')}</div>`;
     const head = pageHead('Mi cocina', 'Tenedores por gestionar bien el día a día (se mueven cada semana) y estrellas Michelin por cumplir hitos (una vez ganadas, no se pierden). Un proyecto en rojo que se reporta a tiempo también enciende sus tenedores.', `<span class="edit-only">${btn('Ronda de actualización' + (rondaIds().length ? ' (' + rondaIds().length + ')' : ''), 'ronda', { ic: 'refresh', cls: 'pri' })}</span>`) + tabs;
     if (f.tab === 'his') return head + hisHTML(me);
@@ -375,16 +320,9 @@ export function celebrar(i, antes) {
 /* ============================================================
    APIH · V17 · «Ver como» ampliado + ventanas flotantes
    ============================================================ */
-function verComoLista() {
-  const m = new Map(), me = _nrm(St.cfg.usuario);
-  St.usuarios.forEach(u => m.set(_nrm(u.n), u.n));
-  St.ini.forEach(i => [i.lider, i.sponsor].forEach(n => { n = String(n || '').trim(); if (n && !m.has(_nrm(n))) m.set(_nrm(n), n); }));
-  m.delete(me);
-  return [...m.values()].sort((a, b) => a.localeCompare(b, 'es'));
-}
-function usuarioSintetico(n) {   // persona sin fila en Usuarios: Colaborador con las áreas de lo que lidera
-  const k = _nrm(n), ar = [...new Set(St.ini.filter(i => _nrm(i.lider) === k || _nrm(i.sponsor) === k).flatMap(i => areasDe(i.area)))];
-  return { n, rol: 'Colaborador', cargo: '', area: ar.join(','), correo: '', veTodo: false, sint: true };
+function verComoLista() {   // solo personas con perfil: el servidor es quien simula
+  const me = _nrm(St.cfg.usuario);
+  return St.usuarios.map(u => u.n).filter(n => _nrm(n) !== me).sort((a, b) => a.localeCompare(b, 'es'));
 }
 function ampliable() {
   const mn = $('#main'); if (!mn) return;
@@ -482,21 +420,9 @@ Acts.myreset = d => { if (FL.verComo || (!esAdministra() && fijo(d.k === '_tema'
    1 Compuertas duras (solo Administra puede forzar) · 2 Línea base y valor ganado · 3 Riesgos críticos con mitigación y decisiones con plazo/escalamiento
    4 Beneficio real y priorización ponderada · 5 Tercera estrella exige resultado
    ============================================================ */
-const decMaxDias = () => +St.cfg.decMaxDias || 30, decEscDias = () => +St.cfg.decEscalaDias || 7;
-const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.limite && diffD(hoy(), d.limite) > decEscDias());
-const resultadoOk = i => (i.beneficio > 0) ? (i.ahorroReal > 0) : String(i.resultadoNota || '').trim().length >= 10;
-const riesgoSinMit = (i, r) => riesgoAbierto(r) && expo(r) >= cfgI(i, 'umbralCritico') && !String(r.mit || '').trim();
-function congelarBase(i, rebase) {
-  if (i.base && rebase) { i.baseHist = (i.baseHist || []).concat([i.base]); }
-  i.base = { fecha: hoy(), inicio: i.inicioPlan || null, fin: i.finPlan || null, pres: i.presupuesto || 0, por: St.cfg.usuario, hitos: hitosDe(i.id).map(h => ({ id: h.id, nombre: h.nombre, fecha: h.fecha })) };
-  log('Cambio', i.id, (rebase ? 'Línea base reemplazada' : 'Línea base congelada') + ` · fin ${fmtD(i.base.fin)} · presupuesto ${fmtMon(i.base.pres, monOf(i))} · ${i.base.hitos.length} hitos`);
-}
-function evm(i) {   // valor ganado simple contra la línea base congelada
-  const b = i.base; if (!b || !(b.pres > 0) || !b.inicio || !b.fin) return null;
-  const T = Math.max(1, diffD(b.fin, b.inicio)), pv = b.pres * Math.max(0, Math.min(1, diffD(hoy(), b.inicio) / T)), ev = b.pres * (i.avance || 0) / 100, ac = i.gastado || 0, hs = hitosDe(i.id);
-  return { pv, ev, ac, spi: pv > 0 ? ev / pv : null, cpi: ac > 0 ? ev / ac : null, dfin: diffD(forecast(i), b.fin),
-    movidos: hs.filter(h => { const o = (b.hitos || []).find(x => x.id === h.id); return o && h.fecha > o.fecha; }).length, nuevos: hs.filter(h => !(b.hitos || []).some(x => x.id === h.id)).length };
-}
+const decMaxDias = () => +St.cfg.decMaxDias || 30;
+const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.escalada);   // la marca la pone el servidor (apih_mantener) al vencer el plazo de escalamiento
+const evm = i => (i && CALC.evm && CALC.evm[i.id]) || null;   // valor ganado: lo calcula el servidor contra la línea base
 function controlHTML(i) {
   if (esProp(i)) return '';
   const b = i.base, e = evm(i), ix = v => v == null ? '—' : `<span style="color:${v >= .95 ? 'var(--grn,#107C10)' : v >= .85 ? '#CA5010' : 'var(--red)'};font-weight:700">${v.toFixed(2)}</span>`;
@@ -508,15 +434,8 @@ function controlHTML(i) {
   h += kv('Beneficio esperado · real', `${fmtMon(i.beneficio || 0, monOf(i))} · ${fmtMon(i.ahorroReal || 0, monOf(i))}${rl != null ? ' (' + rl + '%)' : ''}`);
   return `<div class="pn-sec"><div class="kvs">${h}</div></div>`;
 }
-Acts.basego = d => { const i = byId(d.id); if (!i || !puedeEditarIni(i)) return NO_PERM('Tu rol no permite editar'); if (!(i.inicioPlan && i.finPlan)) return toast('Define inicio y fin plan primero', 'err'); congelarBase(i, false); toast('Línea base congelada'); refresh(); };
-Acts.baserebase = d => { const i = byId(d.id); if (!i || !esAdministra()) return; confirmBox(`¿Reemplazar la línea base de <b>${esc(i.titulo)}</b>? La anterior queda en el historial.`, () => { congelarBase(i, true); toast('Línea base reemplazada'); refresh(); }, 'Reemplazar', true); };
-function escalarSync() {   // las decisiones que superan el plazo de escalamiento quedan marcadas y en bitácora (solo lo escribe el rol Administra, una vez)
-  if (!St || !St.decisiones || !esAdministra() || FL.verComo) return; let n = 0;
-  DECS().forEach(d => { if (decEscalada(d) && !d.escalada) { d.escalada = hoy(); n++; log('Decisión', d.ini, `Decisión escalada a Administra: ${diffD(hoy(), d.limite)} d de atraso · ${d.titulo}`); St.bitacora[0].inPres = false; } });
-  if (n) save();
-}
-
-
+Acts.basego = d => cmdServidor('apih_congelar_base', { p_id: d.id, p_rebase: false }, 'Línea base congelada');   // el servidor valida permisos y plan, arma la base y deja la bitácora
+Acts.baserebase = d => { const i = byId(d.id); if (!i) return; confirmBox(`¿Reemplazar la línea base de <b>${esc(i.titulo)}</b>? La anterior queda en el historial.`, () => cmdServidor('apih_congelar_base', { p_id: d.id, p_rebase: true }, 'Línea base reemplazada'), 'Reemplazar', true); };
 /* ============================================================
    APIH · V21 · Modo de interfaz (Simple / Profesional) · por usuario (St.cfgU[usuario].ui)
    ============================================================ */
@@ -578,48 +497,27 @@ const msRow = (i, sz = 16, all) => {
     return `<span class="stw" data-act="startip" data-t="${esc(t)}" title="${esc(t)}">${MS_SVG(!!got, sz)}</span>`;
   }).join('')}</span>`;
 };
-const cambioAprob = (i, tipo) => CAMBIOS().some(c => c.ini === i.id && c.estado === 'Aprobado' && c.tipo === tipo);
-const hitoATiempo = (i, h) => !!h.completado && (!h.fechaReal || h.fechaReal <= h.fecha || cambioAprob(i, 'Fecha'));   // un cambio de fecha aprobado explica el atraso
-/* ¿cuántas estrellas cumple hoy el proyecto? (se evalúa con el historial de hitos, por eso no depende de cuándo se abra la app) */
-function michelinCalc(i) {
-  if (esProp(i) || !['En curso', 'Completado'].includes(i.estado)) return 0;
-  const hs = hitosDe(i.id), ok = h => hitoATiempo(i, h); let n = 0;
-  /* «primera fase o hito mayor»: si los hitos traen fase, la primera fase; si no (datos importados), el primer hito del cronograma */
-  const f1 = FASES_PRJ.find(f => hs.some(h => h.fase === f));
-  const g1 = f1 ? hs.filter(h => h.fase === f1) : hs.length ? [hs.slice().sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0)[0]] : [];
-  if (g1.length && g1.every(ok)) n = 1;
-  if (n >= 1 && i.inicioPlan && i.finPlan) {
-    const mid = addD(i.inicioPlan, Math.floor(diffD(i.finPlan, i.inicioPlan) / 2));
-    if (hoy() >= mid) { const hm = hs.filter(h => h.fecha <= mid); if (hm.length ? hm.every(ok) : desv(i) <= cfgI(i,'tolDesv')) n = 2; }
-  }
-  if (n >= 2 && i.estado === 'Completado' && i.avance >= 100 && hs.every(ok) && resultadoOk(i)) {
-    const enPlazo = !i.finReal || !i.finPlan || i.finReal <= i.finPlan || cambioAprob(i, 'Fecha');
-    const enPres = !(i.presupuesto > 0) || (i.gastado || 0) <= i.presupuesto || cambioAprob(i, 'Presupuesto');
-    if (enPlazo && enPres) n = 3;
-  }
-  return n;
-}
 const RAYOS = () => Array.from({ length: 8 }, (_, k) => `<i style="--a:${k * 45}deg;--d:${k % 2 ? 0 : .08}s"></i>`).join('');
 function celebrarMichelin(i) {
   const d = document.createElement('div'); d.className = 'sky-pop'; d.setAttribute('role', 'status');
   d.innerHTML = `<div class="sky-pb">${RAYOS()}<div class="sky-big">${MS_SVG(true, 54)}</div><b>¡Estrella Michelin!</b><small>${esc(cut(i.titulo, 40))}</small>${msRow(i, 22, true)}</div>`;
   d.addEventListener('click', () => d.remove()); document.body.appendChild(d); setTimeout(() => d.remove(), 3000);
 }
-/* otorga y guarda las estrellas nuevas (solo si la persona puede editar ese proyecto); nunca quita */
-function michelinSync() {
-  if (!St || !St.ini || !cieloOn()) return;
-  const boot = !UI.msBoot; UI.msBoot = true; const nuevas = [];
-  St.ini.forEach(i => {
-    if (esProp(i) || esSB(i) || !puedeEditarIni(i)) return;
-    const have = msN(i), want = michelinCalc(i); if (want <= have) return;
-    i.michelin = i.michelin || []; for (let n = have + 1; n <= want; n++) i.michelin.push({ n, f: hoy() });
-    log('Comentario', i.id, 'Estrella Michelin ' + want + ' de 3 obtenida: ' + MS_DEF[want - 1].tip); St.bitacora[0].inPres = false;
-    nuevas.push(i);
-  });
-  if (!nuevas.length) return;
-  save();
-  if ((boot || nuevas.length > 1) && !msToastSeen()) toast(nuevas.length + ' proyecto' + (nuevas.length === 1 ? '' : 's') + ' con estrellas Michelin por hitos ya cumplidos');
-  else setTimeout(() => celebrarMichelin(nuevas[0]), document.querySelector('.sky-pop') ? 2700 : 350);
+/* Mantenimiento: el servidor marca las decisiones escaladas y otorga las estrellas Michelin nuevas (nunca quita). Aquí solo se pide y se celebra. */
+async function mantenerSrv() {
+  if (!St || !St.ini || UI.mantBusy || (UI.mantTs && Date.now() - UI.mantTs < 20000)) return;
+  UI.mantBusy = true; UI.mantTs = Date.now();
+  try {
+    const boot = !UI.msBoot; UI.msBoot = true;
+    const r = await DataService.svc.rpc('apih_mantener', {}).catch(e => { console.error(e); return null; });   // sin recarga si no hubo cambios
+    const nuevas = r && Array.isArray(r.estrellas) ? r.estrellas : [];
+    if (!r || (!nuevas.length && !r.escaladas)) return;
+    await DataService.refresh(false, true);
+    if (nuevas.length) {
+      if ((boot || nuevas.length > 1) && !msToastSeen()) toast(nuevas.length + ' proyecto' + (nuevas.length === 1 ? '' : 's') + ' con estrellas Michelin por hitos ya cumplidos');
+      else { const i = byId(nuevas[0].id); if (i) setTimeout(() => celebrarMichelin(i), document.querySelector('.sky-pop') ? 2700 : 350); }
+    }
+  } finally { UI.mantBusy = false; }
 }
 
 /* ============================================================
@@ -634,69 +532,12 @@ const GRUPOS_REGLAS = {
 };
 const SEVT = { 3: 'Crítico', 2: 'Atención', 1: 'Info' };
 
-function findingsPMO() {
-  const out = [], L = scope().filter(isLive);
-  L.filter(isActive).forEach(i => {
-    const d = desv(i);
-    if (d > cfgI(i,'tolDesv')) { const sug = ragSugerido(i).rag; out.push({ grupo: 'PMO', regla: 'Proyecto atrasado', sev: d > 30 ? 3 : 2, ini: i.id, titulo: `${i.titulo} está atrasado (+${d} d)`, detalle: `Fin plan ${fmtD(i.finPlan)}, proyectado ${fmtD(forecast(i))}. Avance ${pct(i.avance)} vs ${pct(esperado(i))} esperado.`, fx: i.rag !== sug ? [{ t: `Marcar RAG ${sug}`, a: 'fxrag', id: i.id, rag: sug }] : [{ t: 'Crear acción de recuperación', a: 'fxacc', id: i.id }] }); }
-    { const e = evm(i); if (e && ((e.spi != null && e.spi < .85) || (e.cpi != null && e.cpi < .85))) out.push({ grupo: 'PMO', regla: 'Desempeño vs línea base', sev: (e.spi != null && e.spi < .7) || (e.cpi != null && e.cpi < .7) ? 3 : 2, ini: i.id, titulo: `${i.titulo}: desempeño bajo la línea base`, detalle: `SPI ${e.spi == null ? '—' : e.spi.toFixed(2)} · CPI ${e.cpi == null ? '—' : e.cpi.toFixed(2)} · ${e.dfin > 0 ? '+' + e.dfin + ' d' : 'sin atraso'} vs fin base.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }); }
-    { if (i.estado === 'Completado' && i.beneficio > 0 && !(i.ahorroReal > 0) && i.finReal && diffD(hoy(), i.finReal) > 90) out.push({ grupo: 'PMO', regla: 'Beneficio sin medir', sev: 1, ini: i.id, titulo: `${i.titulo}: beneficio esperado sin medir`, detalle: `Cerró hace ${diffD(hoy(), i.finReal)} d y no registra beneficio real.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }); }
-    const du = diasSinUpd(i); if (du > cfgI(i,'diasSinUpdate')) out.push({ grupo: 'PMO', regla: 'Sin actualización', sev: du > cfgI(i,'diasSinUpdate') * 2 ? 2 : 1, ini: i.id, titulo: `${i.titulo} sin actualización hace ${du} d`, detalle: `Última actualización: ${fmtD(i.actualizada)}. Responsable: ${i.lider}. Umbral: ${cfgI(i,'diasSinUpdate')} d.`, fx: [{ t: 'Solicitar actualización', a: 'fxnudge', id: i.id }] });
-  });
-  scope().filter(i => i.estado === 'Pausado' && i.estadoRev && i.estadoRev < hoy()).forEach(i => out.push({ grupo: 'PMO', regla: 'Proyecto atrasado', sev: 1, ini: i.id, titulo: `${i.titulo}: revisión de “Pausado” vencida (${fmtD(i.estadoRev)})`, detalle: `Motivo: ${i.estadoMotivo || '—'}. Decidir si se reanuda o se cancela.`, fx: [{ t: 'Abrir proyecto', a: 'fxsel', id: i.id }] }));
-  L.filter(i => i.estado === 'En curso').forEach(i => { const hv = hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).sort(by('fecha')); if (hv.length) { const mx = diffD(hoy(), hv[0].fecha); out.push({ grupo: 'PMO', regla: 'Hito vencido', sev: mx > 30 || hv.length > 2 ? 3 : 2, ini: i.id, titulo: `${hv.length} hito(s) vencido(s) en ${i.titulo}`, detalle: hv.slice(0, 3).map(h => `“${h.nombre}” (${fmtD(h.fecha)}, hace ${diffD(hoy(), h.fecha)} d)`).join('; ') + (hv.length > 3 ? '…' : ''), fx: [{ t: 'Replanificar primer hito', a: 'fxhito', id: hv[0].id }, { t: 'Marcar completado', a: 'fxdone', id: hv[0].id }] }); } });
-  DECS().filter(d => d.estado === 'Pendiente' && d.limite && d.limite < hoy() && (!d.ini || (byId(d.ini) && inArea(byId(d.ini))))).forEach(d => out.push({ grupo: 'PMO', regla: 'Decisión vencida', sev: 2, ini: d.ini, titulo: `Decisión vencida hace ${diffD(hoy(), d.limite)} d: ${d.titulo}`, detalle: `${d.tipo} · solicitada por ${d.solicita}. Debe resolverse en comité.`, fx: [{ t: 'Resolver ahora', a: 'resolvedec', id: d.id }] }));
-  DECS().filter(d => decEscalada(d) && (!d.ini || (byId(d.ini) && inArea(byId(d.ini))))).forEach(d => out.push({ grupo: 'PMO', regla: 'Decisión escalada', sev: 3, ini: d.ini, titulo: `Decisión escalada (${diffD(hoy(), d.limite)} d de atraso): ${d.titulo}`, detalle: `Superó el plazo de escalamiento (${decEscDias()} d). Requiere resolución del rol Administra.`, fx: [{ t: 'Resolver ahora', a: 'resolvedec', id: d.id }] }));
-  return out;
-}
-function findingsRiesgos() {
-  const out = [], open = St.riesgos.filter(r => riesgoAbierto(r) && (!byId(r.ini) || (inArea(byId(r.ini)) && isLive(byId(r.ini)))));
-  open.forEach(r => {
-    const e = expo(r), ref = { grupo: 'Riesgos', ini: r.ini };
-    if (e >= cfgI(byId(r.ini),'umbralCritico')) out.push({ ...ref, regla: 'Impacto alto + Probabilidad alta', sev: 3, titulo: `Riesgo crítico (${e}): ${r.desc}`, detalle: `Impacto ${r.imp}/5 · Probabilidad ${r.prob}/5 · ${r.estado}. Dueño: ${r.dueno || 'sin dueño'}.`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    else if (r.imp >= 4) out.push({ ...ref, regla: 'Impacto alto', sev: 2, titulo: `Impacto alto: ${r.desc}`, detalle: `Impacto ${r.imp}/5 con probabilidad ${r.prob}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    else if (r.prob >= 4) out.push({ ...ref, regla: 'Probabilidad alta', sev: 2, titulo: `Probabilidad alta: ${r.desc}`, detalle: `Probabilidad ${r.prob}/5 con impacto ${r.imp}/5 (exposición ${e}).`, rid: r.id, fx: [{ t: 'Ver riesgo', a: 'fxrisk', id: r.id }] });
-    if (e >= 10 && !r.mit) out.push({ ...ref, regla: 'Sin plan de mitigación', sev: 2, titulo: `Sin mitigación definida: ${r.desc}`, detalle: `Exposición ${e}. Define plan y dueño.`, rid: r.id, fx: [{ t: 'Definir mitigación', a: 'fxrisk', id: r.id }] });
-  });
-  scope().filter(isLive).forEach(i => i.deps.forEach(did => {
-    const d = byId(did); if (!d || !isLive(d)) return; const why = [];
-    if (d.rag === 'Rojo') why.push('RAG Rojo'); if (atrasado(d)) why.push(`atrasada +${desv(d)} d`);
-    const rc = riesgosDe(d.id).filter(r => riesgoAbierto(r) && expo(r) >= cfgI(d,'umbralCritico')).length; if (rc) why.push(rc + ' riesgo(s) crítico(s)');
-    if (why.length) out.push({ grupo: 'Riesgos', regla: 'Dependencias críticas', sev: why.length > 1 ? 3 : 2, ini: i.id, titulo: `${i.titulo} depende de ${d.titulo} (${why.join(', ')})`, detalle: `Fin proyectado de la predecesora: ${fmtD(forecast(d))}. Un retraso se propaga a ${i.titulo}.`, fx: [{ t: 'Registrar riesgo de dependencia', a: 'fxdeprisk', id: i.id, dep: d.id }] });
-  }));
-  return out;
-}
-function findingsRoadmap() {
-  const out = [], live = scope().filter(isLive);
-  const load = {}; live.filter(i => FASES_ACT.includes(i.fase)).forEach(i => (load[i.lider] = load[i.lider] || []).push(i));
-  Object.entries(load).forEach(([l, a]) => { if (a.length > St.cfg.capacidadMax) out.push({ grupo: 'Roadmap', regla: 'Sobrecarga de líder', sev: 2, ini: null, titulo: `${l} lidera ${a.length} proyectos activos (capacidad ${St.cfg.capacidadMax})`, detalle: a.map(i => i.titulo).join(' · '), fx: [{ t: 'Priorizar cierres', a: 'go', v: 'portfolio' }] }); });
-  live.forEach(i => {
-    i.deps.forEach(did => { const d = byId(did); if (!d || !isLive(d) || !i.inicioPlan) return; const fe = forecast(d); if (i.inicioPlan < fe && d.fase !== 'Cierre' && i.estado === 'En curso' && (i.fase === 'Planificación' || i.inicioPlan > hoy())) out.push({ grupo: 'Roadmap', regla: 'Secuencia de dependencias', sev: 2, ini: i.id, titulo: `${i.titulo} inicia (${fmtD(i.inicioPlan)}) antes de que termine ${d.titulo} (${fmtD(fe)})`, detalle: 'Conflicto de secuencia en el roadmap. Ajusta fechas o rompe la dependencia.', fx: [{ t: 'Editar fechas', a: 'edit', t2: 'ini', id: i.id }] }); });
-    if (FASES_ACT.includes(i.fase) && i.finPlan) { const f = forecast(i), pq = quarter(i.finPlan), fq = quarter(f), py = +i.finPlan.slice(0, 4), fy = +f.slice(0, 4); if (fy * 4 + fq > py * 4 + pq) out.push({ grupo: 'Roadmap', regla: 'Desfase de trimestre', sev: 1, ini: i.id, titulo: `${i.titulo} se desplaza de Q${pq} ${py} a Q${fq} ${fy}`, detalle: `Fin plan ${fmtD(i.finPlan)} → proyectado ${fmtD(f)}. Comunica el cambio al comité.`, fx: [{ t: 'Crear decisión', a: 'mkdec', id: i.id, tp: 'Mantener', ti: `Reprogramar ${i.titulo} a Q${fq} ${fy}`, rec: `Pronóstico ${fmtD(f)} vs línea base ${fmtD(i.finPlan)}.` }] }); }
-  });
-  const cap = l => (load[l] || []).length < St.cfg.capacidadMax;
-  const P = scopeP().filter(isLive);
-  P.filter(i => i.estado === 'Vigente' && (i.fase === 'Aprobación' || (i.fase === 'Evaluación' && priorScore(i) >= 70))).sort(by(i => -priorScore(i))).slice(0, 3).forEach(i => out.push({ grupo: 'Roadmap', regla: 'Candidatos a iniciar', sev: 1, ini: i.id, titulo: `Propuesta candidata a iniciar: ${i.titulo} (puntaje ${priorScore(i)})`, detalle: cap(i.lider) ? `${i.lider} tiene capacidad disponible (${(load[i.lider] || []).length}/${St.cfg.capacidadMax}).` : `${i.lider} está al límite de capacidad: considera reasignar.`, fx: [{ t: 'Proponer “Iniciar”', a: 'mkdec', id: i.id, tp: 'Iniciar', ti: `Iniciar ${i.titulo}`, rec: `Puntaje de priorización ${priorScore(i)}; ${cap(i.lider) ? 'hay capacidad' : 'revisar capacidad'}.` }] }));
-  P.forEach(i => {
-    const d = diasEnFase(i), amb = cfgI(i,'propDiasAmb') || 30, roj = cfgI(i,'propDiasRojo') || 60, fx = [{ t: 'Abrir propuesta', a: 'fxsel', id: i.id }];
-    if (i.estado === 'Vigente' && d > amb) out.push({ grupo: 'Roadmap', regla: 'Propuesta estancada', sev: d > roj ? 2 : 1, ini: i.id, titulo: `${i.titulo} lleva ${d} d en la fase ${i.fase}`, detalle: `Umbral ${amb} d (rojo ${roj} d). Responsable: ${i.lider}. Avanzar, poner en espera o retirar.`, fx });
-    if (i.estado === 'En espera' && i.estadoRev && i.estadoRev < hoy()) out.push({ grupo: 'Roadmap', regla: 'Propuesta estancada', sev: 1, ini: i.id, titulo: `${i.titulo}: revisión de “En espera” vencida (${fmtD(i.estadoRev)})`, detalle: `Motivo: ${i.estadoMotivo || '—'}. Decidir si se retoma, se rechaza o se retira.`, fx });
-    const falta = []; if (!i.sponsor) falta.push('sponsor'); if (['Caso de Negocio', 'Aprobación'].includes(i.fase)) { if (!i.bc) falta.push('business case'); if (!(i.presupuesto > 0)) falta.push('costo estimado'); if (!(i.beneficio > 0)) falta.push('beneficio estimado'); }
-    if (falta.length && i.estado === 'Vigente') out.push({ grupo: 'Roadmap', regla: 'Propuesta incompleta', sev: 1, ini: i.id, titulo: `${i.titulo}: falta ${falta.join(', ')}`, detalle: `Completa los datos para poder avanzar a la siguiente fase.`, fx });
-  });
-  live.filter(i => i.prioridad === 'Baja' && FASES_ACT.includes(i.fase) && !load[i.lider] ? false : (i.prioridad === 'Baja' && i.fase === 'Planificación' && (load[i.lider] || []).length > St.cfg.capacidadMax)).forEach(i => out.push({ grupo: 'Roadmap', regla: 'Sobrecarga de líder', sev: 1, ini: i.id, titulo: `Considera pausar ${i.titulo} (prioridad baja, líder sobrecargado)`, detalle: 'Libera capacidad para proyectos de mayor prioridad.', fx: [{ t: 'Proponer “Pausar”', a: 'mkdec', id: i.id, tp: 'Pausar', ti: `Pausar ${i.titulo}`, rec: 'Prioridad baja y líder sobre su capacidad.' }] }));
-  return out;
-}
-let _alertCache = null;
+/* Los hallazgos (reglas PMO, de riesgos y de roadmap) los evalúa el servidor (apih_calculos). Aquí solo se filtran por las reglas activadas y por el área elegida. */
+const GRUPO_REGLA = { PMO: 'pmo', Riesgos: 'riesgos', Roadmap: 'roadmap' };
 function motorAlertas() {
   if (APIH_CONFIG.analisis === false) return [];
-  const key = St.ini.length + '|' + St.hitos.length + '|' + St.riesgos.length + '|' + St.decisiones.length + '|' + (St.ver || 0) + '|' + hoy() + '|' + St.cfg.areaGlobal + '|' + JSON.stringify(St.cfg.reglas);
-  const sig = St.ini.map(i => i.rag + i.fase + i.avance + i.estado + (i.actualizada || '') + i.finEst + i.finPlan).join(',') + St.hitos.map(h => (h.completado ? 1 : 0) + h.fecha).join('') + St.riesgos.map(r => r.prob * 10 + r.imp + r.estado).join(',') + DECS().map(d => d.estado + d.limite).join(',') + St.cfg.tolDesv + St.cfg.umbralCritico + St.cfg.diasSinUpdate + St.cfg.capacidadMax + JSON.stringify(St.cfgU || {});
-  if (_alertCache && _alertCache.k === key + sig) return _alertCache.v;
-  const a = St.cfg.reglas; let out = [];
-  if (a.pmo) out = out.concat(findingsPMO()); if (a.riesgos) out = out.concat(findingsRiesgos()); if (a.roadmap) out = out.concat(findingsRoadmap());
-  out.forEach((f, k) => f.uid = 'F' + k);
-  out.sort(by(f => -f.sev)); _alertCache = { k: key + sig, v: out }; return out;
+  const R = St.cfg.reglas || {};
+  return (CALC.hallazgos || []).filter(f => R[GRUPO_REGLA[f.grupo]] !== false && (!(f.inis || []).length || f.inis.some(id => { const i = byId(id); return !!i && inArea(i); })));
 }
 const insightsFor = i => motorAlertas().filter(f => f.ini === i.id);
 
@@ -794,7 +635,14 @@ function filtrosHTML() {
 Chg.respG = el => { FL.resp = el.value; ppInval(); refresh(); };
 Acts.mine = () => { FL.mine = !FL.mine; ppInval(); refresh(); };
 Acts.flclear = () => { FL.resp = ''; FL.mine = false; St.cfg.areaGlobal = 'Todas'; ppInval(); refresh(); };
-Acts.vercomo = d => { FL.verComo = d.n || ''; FL.mine = false; FL.resp = ''; ppInval(); if (UI.view === 'admin' && !esAdmin()) UI.view = 'dashboard'; refresh(); };
+Acts.vercomo = async d => {   // «Ver como» lo resuelve el servidor: se pide la simulación y se relee todo bajo ese perfil
+  const n = d.n || '', u = n && St.usuarios.find(x => _nrm(x.n) === _nrm(n));
+  if (n && !u) return toast('Esa persona no tiene perfil en APIH', 'err');
+  try { await DataService.flush(); await DataService.svc.verComo(u ? u.correo : null); }
+  catch (e) { return toast(e.detalle || e.message, 'err'); }
+  FL.mine = false; FL.resp = ''; ppInval(); await DataService.refresh(true, true);
+  if (UI.view === 'admin' && !esAdmin()) UI.view = 'dashboard'; refresh();
+};
 
 /* ---------- acceso a Administración ---------- */
 const _go0 = go;
@@ -839,24 +687,17 @@ function personasData() {
    Carga mensual por líder = proyectos vivos que lidera y cuyo plan (inicio → el mayor entre fin plan y fin proyectado) toca ese mes.
    Capacidad = St.cfg.capPers[persona] o, si no hay, el valor general St.cfg.capacidadMax.
    ============================================================ */
-const capDe = n => { const o = (St.cfg.capPers || {})[_nrm(n)]; return o > 0 ? +o : Math.max(1, +St.cfg.capacidadMax || 5); };
-const capFin = i => [i.finPlan, forecast(i)].filter(Boolean).sort().pop() || null;
-const capIni = i => i.inicioPlan || i.inicioReal || i.creada || hoy();
-function capMeses(h) { const b = pD(hoy()); return Array.from({ length: h }, (_, k) => { const a = new Date(b.getFullYear(), b.getMonth() + k, 1, 12), z = new Date(b.getFullYear(), b.getMonth() + k + 1, 0, 12); return { s: toISO(a), e: toISO(z), l: MESES[a.getMonth()].slice(0, 3), y: a.getFullYear() }; }); }
+/* La carga mensual, la capacidad, la holgura y el color de cada celda los calcula el servidor (apih_calculos.capacidad); aquí solo se filtra por persona/área y se suma. */
 export function capData(h) {
-  const meses = capMeses(h), R = respSel(), by = {};
-  scope().filter(i => !esProp(i) && isLive(i) && i.lider).forEach(i => { (by[i.lider] = by[i.lider] || []).push(i); });
-  const gente = Object.keys(by).filter(n => !R || n === R).map(n => {
-    const ps = by[n].map(i => ({ i, s: capIni(i), e: capFin(i) })), cap = capDe(n);
-    const carga = meses.map(m => ps.filter(p => p.s <= m.e && (!p.e || p.e >= m.s)));
-    const ns = carga.map(c => c.length), n3 = ns.slice(0, 3), prom3 = n3.reduce((a, b) => a + b, 0) / Math.max(1, n3.length);
-    return { n, cap, ps, carga, ns, over: ns.some(x => x > cap), hold: Math.max(0, cap - prom3), prom3 };
-  }).sort((a, b) => (b.over - a.over) || (b.ns.reduce((x, y) => x + y, 0) / b.cap - a.ns.reduce((x, y) => x + y, 0) / a.cap) || a.n.localeCompare(b.n));
+  const C = CALC.capacidad || { meses: [], gente: [] }, R = respSel();
+  const meses = C.meses.slice(0, h).map(m => { const d = pD(m.s); return { s: m.s, e: m.e, l: MESES[d.getMonth()].slice(0, 3), y: d.getFullYear() }; });
+  const gente = C.gente.filter(p => (!R || p.n === R) && p.ps.some(q => { const i = byId(q.id); return !!i && inArea(i); }))
+    .map(p => ({ n: p.n, cap: p.cap, ps: p.ps.map(q => ({ i: byId(q.id), s: q.s, e: q.e })).filter(q => q.i), ns: p.ns.slice(0, h), cls: p.cls.slice(0, h), over: !!p.over[h], hold: p.hold, prom3: p.prom3 }))
+    .sort((a, b) => (b.over - a.over) || (b.ns.reduce((x, y) => x + y, 0) / b.cap - a.ns.reduce((x, y) => x + y, 0) / a.cap) || a.n.localeCompare(b.n));
   const tot = meses.map((_, k) => gente.reduce((a, p) => a + p.ns[k], 0)), capT = gente.reduce((a, p) => a + p.cap, 0);
   const pk = tot.reduce((b, v, k) => v > tot[b] ? k : b, 0);
   return { meses, gente, tot, capT, pk, holgura: gente.reduce((a, p) => a + p.hold, 0) };
 }
-const capCls = (n, cap) => n === 0 ? 'n' : n > cap ? 'r' : n >= cap * .8 ? 'y' : 'g';
 Views.capacidad = {
   render() {
     const f = F('cap', { h: 6, alerta: false, open: '' }), D = capData(f.h), g = esAdministra(), fmt1 = x => (Math.round(x * 10) / 10).toLocaleString('es-CL');
@@ -870,7 +711,7 @@ Views.capacidad = {
     return pageHead('Capacidad de equipos', 'Carga de cada líder en los próximos meses según los proyectos que lidera, comparada con su capacidad.', btn('Exportar CSV', 'capcsv', { ic: 'download' })) + `
     <div class="toolbar"><label class="chk"><input type="checkbox" ${f.alerta ? 'checked' : ''} data-chg="capalerta"> <span>Solo con alerta</span></label><span class="cp-leg"><span><i class="g"></i>&lt; 80%</span><span><i class="y"></i>80–100%</span><span><i class="r"></i>&gt; 100%</span></span><div class="seg">${[3, 6, 12].map(h => `<button class="${f.h === h ? 'on' : ''}" data-act="caph" data-h="${h}">${h} meses</button>`).join('')}</div></div>
     <div class="cp-k"><div class="k"><small>Personas con proyectos</small><b>${D.gente.length}</b></div><div class="k"><small>Sobrecargadas (algún mes)</small><b style="color:${sobre.length ? 'var(--red)' : 'inherit'}">${sobre.length}</b><i>${esc(sobre.slice(0, 3).map(p => p.n.split(' ')[0]).join(', ') || '—')}</i></div><div class="k"><small>Mes de mayor carga</small><b>${D.gente.length ? D.meses[D.pk].l : '—'}</b><i>${D.gente.length ? D.tot[D.pk] + ' de ' + D.capT + ' cupos' : ''}</i></div><div class="k"><small>Holgura próx. 3 meses</small><b style="color:var(--green)">${fmt1(D.holgura)}</b><i>proyectos</i></div></div>
-    ${rows.length ? `<div class="cp-wrap"><table class="cp-t"><thead><tr><th>Persona</th><th>Capacidad</th>${th}</tr></thead><tbody>${rows.map(p => `<tr><td><button class="cp-p" data-act="capopen" data-n="${esc(p.n)}" aria-expanded="${f.open === p.n}">${avatar(p.n, 30)}<span><b>${esc(p.n)}</b><small>${p.ps.length} proyecto${p.ps.length === 1 ? ' vivo' : 's vivos'}</small></span></button></td><td>${g && !FL.verComo ? `<input type="number" min="1" max="20" class="cp-in" value="${p.cap}" data-chg="capp" data-n="${esc(p.n)}" aria-label="Capacidad de ${esc(p.n)}">` : `<b>${p.cap}</b>`}<small class="mut"> proy.</small></td>${p.ns.map((n, k) => `<td><button class="cp-c ${capCls(n, p.cap)} ${f.open === p.n ? 'sel' : ''}" data-act="capopen" data-n="${esc(p.n)}" title="${n} de ${p.cap} · ${D.meses[k].l} ${D.meses[k].y}">${n ? n + ' / ' + p.cap : '—'}</button></td>`).join('')}</tr>${f.open === p.n ? exp(p) : ''}`).join('')}</tbody></table></div>` : `<div class="card">${empty(f.alerta ? 'Nadie supera su capacidad en este horizonte' : 'Sin proyectos vivos con líder asignado', 'users')}</div>`}
+    ${rows.length ? `<div class="cp-wrap"><table class="cp-t"><thead><tr><th>Persona</th><th>Capacidad</th>${th}</tr></thead><tbody>${rows.map(p => `<tr><td><button class="cp-p" data-act="capopen" data-n="${esc(p.n)}" aria-expanded="${f.open === p.n}">${avatar(p.n, 30)}<span><b>${esc(p.n)}</b><small>${p.ps.length} proyecto${p.ps.length === 1 ? ' vivo' : 's vivos'}</small></span></button></td><td>${g && !FL.verComo ? `<input type="number" min="1" max="20" class="cp-in" value="${p.cap}" data-chg="capp" data-n="${esc(p.n)}" aria-label="Capacidad de ${esc(p.n)}">` : `<b>${p.cap}</b>`}<small class="mut"> proy.</small></td>${p.ns.map((n, k) => `<td><button class="cp-c ${p.cls[k]} ${f.open === p.n ? 'sel' : ''}" data-act="capopen" data-n="${esc(p.n)}" title="${n} de ${p.cap} · ${D.meses[k].l} ${D.meses[k].y}">${n ? n + ' / ' + p.cap : '—'}</button></td>`).join('')}</tr>${f.open === p.n ? exp(p) : ''}`).join('')}</tbody></table></div>` : `<div class="card">${empty(f.alerta ? 'Nadie supera su capacidad en este horizonte' : 'Sin proyectos vivos con líder asignado', 'users')}</div>`}
     <div class="cp-2"><div class="card"><header><h2>Quién puede tomar más</h2><small>holgura media próx. 3 meses</small></header>${libres.map(p => `<div class="cp-s">${avatar(p.n, 26)}<b>${esc(p.n)}</b><span class="g">+${fmt1(p.hold)} cupos</span></div>`).join('') || '<p class="mut">Nadie tiene holgura de al menos 0,5 cupos.</p>'}</div>
     <div class="card"><header><h2>Propuestas candidatas a iniciar</h2><small>por puntaje</small></header>${cand.map(i => `<div class="cp-s"><button class="lnk" data-act="sel" data-t="ini" data-id="${i.id}"><b>${esc(i.titulo)}</b></button><small class="mut">${esc(i.fase)} · puntaje ${priorScore(i)}</small>${libres[0] ? `<span class="g" title="Mayor holgura">Sugerido: ${esc(libres.find(p => _nrm(p.n) === _nrm(i.lider)) ? i.lider : libres[0].n)}</span>` : ''}</div>`).join('') || '<p class="mut">No hay propuestas candidatas por ahora.</p>'}</div></div>`;
   }
@@ -893,7 +734,7 @@ Views.personas = {
       <select data-chg="flt" data-v="pers" data-f="rol">${selOpts(roles, f.rol, 'Todos los roles')}</select>
       <small style="display:inline;margin-left:auto">${rows.length} de ${all.length} personas</small></div>
     <div class="tbl-w"><table class="tbl"><thead><tr><th>Persona</th><th>Cargo</th><th>Acceso</th><th>Roles</th><th>Áreas</th><th class="n" title="Proyectos activos">Proy.</th><th class="n" title="Hitos abiertos">Hitos</th><th class="n">Riesgos</th><th class="n" title="Decisiones">Decis.</th><th></th></tr></thead><tbody>
-    ${rows.map(p => `<tr><td><span class="pp">${avatar(p.n, 26)}<b>${esc(p.n)}</b></span></td><td>${esc(p.cargo || '—')}</td><td>${p.acceso ? `<span class="pill ${p.acceso === 'Administra' ? '' : 'soft'}" title="${ADMIN_USERS.includes(p.n) ? 'Titular del Panel de Administración' : ''}">${esc(p.acceso)}${ADMIN_USERS.includes(p.n) ? ' · Panel Admin' : ''}</span>` : '<span class="mut">—</span>'}</td>
+    ${rows.map(p => `<tr><td><span class="pp">${avatar(p.n, 26)}<b>${esc(p.n)}</b></span></td><td>${esc(p.cargo || '—')}</td><td>${p.acceso ? `<span class="pill ${p.acceso === 'Administra' ? '' : 'soft'}" title="${p.acceso === 'Administra' ? 'Titular del Panel de Administración' : ''}">${esc(p.acceso)}${p.acceso === 'Administra' ? ' · Panel Admin' : ''}</span>` : '<span class="mut">—</span>'}</td>
       <td><div class="chips">${Object.entries(p.roles).map(([r, n]) => `<span class="pill soft" title="${n} registro(s)">${esc(r)} · ${n}</span>`).join('') || '<span class="mut">—</span>'}</div></td><td>${[...p.areas].filter(Boolean).map(esc).join(', ') || '—'}</td>
       <td class="n">${p.lidera || '—'}</td><td class="n">${p.hitos ? p.hitos + (p.hitosAtr ? ` <span class="neg" title="vencidos">(${p.hitosAtr})</span>` : '') : '—'}</td><td class="n">${p.riesgos || '—'}</td><td class="n">${p.decis || '—'}</td>
       <td><button class="btn sm" data-act="verlosuyo" data-n="${esc(p.n)}">Ver lo suyo</button>${esAdminReal() && p.n !== St.cfg.usuario ? ` <button class="btn sm" data-act="vercomo" data-n="${esc(p.n)}" title="Ver el sistema como ${esc(p.n)}">Ver como</button>` : ''}</td></tr>`).join('') || `<tr><td colspan="10">${empty('Sin personas con estos filtros', 'users')}</td></tr>`}
@@ -912,40 +753,26 @@ Acts.perscsv = () => { const r = personasData(); download('APIH_personas_' + hoy
    Colaborador   su área (todas si ve_todo)  solo su(s) área(s)    no    no
    Invitado      su área (todas si ve_todo)  nada (solo comenta)   no    no
    · El rol y el área salen de la hoja Usuarios. «Administra» es el único omnipotente.
-   · El Panel de Administración es exclusivo del titular (ADMIN_USERS / ADMIN_EMAILS).
+   · El Panel de Administración es exclusivo del titular (lo decide el servidor).
    · Con «Ver como» el administrador simula el rol y el área de otra persona.
    ========================================================================== */
 const PERM_ROLES = ['Administra', 'Responsable', 'Colaborador', 'Invitado'];
-function usuarioActual() {
-  const n = _nrm(miUsuario()), au = !FL.verComo && typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(), em = _nrm(au && (au.email || au.username));
-  return St.usuarios.find(u => _nrm(u.n) === n) || St.usuarios.find(u => em && _nrm(u.correo) === em) || (FL.verComo ? usuarioSintetico(FL.verComo) : null);
-}
-export function rolActual() {
-  if (!FL.verComo && esAdminReal()) return 'Administra';
-  const u = usuarioActual(); if (!u) return 'Invitado';                       // desconocido ⇒ solo lectura
-  return PERM_ROLES.includes(u.rol) ? u.rol : 'Colaborador';
-}
+/* Todo lo que sigue SOLO LEE lo que entregó el servidor (PERM.ctx = apih_contexto; PERM.edit = puede_editar por fila). No decide nada. */
+const ctx = () => PERM.ctx || {};
+export function rolActual() { return ctx().appRol || 'Invitado'; }
 export const areasDe = a => String(Array.isArray(a) ? a.join(',') : a || '').split(',').map(x => x.trim()).filter(Boolean);
-export const areasPropias = () => { const u = usuarioActual(); return u ? areasDe(u.area) : []; };
-function puedeVerTodo() { const r = rolActual(), u = usuarioActual(); return r === 'Administra' || r === 'Responsable' || !!(u && (u.veTodo === true || u.veTodo === 'TRUE')) || (!FL.verComo && esAdminReal()); }
-export const areaVisible = a => puedeVerTodo() || areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x));
-function puedeEditarArea(a) { const r = rolActual(); if (r === 'Administra') return true; if (r === 'Invitado') return false; return areasDe(a).includes('Transversal') || areasDe(a).some(x => areasPropias().includes(x)); }
-export const puedeEditarIni = i => !!i && puedeEditarArea(i.area);
-export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && rolActual() === 'Administra';
-export const puedeGobernar = () => ['Administra', 'Responsable'].includes(rolActual());   // comités: agenda, acuerdos
-export const soloLectura = () => !!St.cfg.readOnly || rolActual() === 'Invitado';
-export const areasPermitidas = () => puedeVerTodo() ? St.cfg.areas : St.cfg.areas.filter(a => a === 'Transversal' || areasPropias().includes(a));
+export const areasPropias = () => ctx().areas || [];
+const puedeVerTodo = () => !!ctx().veTodo;
+export const areaVisible = a => puedeVerTodo() || !areasDe(a).length || areasDe(a).some(x => (ctx().areasVisibles || []).includes(x));   // solo afina listas ya filtradas por el servidor
+function puedeEditarArea(a) { if (ctx().editaTodo) return true; const l = ctx().areasEditables || [], v = areasDe(a); return !v.length || v.some(x => l.includes(x)); }   // alta de algo que aún no existe en el servidor
+export const puedeEditarIni = i => !!i && (PERM.edit.has(i.id) ? PERM.edit.get(i.id) : puedeEditarArea(i.area));
+export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && !!ctx().puedeVerAnalisis;
+export const puedeGobernar = () => !!ctx().gobierna;   // comités: agenda, acuerdos
+export const soloLectura = () => !PERM.ctx || !!ctx().soloLectura;
+export const areasPermitidas = () => ctx().areasVisibles || [];
 export const NO_PERM = (m) => toast(m || 'No tienes permiso para esta acción', 'err');
 
-/* área de la entidad a la que apunta una acción (d.id / d.ini / d.c …) */
-function areaDeAccion(d, el) {
-  const id = d.id || (el && el.dataset && el.dataset.id) || d.ini || d.c; if (!id) return null;
-  const i = byId(id); if (i) return i.area;
-  const h = St.hitos.find(x => x.id === id); if (h) return (byId(h.ini) || {}).area || null;
-  const r = St.riesgos.find(x => x.id === id); if (r) return (byId(r.ini) || {}).area || null;
-  const de = St.decisiones.find(x => x.id === id); if (de) return de.area || (byId(de.ini) || {}).area || null;
-  return null;
-}
+/* Compuertas de interfaz: solo evitan viajes inútiles; la decisión final siempre es del servidor (RLS y comandos). */
 const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spsync', 'splogout', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
 const CHG_ADMIN = ['cfg', 'spc', 'impfile', 'impinifile'];
 const ACT_EDIT = ['carmar', 'advance', 'etapa', 'etapago', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota', 'avauto', 'fasefix', 'fasefechas'];
@@ -956,11 +783,12 @@ function guardar(tabla, nombres, fn) {
   nombres.forEach(n => { const o = tabla[n]; if (!o) return; tabla[n] = function (d, el, e) { const m = fn(n, d || {}, el); if (m) return NO_PERM(m); return o.apply(this, arguments); }; });
 }
 const RO_MSG = 'Solo lectura: no puedes editar aquí (puedes ver y comentar)';
+const MSG_COM = 'No tienes permiso para gestionar comités';
 const chequeo = (n, d, el, esCom) => {
-  if (soloLectura()) return RO_MSG;   // U-04: un solo mensaje para Invitado y modo solo lectura
-  if (esCom) return puedeGobernar() ? '' : 'La gestión de comités es del rol Administra o Responsable';
-  if (n === 'edit' && d.t === 'com') return puedeGobernar() ? '' : 'La gestión de comités es del rol Administra o Responsable';
-  const a = areaDeAccion(d, el); if (a && !puedeEditarArea(a)) return 'Sin permiso: la iniciativa es del área ' + areasDe(a).join(', ') + ' y tu rol edita solo ' + (areasPropias().join(', ') || 'ninguna área');
+  if (soloLectura()) return RO_MSG;   // un solo mensaje para Invitado, modo solo lectura y «Ver como»
+  if (esCom || (n === 'edit' && d.t === 'com')) return puedeGobernar() ? '' : MSG_COM;
+  const id = d.id || (el && el.dataset && el.dataset.id) || d.ini || d.c;
+  if (id && PERM.edit.has(id) && !PERM.edit.get(id)) return 'Sin permiso: este elemento es de un área que tu perfil no edita (' + (areasPropias().join(', ') || 'ninguna') + ')';
   return '';
 };
 guardar(Acts, ACT_ADMIN, () => esAdmin() ? '' : 'Acción exclusiva del administrador');
@@ -973,28 +801,29 @@ guardar(Acts, ['new'], (n, d) => d.t === 'com' ? chequeo(n, d, null, true) : (so
 guardar(Acts, ['newevt', 'bitadd'], (n, d) => soloLectura() ? chequeo(n, d, null) : '');
 guardar(Acts, ['go'], (n, d) => d.v === 'analisis' && !puedeVerAnalisis() ? 'La sección Análisis es exclusiva del rol Administra' : '');
 
-/* formularios: se valida el área al GUARDAR (cubre iniciativas, hitos, riesgos, decisiones, eventos…) */
+/* formularios: la validación real ocurre en el servidor al guardar; aquí solo se corta el caso evidente */
 const _openForm0 = openForm;
 ENLACES.openForm = function (o) {
   const os = o && o.onSave, od = o && o.onDanger;
-  if (od) o.onDanger = function () {   // N-U-01: eliminar (subfase, etc.) también exige permiso del área
-    if (soloLectura()) { NO_PERM(chequeo('form', {}, null)); return; }
-    const ini = byId(o.iniId || (o.values || {}).ini), a = ini && ini.area;
-    if (a && !puedeEditarArea(a)) { NO_PERM('Sin permiso para eliminar en el área ' + areasDe(a).join(', ')); return; }
+  if (od) o.onDanger = function () {
+    if (soloLectura()) { NO_PERM(RO_MSG); return; }
+    const ini = byId(o.iniId || (o.values || {}).ini);
+    if (ini && !puedeEditarIni(ini)) { NO_PERM('Sin permiso para eliminar en el área ' + areasDe(ini.area).join(', ')); return; }
     return od.apply(this, arguments);
   };
   if (os) o.onSave = function (out) {
-    if (soloLectura()) { NO_PERM(chequeo('form', {}, null)); return false; }
+    if (soloLectura()) { NO_PERM(RO_MSG); return false; }
     const v = o.values || {}, ini = byId(out && out.ini || v.ini || o.iniId);
     const a = (out && out.areaArr && out.areaArr.length ? out.areaArr : out && out.area) || (ini && ini.area) || v.area;
-    if (a && !puedeEditarArea(a)) { NO_PERM('Sin permiso para guardar en el área ' + areasDe(a).join(', ') + ' (tu rol edita solo ' + (areasPropias().join(', ') || 'ninguna área') + ')'); return false; }
+    const ok = out && out.areaArr || !ini || ini.area !== a ? puedeEditarArea(a) : puedeEditarIni(ini);
+    if (a && !ok) { NO_PERM('Sin permiso para guardar en el área ' + areasDe(a).join(', ') + ' (tu perfil edita ' + (areasPropias().join(', ') || 'ninguna área') + ')'); return false; }
     return os.apply(this, arguments);
   };
   return _openForm0(o);
 };
 
 /* ver: navegación y filtros respetan el alcance de visibilidad */
-function guardAcceso() { if (UI.view === 'analisis' && !puedeVerAnalisis()) UI.view = 'dashboard'; if (UI.view === 'cielo' && St.cfg.cieloOn === false) UI.view = 'dashboard'; if (!puedeVerTodo() && St.cfg.areaGlobal !== 'Todas' && !areasPropias().includes(St.cfg.areaGlobal)) St.cfg.areaGlobal = 'Todas'; }
+function guardAcceso() { if (UI.view === 'analisis' && !puedeVerAnalisis()) UI.view = 'dashboard'; if (UI.view === 'cielo' && St.cfg.cieloOn === false) UI.view = 'dashboard'; if (St.cfg.areaGlobal !== 'Todas' && !areasPermitidas().includes(St.cfg.areaGlobal)) St.cfg.areaGlobal = 'Todas'; }
 
 /* matriz de permisos (se muestra en Personas) */
 function matrizPermisosHTML() {
@@ -1024,7 +853,6 @@ Object.defineProperties(ENLACES, {
   PERS_KEYS: { get: () => PERS_KEYS, enumerable: true, configurable: true },
   PRES_MIO: { get: () => PRES_MIO, set: v => { PRES_MIO = v; }, enumerable: true, configurable: true },
   STAR_SVG: { get: () => STAR_SVG, enumerable: true, configurable: true },
-  _alertCache: { get: () => _alertCache, set: v => { _alertCache = v; }, enumerable: true, configurable: true },
   ampliable: { get: () => ampliable, enumerable: true, configurable: true },
   areaVisible: { get: () => areaVisible, enumerable: true, configurable: true },
   areasPermitidas: { get: () => areasPermitidas, enumerable: true, configurable: true },
@@ -1036,28 +864,25 @@ Object.defineProperties(ENLACES, {
   chkInsignias: { get: () => chkInsignias, enumerable: true, configurable: true },
   cieloOn: { get: () => cieloOn, enumerable: true, configurable: true },
   cocFit: { get: () => cocFit, set: v => { cocFit = v; }, enumerable: true, configurable: true },
-  congelarBase: { get: () => congelarBase, enumerable: true, configurable: true },
   controlHTML: { get: () => controlHTML, enumerable: true, configurable: true },
-  decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
   decMaxDias: { get: () => decMaxDias, enumerable: true, configurable: true },
   esAdministra: { get: () => esAdministra, enumerable: true, configurable: true },
-  escalarSync: { get: () => escalarSync, enumerable: true, configurable: true },
   estrellasOn: { get: () => estrellasOn, enumerable: true, configurable: true },
   filtrosHTML: { get: () => filtrosHTML, enumerable: true, configurable: true },
   guardAcceso: { get: () => guardAcceso, enumerable: true, configurable: true },
   guardAdmin: { get: () => guardAdmin, enumerable: true, configurable: true },
   hoyW: { get: () => hoyW, enumerable: true, configurable: true },
+  decEscalada: { get: () => decEscalada, enumerable: true, configurable: true },
   insightsFor: { get: () => insightsFor, enumerable: true, configurable: true },
   insignias: { get: () => insignias, set: v => { insignias = v; }, enumerable: true, configurable: true },
   menuRolCard: { get: () => menuRolCard, enumerable: true, configurable: true },
-  michelinSync: { get: () => michelinSync, enumerable: true, configurable: true },
+  mantenerSrv: { get: () => mantenerSrv, enumerable: true, configurable: true },
   modoUI: { get: () => modoUI, enumerable: true, configurable: true },
   motorAlertas: { get: () => motorAlertas, enumerable: true, configurable: true },
   msN: { get: () => msN, enumerable: true, configurable: true },
   proyActivos: { get: () => proyActivos, enumerable: true, configurable: true },
   puedeEditarIni: { get: () => puedeEditarIni, enumerable: true, configurable: true },
   puedeVerAnalisis: { get: () => puedeVerAnalisis, enumerable: true, configurable: true },
-  riesgoSinMit: { get: () => riesgoSinMit, enumerable: true, configurable: true },
   rolActual: { get: () => rolActual, set: v => { rolActual = v; }, enumerable: true, configurable: true },
   simplify: { get: () => simplify, enumerable: true, configurable: true },
   soloLectura: { get: () => soloLectura, enumerable: true, configurable: true },

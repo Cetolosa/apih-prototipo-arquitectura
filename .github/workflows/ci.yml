@@ -12,7 +12,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y postgresql   # backend de pruebas: Postgres real con las migraciones del repositorio
       - run: npm ci
+      - run: node tools/guardia-reglas.js && node tools/lint-terminos.js && node tools/verificar-modulos.js
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
 

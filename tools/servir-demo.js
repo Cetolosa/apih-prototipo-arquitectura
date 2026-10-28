@@ -22,8 +22,9 @@ for (const ns of [${mods.map((f, i) => 'm' + i).join(', ')}]) for (const k of Ob
 window.__puenteListo = true;
 `;
 }
-function servir() {
+function servir(backend) {   // backend (opcional): tools/backend-pruebas.js; atiende /rest/v1, /auth/v1 y /__pruebas en el mismo origen que la SPA
   return new Promise(ok => { const s = http.createServer((q, r) => {
+    if (backend && backend.maneja(q)) return backend.manejar(q, r);
     const pu = decodeURIComponent(q.url.split('?')[0]);
     if (pu === '/demo/puente-pruebas.js') { r.writeHead(200, { 'Content-Type': 'text/javascript' }); return r.end(puente()); }
     if (pu === '/demo/index.html') { const h = fs.readFileSync(path.join(raiz, 'index.html'), 'utf8').replace('</body>', '<script type="module" src="puente-pruebas.js"></script>\n</body>'); r.writeHead(200, { 'Content-Type': TIPOS['.html'] }); return r.end(h); }

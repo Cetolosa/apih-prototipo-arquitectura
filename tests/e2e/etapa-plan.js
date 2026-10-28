@@ -10,9 +10,10 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     const H = hoy(), d = n => addD(H, n), F = (a, b, c, e, f, g, h, k) => ({ 'Planificación': { ini: d(a), fin: d(b) }, 'Ejecución': { ini: d(c), fin: d(e) }, 'Transición': { ini: d(f), fin: d(g) }, 'Cierre': { ini: d(h), fin: d(k) } });
     ['EP-1', 'EP-2'].forEach(id => { mk(id, { fasesFechas: F(-40, -26, -25, 30, 31, 45, 46, 60), inicioPlan: d(-40), finPlan: d(60), subfases: [{ id: id + '-SF1', nombre: 'S1', fase: 'Ejecución', inicio: d(-25), fin: d(-5) }] }); });
     ['EP-1', 'EP-2'].forEach(id => { for (let k = 0; k < 2; k++) St.hitos.push({ id: id + '-H' + k, ini: id, nombre: 'h', fase: 'Planificación', fecha: d(-30), completado: true, fechaReal: d(-30) }); });
-    render(); });
+    save(); render(); });
+  await p.evaluate(async () => { await DataService.flush(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
   const r = {}, ev = (f, a) => p.evaluate(f, a);
-  const rango = id => ev(i => { const x = byId(i), f = x.fasesFechas, H = hoy(), n = s => diffD(s, H); return Object.keys(f).map(k => n(f[k].ini) + '>' + n(f[k].fin)).join(' ') + ' | ' + n(x.inicioPlan) + '>' + n(x.finPlan) + ' | ' + subfasesDe(x).map(s => n(s.inicio) + '>' + n(s.fin)).join(','); }, id);
+  const rango = id => ev(i => { const x = byId(i), f = x.fasesFechas, H = hoy(), n = s => diffD(s, H); return fasesDe(x).map(k => n(f[k].ini) + '>' + n(f[k].fin)).join(' ') + ' | ' + n(x.inicioPlan) + '>' + n(x.finPlan) + ' | ' + subfasesDe(x).map(s => n(s.inicio) + '>' + n(s.fin)).join(','); }, id);
   // 1) con «Reprogramar» (marcado por defecto)
   await ev(() => Acts.etapa({ id: 'EP-1' })); await p.waitForTimeout(250);
   await p.selectOption('#et_acc', 'f:Ejecución'); await p.waitForTimeout(100);

@@ -1,7 +1,8 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, ACUERDOS, BIT_C, BIT_TIPOS, DECS, DEC_C, DEC_ICON, DEC_TIPOS, DIAS, ESTADOS, ESTADOS_PRJ, ESTADOS_PROP, FASES, FASES_ACT, FASES_PIPE, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, MES3, MESES, PLAN_TIPOS, PRIOS, RAGS, RAG_C, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _nrm, addD, atrasado, avatar, avg, by, byId, clone, critScore, desv, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtBig, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, gates, gatesAprobar, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, iniHead, isActive, isDone, isLive, kpis, log, miUsuario, monKeys, monMain, monOf, nameOf, nivelRiesgo, pD, pad, pct, pctMon, personProjects, planSeg, planTipo, porTipo, quarter, rel, respItem, respSel, restTxt, riesgoAbierto, riesgosCriticos, riesgosDe, roiTxt, save, scope, scopeAll, scopeP, scopeTT, sum, sumM, tipoLbl, tipoPF, toISO, uid, uniq } from './01-nucleo.js';
+import { $, $$, ACUERDOS, BIT_C, BIT_TIPOS, DECS, DEC_C, DEC_ICON, DEC_TIPOS, DIAS, ESTADOS, ESTADOS_PRJ, ESTADOS_PROP, FASES, FASES_ACT, FASES_PIPE, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, MES3, MESES, PLAN_TIPOS, PRIOS, RAGS, RAG_C, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _nrm, addD, atrasado, avatar, avg, by, byId, clone, critScore, desv, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtBig, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, iniHead, isActive, isDone, isLive, kpis, log, miUsuario, monKeys, monMain, monOf, nameOf, nivelRiesgo, pD, pad, pct, pctMon, personProjects, planSeg, planTipo, porTipo, quarter, rel, respItem, respSel, restTxt, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, roiTxt, save, scope, scopeAll, scopeP, scopeTT, sum, sumM, tipoLbl, tipoPF, toISO, uid, uniq } from './01-nucleo.js';
 import { Acts, Chg, F, Modal, UI, Views, avFase, avFaseTip, btn, kv, confirmBox, copyText, decForm, download, empty, estPill, estTag, fasePill, go, hbars, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prioPill, prog, ragPill, refresh, render, selOpts, selectEntity, stackBar, syncPop, tipoPill, toCSV, toast } from './03-interfaz.js';
-import { diasEnFase, myWork, nextHito, priorScore, semFase } from './04-flujos.js';
+import { cmdServidor, diasEnFase, myWork, nextHito, priorScore, semFase } from './04-flujos.js';
+import { avanceCalc, avanceEf, avanceManualDe, ventanasSrv } from './01-nucleo.js';
 /* ======================= DASHBOARD ======================= */
 Views.dashboard = {
   render() {
@@ -43,7 +44,7 @@ Views.dashboard = {
         <div class="legend-row">${ESTADOS_PROP.map(e => `<span>${estPill(e)} <b>${scopeP().filter(i => i.estado === e).length}</b></span>`).join('')}</div></section>
       <section class="card dc dsal"><header><h2 title="altura = avance · +Nd = atraso">Salud del portfolio</h2><small>altura = avance · +Nd = atraso</small></header>${ragMosaic(live)}</section>
       <section class="card dc dcf"><header><h2>Top riesgos</h2><button class="lnk" data-act="go" data-v="riesgos">Matriz →</button></header>
-        ${risks.map(r => { const n = nivelRiesgo(expo(r)); return `<button class="row" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span class="r-m"><b>${esc(r.desc)}</b><small>${esc(nameOf(r.ini))} · ${esc(r.dueno || 'sin dueño')}</small></span><span class="pill soft">${r.estado}</span></button>`; }).join('') || empty('Sin riesgos', 'shield')}${risks.length ? `<button class="dfoot" data-act="go" data-v="riesgos">Ver los ${RIESGOS().filter(riesgoAbierto).length} riesgos →</button>` : ''}</section>
+        ${risks.map(r => { const n = nivelRiesgo(r); return `<button class="row" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span class="r-m"><b>${esc(r.desc)}</b><small>${esc(nameOf(r.ini))} · ${esc(r.dueno || 'sin dueño')}</small></span><span class="pill soft">${r.estado}</span></button>`; }).join('') || empty('Sin riesgos', 'shield')}${risks.length ? `<button class="dfoot" data-act="go" data-v="riesgos">Ver los ${RIESGOS().filter(riesgoAbierto).length} riesgos →</button>` : ''}</section>
       <section class="card dc s2 dcf"><header><h2>Top proyectos críticos</h2><button class="lnk" data-act="go" data-v="portfolio">Portfolio →</button></header>
         <table class="mini"><thead><tr><th>Proyecto</th><th>RAG</th><th>Avance</th><th>Desv.</th><th>Riesgos</th><th>Líder</th></tr></thead><tbody>${crit.map(i => `<tr data-act="sel" data-t="ini" data-id="${i.id}"><td><b>${esc(i.titulo)}</b><small>${i.fase}</small></td><td>${ragPill(i.rag)}</td><td class="n">${pct(i.avance)}${prog(i.avance, i.rag, 4)}</td><td class="n ${desv(i) > St.cfg.tolDesv ? 'neg' : ''}">${desv(i) ? '+' + desv(i) + ' d' : '—'}</td><td class="n">${riesgosDe(i.id).filter(riesgoAbierto).length}</td><td>${avatar(i.lider, 22)}</td></tr>`).join('')}</tbody></table>${crit.length ? (() => { const c = { r: 0, a: 0, v: 0 }; crit.forEach(i => { if (i.rag === 'Rojo') c.r++; else if (i.rag === 'Ámbar') c.a++; else c.v++; }); return `<div class="mx-dist"><div class="bar"><i style="flex:${c.r};background:#D13438"></i><i style="flex:${c.a};background:#F2A100"></i><i style="flex:${c.v};background:#107C10"></i></div><div class="mx-lg"><span><b>${c.r}</b> rojo</span><span><b>${c.a}</b> ámbar</span><span><b>${c.v}</b> verde</span><span style="margin-left:auto">de los ${crit.length} más críticos</span></div></div>`; })() : ''}${crit.length ? `<button class="dfoot" data-act="go" data-v="portfolio">Ver los ${live.length} proyectos →</button>` : ''}</section>
       <section class="card dc tabsc t-${UI.dtab || 'hitos'}"><header><div class="tabs-h" role="tablist"><button role="tab" aria-selected="${(UI.dtab || 'hitos') === 'hitos'}" data-act="dtab" data-k="hitos">Hitos${hv ? ` <i class="bd">${hv}</i>` : ''}</button><button role="tab" aria-selected="${UI.dtab === 'dec'}" data-act="dtab" data-k="dec">Decisiones <i class="bd">${dp.length}</i></button><button role="tab" aria-selected="${UI.dtab === 'work'}" data-act="dtab" data-k="work">Mi trabajo <i class="bd">${work.length}</i></button></div></header>
@@ -215,7 +216,7 @@ Views.propuestas = {
     const allP = scopeP(); let rows = allP.filter(isLive);
     if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(i => (i.titulo + i.lider + i.sponsor).toLowerCase().includes(q)); }
     const total = { n: rows.length, p: sumM(rows, i => i.presupuesto), b: sumM(rows, i => i.beneficio), esp: rows.filter(i => i.estado === 'En espera').length };
-    const card = i => { const nx = FASES_PROP[FASES_PROP.indexOf(i.fase) + 1], g = i.fase === 'Aprobación' ? gatesAprobar(i) : gates(i, nx), ok = g.filter(x => x.ok).length, sf = semFase(i);
+    const card = i => { const nx = FASES_PROP[FASES_PROP.indexOf(i.fase) + 1], g = compuertas(i), ok = g.filter(x => x.ok).length, sf = semFase(i);
       return `<article tabindex="0" role="button" class="icard prop ${UI.sel && UI.sel.id === i.id ? 'sel' : ''}" draggable="true" data-id="${i.id}" data-act="sel" data-t="ini"><div class="ic-t"><span class="mono">${i.id}</span>${i.estado === 'En espera' ? estPill('En espera') : ''}<span class="pill" style="--c:${sf.c}" title="Días en la fase actual">${sf.d} d</span></div><h3>${esc(i.titulo)}</h3>
       <div class="ic-sc"><span title="Índice de priorización"><b>${i.score ? priorScore(i) : '—'}</b><small>score</small></span><span class="sbar">${prog(ok / Math.max(1, g.length) * 100, ok === g.length ? 'Verde' : 'Ámbar', 5)}<small>${ok}/${g.length} ${i.fase === 'Aprobación' ? 'para aprobar' : 'compuertas'}</small></span></div>
       <div class="ic-f"><span class="pp">${avatar(i.sponsor || i.lider, 20)}<small>${esc((i.sponsor || i.lider).split(' ')[0])}</small></span>${prioPill(i.prioridad)}<small class="mut">${fmtMon(i.presupuesto, monOf(i))}</small></div></article>`; };
@@ -286,15 +287,11 @@ const fzOn = c => c === '#F2A100' ? '#201F1E' : '#fff';                  // text
 export const fasesFechasDe = i => (i && i.fasesFechas && typeof i.fasesFechas === 'object' && !Array.isArray(i.fasesFechas) ? i.fasesFechas : {});
 const fechaFase = x => !!(x && typeof x.ini === 'string' && typeof x.fin === 'string' && x.ini && x.fin && x.fin >= x.ini);
 export function fasesVentana(i) {
-  const FS = fasesDe(i), hs = hitosDe(i.id), FF = fasesFechasDe(i); let prev = null;
+  const FS = fasesDe(i), hs = hitosDe(i.id), FF = fasesFechasDe(i), SV = ventanasSrv(i);
   return FS.map((f, k) => {
-    const h = hs.filter(x => x.fase === f).sort(by('fecha'));
-    let ini = k === 0 ? (i.inicioPlan || (esProp(i) && i.creada) || (h[0] && h[0].fecha) || null) : (prev ? addD(prev, 1) : ((h[0] && h[0].fecha) || null));
-    let fin = h.length ? h[h.length - 1].fecha : (k === FS.length - 1 ? (i.finPlan || ini) : ini);
-    if (ini && fin && fin < ini) fin = ini; if (!ini) ini = fin;
-    if (fechaFase(FF[f])) { ini = FF[f].ini; fin = FF[f].fin; }   /* V23: la fecha explícita de la fase manda sobre la derivada de los hitos */
-    if (fin) prev = fin;
-    return { fase: f, k, ini, fin, explicita: fechaFase(FF[f]), hitos: h, subs: subfasesDe(i).filter(s => s.fase === f).sort(by('inicio')), done: h.filter(x => x.completado).length, color: FASE_COLOR[f] || '#605E5C', actual: i.fase === f, pasada: FS.indexOf(i.fase) > k };
+    const h = hs.filter(x => x.fase === f).sort(by('fecha')), s = SV.find(x => x.fase === f), e = fechaFase(FF[f]);   /* las fechas de cada fase las calcula el servidor; sin respuesta aún se muestran las guardadas */
+    return { fase: f, k, ini: s ? s.ini : (e ? FF[f].ini : null), fin: s ? s.fin : (e ? FF[f].fin : null), explicita: s ? !!s.explicita : e, hitos: h, subs: subfasesDe(i).filter(x => x.fase === f).sort(by('inicio')), done: h.filter(x => x.completado).length,
+      avance: s ? s.avance : (FS.indexOf(i.fase) > k ? 100 : 0), unidades: s ? !!s.unidades : false, color: FASE_COLOR[f] || '#605E5C', actual: i.fase === f, pasada: FS.indexOf(i.fase) > k };
   });
 }
 const fzRiesgosFase = (i, v) => riesgosDe(i.id).filter(r => riesgoAbierto(r) && r.fRev && v.ini && v.fin && r.fRev >= v.ini && r.fRev <= v.fin);
@@ -306,7 +303,7 @@ function fzEscala(d0, d1In, W) { const d1 = diffD(d1In, d0) > 3650 ? addD(d0, 36
 }
 const fzGrid = (E, head) => E.ticks.map(t => `<i class="fz-wk" style="left:${t.x}px">${head ? esc(t.t) : ''}</i>`).join('') + (hoy() >= E.d0 && hoy() <= E.d1 ? `<i class="fz-hoy" style="left:${E.x(hoy())}px"></i>` : '');
 const fzHito = (E, h) => { const e = hitoEstado(h); return `<i class="fz-h ${h.completado ? 'done' : e.k === 'over' ? 'over' : ''}" style="left:${E.x(h.fecha) - 6}px" title="${esc(h.nombre + ' · ' + fzd(h.fecha) + ' · ' + e.t + (h.resp ? ' · ' + h.resp : ''))}"></i>`; };
-const fzRsk = (E, r) => { const n = nivelRiesgo(expo(r)); return `<i class="fz-r" style="left:${E.x(r.fRev) - 6}px;--c:${n.c}" title="${esc(r.desc + ' · ' + n.n + ' (' + expo(r) + ') · revisión ' + fzd(r.fRev))}"></i>`; };
+const fzRsk = (E, r) => { const n = nivelRiesgo(r); return `<i class="fz-r" style="left:${E.x(r.fRev) - 6}px;--c:${n.c}" title="${esc(r.desc + ' · ' + n.n + ' (' + expo(r) + ') · revisión ' + fzd(r.fRev))}"></i>`; };
 
 /* ======================= V22.55 · Subfases por proyecto (ADR-012) =======================
    Una subfase pertenece a UNA fase obligatoria del proyecto. Nace con el inicio y fin de esa fase (los hereda si se dejan vacíos)
@@ -315,98 +312,11 @@ export const subfasesDe = i => (i && Array.isArray(i.subfases) ? i.subfases : []
 export const ventanaDe = (i, f) => fasesVentana(i).find(v => v.fase === f) || null;
 export const rangoTx = (a, b) => fzd(a) + ' → ' + fzd(b);
 
-/* ======================= V23 · Avance calculado (una sola fuente) =======================
-   Avance de una fase = promedio de sus unidades: cada subfase (hitos cerrados / hitos de la subfase) y cada hito suelto (0 ó 1).
-   Una fase sin unidades vale 100 % si ya quedó atrás y 0 % si es la actual o una futura.
-   Avance total = promedio de las fases ponderado por sus días (si TODAS tienen fechas explícitas; si no, peso igual).
-   i.avanceManual (0-100) es un ajuste explícito: manda sobre el calculado, pero las compuertas SIEMPRE leen el calculado. */
-export function avanceFaseCalc(i, f) {
-  const hs = hitosDe(i.id).filter(h => h.fase === f), subs = subfasesDe(i).filter(s => s.fase === f), ids = new Set(subs.map(s => s.id)), u = [];
-  subs.forEach(s => { const x = hs.filter(h => h.subfase === s.id); u.push(x.length ? x.filter(h => h.completado).length / x.length : 0); });
-  hs.filter(h => !ids.has(h.subfase)).forEach(h => u.push(h.completado ? 1 : 0));
-  return u.length ? u.reduce((a, b) => a + b, 0) / u.length : null;
-}
-export function avanceCalc(i) {
-  if (!i || esProp(i)) return 0;
-  const FS = fasesDe(i), idx = FS.indexOf(i.fase), FF = fasesFechasDe(i), pesar = FS.every(f => fechaFase(FF[f]));
-  let w = 0, s = 0;
-  FS.forEach((f, k) => { const peso = pesar ? Math.max(1, diffD(FF[f].fin, FF[f].ini) + 1) : 1; let p = avanceFaseCalc(i, f); if (p == null) p = k < idx ? 1 : 0; w += peso; s += peso * p; });
-  return w ? Math.round(s / w * 100) : 0;
-}
-export const avanceManualDe = i => { const m = i && i.avanceManual; return m === null || m === undefined || m === '' || !isFinite(+m) ? null : Math.max(0, Math.min(100, Math.round(+m))); };
-export const avanceEf = i => { const m = avanceManualDe(i); return m != null ? m : avanceCalc(i); };
-/* Deja i.avance (lo que ven listas, KPIs y reportes) igual al avance efectivo. Un proyecto anterior a V23 conserva su número como ajuste manual (no se pisa). */
-export function sincAvance(i) {
-  if (!i || esProp(i)) return;
-  const c = avanceCalc(i);
-  if (i.avanceCalc === undefined && avanceManualDe(i) == null && Math.round(+i.avance || 0) > 0 && Math.round(+i.avance) !== c) i.avanceManual = Math.round(+i.avance);
-  if (i.estado === 'Completado') { i.avance = 100; i.avanceCalc = c; return; }
-  const ef = avanceManualDe(i) != null ? avanceManualDe(i) : c;
-  if (Math.round(+i.avance || 0) !== ef || !(i.hist || []).length) { i.hist = i.hist || []; const h = i.hist[i.hist.length - 1]; if (h && h[0] === hoy()) h[1] = ef; else i.hist.push([hoy(), ef]); }
-  i.avance = ef; i.avanceCalc = c;
-}
-
+/* ======================= Avance (V23) =======================
+   El servidor calcula el avance (hitos y subfases por fase, ponderado por días) y lo guarda en cada escritura; la app solo lo lee (js/01-nucleo.js). */
 /* ======================= V23 · Fechas de fase explícitas =======================
    El proyecto guarda inicio y fin de CADA fase (i.fasesFechas). inicioPlan y finPlan del proyecto son el rango de esas fases:
    nadie los escribe por separado. Los hitos y las subfases viven dentro de su fase (los que quedan fuera se marcan como alerta). */
-const PESO_FASES = [15, 55, 15, 15];   // porcentajes enteros: así el redondeo es idéntico en la base de datos   // reparto inicial de un rango entre las 4 fases del proyecto (editable después)
-const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
-export function distribuirFases(i, ini, fin) {
-  const FS = fasesDe(i); if (!FECHA_ISO.test(ini || '') || !FECHA_ISO.test(fin || '') || fin < ini) return null;
-  const T = diffD(fin, ini) + 1, est4 = FS.length === PESO_FASES.length, out = {}; let c = ini;
-  FS.forEach((f, k) => { const last = k === FS.length - 1, d = last ? T - diffD(c, ini) : Math.max(1, Math.round(est4 ? T * PESO_FASES[k] / 100 : T / FS.length)), e = last ? fin : addD(c, d - 1); out[f] = { ini: c, fin: e < c ? c : e }; c = addD(out[f].fin, 1); });
-  return out;
-}
-export const rangoFases = FF => { const v = Object.values(FF || {}).filter(fechaFase); return v.length ? { ini: v.reduce((a, x) => x.ini < a ? x.ini : a, v[0].ini), fin: v.reduce((a, x) => x.fin > a ? x.fin : a, v[0].fin) } : null; };
-/* Valida el conjunto de fechas por fase. Devuelve '' si es válido o el motivo. */
-export function validarFasesFechas(i, FF) {
-  const FS = fasesDe(i); let prev = null;
-  for (const f of FS) {
-    const x = FF[f]; if (!x || !FECHA_ISO.test(x.ini || '') || !FECHA_ISO.test(x.fin || '')) return 'La fase ' + f + ' necesita inicio y fin';
-    if (x.fin < x.ini) return 'En ' + f + ' el fin no puede ser anterior al inicio';
-    if (prev && x.ini <= prev.fin) return 'La fase ' + f + ' debe empezar después de que termine ' + prev.f + ' (' + fzd(prev.fin) + ')';
-    prev = { f, fin: x.fin };
-  }
-  for (const s of subfasesDe(i)) { const w = FF[s.fase]; if (w && (s.inicio < w.ini || s.fin > w.fin)) return 'La subfase «' + s.nombre + '» quedaría fuera de ' + s.fase + ' (' + rangoTx(w.ini, w.fin) + '): ajústala primero'; }
-  return '';
-}
-/* Fija las fechas de fase, deriva inicioPlan/finPlan y recalcula el avance. Devuelve el motivo si no se puede. */
-export function aplicarFasesFechas(i, FF) {
-  const e = validarFasesFechas(i, FF); if (e) return e;
-  const limpio = {}; fasesDe(i).forEach(f => { limpio[f] = { ini: FF[f].ini, fin: FF[f].fin }; });
-  i.fasesFechas = limpio; const r = rangoFases(limpio); i.inicioPlan = r.ini; i.finPlan = r.fin; sincAvance(i); return '';
-}
-/* Convierte en explícitas las fechas que hoy se derivan de los hitos (proyectos anteriores a V23). null si no hay de dónde sacarlas. */
-export function fasesMaterializadas(i) {
-  const V = fasesVentana(i), FF = {}; let ok = true; V.forEach(v => { if (v.ini && v.fin) FF[v.fase] = { ini: v.ini, fin: v.fin }; else ok = false; });
-  if (!ok) { const d = distribuirFases(i, i.inicioPlan, i.finPlan); return d; }
-  let prev = null; V.forEach(v => { if (prev && FF[v.fase].ini <= prev) FF[v.fase].ini = addD(prev, 1); if (FF[v.fase].fin < FF[v.fase].ini) FF[v.fase].fin = FF[v.fase].ini; prev = FF[v.fase].fin; });
-  return FF;
-}
-/* Único camino para cambiar el rango plan (alta, importaciones, cambio aprobado): reparte o reescala las fases y deriva inicioPlan/finPlan. */
-export function setRangoPlan(i, ini, fin) {
-  if (esProp(i)) { i.inicioPlan = ini || null; i.finPlan = fin || null; return ''; }
-  if (!FECHA_ISO.test(ini || '') || !FECHA_ISO.test(fin || '') || fin < ini) { i.inicioPlan = ini || null; i.finPlan = fin || null; return ''; }
-  const FS = fasesDe(i), cur = FS.every(f => fechaFase(fasesFechasDe(i)[f])) ? fasesFechasDe(i) : null, r0 = cur && rangoFases(cur);
-  let FF;
-  if (cur && r0 && diffD(r0.fin, r0.ini) > 0) {
-    const span0 = diffD(r0.fin, r0.ini), span1 = diffD(fin, ini), m = d => addD(ini, Math.round(diffD(d, r0.ini) * span1 / span0)); FF = {}; let prev = null;
-    FS.forEach(f => { let a = m(cur[f].ini), b = m(cur[f].fin); if (prev && a <= prev) a = addD(prev, 1); if (b < a) b = a; FF[f] = { ini: a, fin: b }; prev = b; });
-    FF[FS[0]].ini = ini; FF[FS[FS.length - 1]].fin = fin < FF[FS[FS.length - 1]].ini ? FF[FS[FS.length - 1]].ini : fin;
-  } else FF = distribuirFases(i, ini, fin);
-  if (!FF) return 'No se pudo repartir el rango entre las fases';
-  subfasesDe(i).forEach(s => { const w = FF[s.fase]; if (!w) return; if (s.inicio < w.ini || s.fin > w.fin) { s.inicio = s.inicio < w.ini ? w.ini : s.inicio > w.fin ? w.ini : s.inicio; s.fin = s.fin > w.fin ? w.fin : s.fin < s.inicio ? s.inicio : s.fin; if (s.fin < s.inicio) { s.inicio = w.ini; s.fin = w.fin; } } });
-  i.fasesFechas = FF; const r = rangoFases(FF); i.inicioPlan = r.ini; i.finPlan = r.fin; sincAvance(i); return '';
-}
-/* Un cambio aprobado de fecha fin mueve el fin de la ÚLTIMA fase (las anteriores no se tocan); si queda antes de su inicio, se reescala todo. */
-export function moverFinPlan(i, fin) {
-  if (esProp(i)) { i.finPlan = fin; return ''; }
-  const FS = fasesDe(i), FF = fasesFechasDe(i), l = FS[FS.length - 1];
-  if (FS.every(f => fechaFase(FF[f])) && fin >= FF[l].ini) { const n = {}; FS.forEach(f => { n[f] = { ini: FF[f].ini, fin: FF[f].fin }; }); n[l].fin = fin; return aplicarFasesFechas(i, n); }
-  return setRangoPlan(i, i.inicioPlan, fin);
-}
-/* Tras cualquier cambio: los proyectos que ya usan el avance calculado y que el usuario puede editar se mantienen al día (hitos, subfases, fechas). */
-export function reconciliarAvance() { St.ini.forEach(i => { if (!esProp(i) && !isDone(i) && (0, ENLACES.puedeEditarIni)(i) && (i.avanceCalc === undefined || avanceCalc(i) !== i.avanceCalc)) sincAvance(i);   /* incluye proyectos anteriores a V23: su % pasa a ajuste manual y todas las vistas coinciden */ }); }
 /* hitos de la fase cuya fecha cae fuera de ella (alerta, no bloqueo) */
 export const hitosFuera = (i, v) => (v && v.ini && v.fin ? v.hitos.filter(h => h.fecha && (h.fecha < v.ini || h.fecha > v.fin)) : []);
 const subFuera = (s, v) => !v || !v.ini || !v.fin || s.inicio < v.ini || s.fin > v.fin;
@@ -444,7 +354,7 @@ export function senalesIni(i) {
   const out = [], H = hoy(), um = +(0, ENLACES.cfgI)(i, 'umbralCritico') || 15, hs = hitosDe(i.id), ven = hs.filter(h => !h.completado && h.fecha && h.fecha < H).sort(by('fecha'));
   const dv = desv(i); if (dv > 0) out.push({ bad: true, t: 'Atrasado ' + dv + ' d.', d: 'Termina el ' + fmtD(forecast(i)) + '; el plan decía ' + fmtD(i.finPlan) + '.' });
   if (ven.length) out.push({ bad: true, t: ven.length + (ven.length === 1 ? ' hito vencido:' : ' hitos vencidos:'), d: ven.slice(0, 2).map(h => h.nombre + ' (' + diffD(H, h.fecha) + ' d)').join(', ') + (ven.length > 2 ? ' y ' + (ven.length - 2) + ' más.' : '.') });
-  const rk = riesgosDe(i.id).filter(r => riesgoAbierto(r) && expo(r) >= um && !String(r.mit || '').trim());
+  const rk = riesgosDe(i.id).filter(r => riesgoCritico(r) && !String(r.mit || '').trim());
   if (rk.length) out.push({ bad: true, t: rk.length + (rk.length === 1 ? ' riesgo crítico sin mitigación:' : ' riesgos críticos sin mitigación:'), d: String(rk[0].desc || rk[0].id).slice(0, 60) + (rk.length > 1 ? ' y ' + (rk.length - 1) + ' más.' : '.') });
   const pres = +i.presupuesto || 0, gas = i.gastado == null || i.gastado === '' ? null : +i.gastado;
   if (pres > 0 && gas != null && isFinite(gas)) { const gp = Math.round(gas / pres * 100), av = Math.round(+i.avance || 0); out.push(gp > av + 10 ? { bad: true, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' } : { bad: false, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' }); }
@@ -568,7 +478,7 @@ Views.fases = {
     const lista = v.hitos.length || v.subs.length ? sfAgrupa(v, h => { const e = hitoEstado(h); return `<div class="fz-li"><span class="fz-ck" style="border-color:${e.c};background:${h.completado ? e.c : 'transparent'}">${h.completado ? '✓' : ''}</span><span style="flex:1 1 auto">${esc(h.nombre)}</span><span class="fz-pill" style="color:${fzTx(e.c)};border:1px solid ${e.c}">${esc(e.t)}</span><small class="mut">${esc(h.resp || '')}</small><b style="width:46px;text-align:right">${fzd(h.fecha)}</b></div>`; }) : '<p class="mut" style="padding:12px 16px">Sin hitos en esta fase.</p>';
     const FS = fasesDe(i), nx = FS[FS.indexOf(i.fase) + 1];
     let gate = '<p class="mut">Última fase: no hay compuerta siguiente.</p>';
-    if (nx) { const g = gates(i, nx), okN = g.filter(x => x.ok).length; gate = `<div class="mut" style="font-size:12px;margin-bottom:8px">${okN} de ${g.length} condiciones cumplidas</div>${g.map(x => `<div class="fz-g"><b style="color:${x.ok ? 'var(--green)' : 'var(--red)'}">${x.ok ? '✓' : '✕'}</b><span>${esc(x.t)}</span></div>`).join('') || '<p class="mut">Sin condiciones para esta fase.</p>'}<span class="edit-only">${btn('Avanzar a ' + nx, 'advance', { d: { id: i.id }, cls: okN === g.length ? 'pri' : '' })}</span>`; }
+    if (nx) { const g = compuertas(i), okN = g.filter(x => x.ok).length; gate = `<div class="mut" style="font-size:12px;margin-bottom:8px">${okN} de ${g.length} condiciones cumplidas</div>${g.map(x => `<div class="fz-g"><b style="color:${x.ok ? 'var(--green)' : 'var(--red)'}">${x.ok ? '✓' : '✕'}</b><span>${esc(x.t)}</span></div>`).join('') || '<p class="mut">Sin condiciones para esta fase.</p>'}<span class="edit-only">${btn('Avanzar a ' + nx, 'advance', { d: { id: i.id }, cls: okN === g.length ? 'pri' : '' })}</span>`; }
     return steps + `<div class="fz-2"><div class="fz-card" style="flex:999 1 560px;min-width:0"><div class="fz-ch"><h3>Hitos de ${esc(v.fase)}</h3><small class="mut">${fzd(v.ini)} → ${fzd(v.fin)}</small></div><div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px">${v.subs.map(s => sfChip(i, v, s)).join('')}${sfAddBtn(i, v.fase)}</div>${lista}</div>
       <div class="fz-card" style="flex:1 1 320px;min-width:0;padding:14px 16px"><h3 style="margin:0 0 4px">Compuerta${nx ? ' hacia ' + esc(nx) : ''}</h3>${gate}</div></div>`;
   },
@@ -577,7 +487,7 @@ Views.fases = {
     return `<div class="fz-cols" style="--n:${V.length}">${V.map(v => { const rk = fzRiesgosFase(i, v).sort(by(r => -expo(r)));
       return `<div class="fz-col"><div class="fz-colh" style="background:${v.color}"><b>${esc(v.fase)}${v.actual ? ' · actual' : ''}</b><small>${fzd(v.ini)} → ${fzd(v.fin)} · ${v.done}/${v.hitos.length} hitos</small></div><div class="fz-colb">
         ${sfAgrupa(v, h => { const e = hitoEstado(h); return `<div class="fz-it"><div>${esc(h.nombre)}</div><div class="fz-itm"><span class="fz-pill" style="color:${fzTx(e.c)};border:1px solid ${e.c}">${esc(e.t)}</span><small class="mut">${fzd(h.fecha)}</small></div></div>`; }) || '<p class="mut">Sin hitos.</p>'}${sfAddBtn(i, v.fase)}
-        ${rk.length ? `<div class="fz-rt">Riesgos que se revisan en esta fase</div>${rk.map(r => { const n = nivelRiesgo(expo(r)); return `<div class="fz-it fz-ri"><span class="fz-exp" style="background:${n.c};color:${fzOn(n.c)}">${expo(r)}</span><span style="flex:1 1 auto">${esc(r.desc)}</span><small class="mut">${fzd(r.fRev)}</small></div>`; }).join('')}` : ''}</div></div>`; }).join('')}</div>`;
+        ${rk.length ? `<div class="fz-rt">Riesgos que se revisan en esta fase</div>${rk.map(r => { const n = nivelRiesgo(r); return `<div class="fz-it fz-ri"><span class="fz-exp" style="background:${n.c};color:${fzOn(n.c)}">${expo(r)}</span><span style="flex:1 1 auto">${esc(r.desc)}</span><small class="mut">${fzd(r.fRev)}</small></div>`; }).join('')}` : ''}</div></div>`; }).join('')}</div>`;
   },
   riesgos(i) {
     const V = fasesVentana(i), rk = riesgosDe(i.id).filter(riesgoAbierto).sort(by(r => -expo(r)));
@@ -586,7 +496,7 @@ Views.fases = {
     const E = fzEscala(addD(ds[0], -2), addD(ds[ds.length - 1], 2), Math.max(900, Math.min(2000, (diffD(ds[ds.length - 1], ds[0]) + 5) * 16)));
     const fase = d => (V.find(v => d && v.ini && v.fin && d >= v.ini && d <= v.fin) || {}).fase || '—';
     const fb = V.filter(v => v.ini && v.fin).map(v => `<i class="fz-fb" style="left:${E.x(v.ini)}px;width:${Math.max(3, E.x(addD(v.fin, 1)) - E.x(v.ini))}px;background:${v.color}">${esc(v.fase)}</i>`).join('');
-    const rows = rk.map(r => { const n = nivelRiesgo(expo(r)), a = r.fIdent || i.inicioPlan, b = r.fRev || a, venc = r.fRev && r.fRev < hoy();
+    const rows = rk.map(r => { const n = nivelRiesgo(r), a = r.fIdent || i.inicioPlan, b = r.fRev || a, venc = r.fRev && r.fRev < hoy();
       return `<div class="fz-row"><div class="fz-lab"><span class="fz-exp" style="background:${n.c};color:${fzOn(n.c)}">${expo(r)}</span><span style="min-width:0;flex:1 1 auto"><a class="lnk fz-1l" data-act="sel" data-t="risk" data-id="${r.id}" title="${esc(r.desc)}">${esc(r.desc)}</a><small class="fz-sm">${n.n} · ${esc(r.dueno || '—')} · revisa ${fzd(r.fRev)}${venc ? ' <b style="color:var(--red)">vencida</b>' : ''} · ${esc(fase(r.fRev))}</small></span></div>
         <div class="fz-trk" style="width:${E.W}px;height:46px">${fzGrid(E)}<i class="fz-bar" style="left:${E.x(a)}px;width:${Math.max(4, E.x(addD(b, 1)) - E.x(a))}px;top:17px;height:12px;border-radius:6px;background:${n.c};opacity:.85"></i></div></div>`; }).join('');
     return `<p class="mut" style="margin:0 0 10px">Cada barra va desde la identificación del riesgo hasta su fecha de revisión; arriba, la ventana de cada fase.</p><div class="fz-box" data-keep="fzr"><div style="min-width:${320 + E.W}px">
@@ -626,7 +536,7 @@ export function pasosDe(i) {
   hs.filter(h => h.fecha > H && diffD(h.fecha, H) <= 7).slice(0, 3).forEach(h => add('hs' + h.id, 1, 'Hito', 'Prepara «' + h.nombre + '» (' + fzd(h.fecha) + ')', 'Vence en ' + diffD(h.fecha, H) + ' d' + (h.resp ? ' · ' + h.resp : '') + '.', 'Hitos', 'Ver hito', 'sel', { t: 'hito', id: h.id }, h.fecha, hitoDescDe(i, h)));
   if (FASES_ACT.includes(i.fase) && isLive(i)) { const st = (0, ENLACES.starsOf)(i, (0, ENLACES.hoyW)()), dia = st.find(x => x.k === 'dia'); if (dia && dia.s === 'off') add('dia', pD(H).getDay() >= 5 || pD(H).getDay() === 0 ? 0 : 1, 'Tenedor «Al día»', 'Registra la actualización semanal', dia.tip || 'Sin actualización esta semana: el tenedor «Al día» está apagado.', 'Al día', 'Actualizar', 'wk', { id: i.id }); }
   riesgosDe(i.id).filter(riesgoAbierto).forEach(r => {
-    const n = nivelRiesgo(expo(r)), crit = expo(r) >= (0, ENLACES.cfgI)(i, 'umbralCritico');
+    const n = nivelRiesgo(r), crit = riesgoCritico(r);
     if (crit && !String(r.mit || '').trim()) add('rm' + r.id, 0, 'Riesgo crítico', 'Define la mitigación de «' + r.desc + '»', 'Crítico (' + expo(r) + ') sin plan de mitigación: el indicador de Riesgos queda en rojo y se bloquean compuertas.', 'Riesgos', 'Editar riesgo', 'edit', { t: 'risk', id: r.id });
     else if (r.fRev && r.fRev < H) add('rv' + r.id, 0, 'Riesgo', 'Revisa el riesgo «' + r.desc + '»', 'La revisión venció el ' + fzd(r.fRev) + '. Mientras no se revise, el indicador de Riesgos queda en rojo.', 'Riesgos', 'Editar riesgo', 'edit', { t: 'risk', id: r.id }, r.fRev);
     else if (r.fRev && diffD(r.fRev, H) <= 7) add('rs' + r.id, r.fRev === H ? 0 : 1, 'Riesgo ' + n.n.toLowerCase(), 'Prepara la revisión de «' + r.desc + '» (' + fzd(r.fRev) + ')', n.n + ' (' + expo(r) + ')' + (r.mit ? '. Mitigación: ' + (0, ENLACES.cut)(r.mit, 90) : '.'), 'Riesgos', 'Abrir riesgo', 'sel', { t: 'risk', id: r.id }, r.fRev);
@@ -634,7 +544,7 @@ export function pasosDe(i) {
   ACUERDOS().filter(c => c.ini === i.id && !['Cumplido', 'Cancelado'].includes(c.estado) && c.limite && diffD(c.limite, H) <= 7).forEach(c => add('c' + c.id, c.limite <= H ? 0 : 1, 'Compromiso', (c.limite < H ? 'Cumple el compromiso vencido «' : 'Cumple «') + (0, ENLACES.cut)(c.texto || c.titulo || 'compromiso', 70) + '»', (c.limite < H ? 'Venció el ' : 'Vence el ') + fzd(c.limite) + (c.resp ? ' · ' + c.resp : '') + '.', 'Compromisos', 'Ver compromisos', 'go', { v: 'compromisos' }, c.limite));
   const FS = fasesDe(i), nx = FS[FS.indexOf(i.fase) + 1];
   if (nx) {
-    const g = gates(i, nx), falta = g.filter(x => !x.ok), V = fasesVentana(i), v = V.find(x => x.actual), cerca = v && v.fin && diffD(v.fin, H) <= 7;
+    const g = compuertas(i), falta = g.filter(x => !x.ok), V = fasesVentana(i), v = V.find(x => x.actual), cerca = v && v.fin && diffD(v.fin, H) <= 7;
     if (!falta.length) add('adv', 0, 'Compuerta', 'Avanza a ' + nx, 'Se cumplen todas las condiciones de la compuerta.', 'Compuerta', 'Avanzar', 'advance', { id: i.id }, H, faseDescDe(i, i.fase));
     else falta.filter(x => !/^Hitos de la fase/.test(x.t)).forEach((x, k) => add('g' + k, cerca ? 1 : 2, 'Compuerta', 'Para pasar a ' + nx + ': ' + x.t.charAt(0).toLowerCase() + x.t.slice(1), 'Condición pendiente de la compuerta' + (v && v.fin ? '; la fase ' + i.fase + ' cierra el ' + fzd(v.fin) : '') + '.', 'Compuerta', esProp(i) ? 'Editar propuesta' : 'Editar proyecto', 'edit', { t: 'ini', id: i.id }, H, faseDescDe(i, i.fase)));
   }
@@ -675,11 +585,11 @@ Acts.tareaedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PE
 Acts.tareahecha = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const L = (semOf().t || []).map(x => x.id === d.id ? Object.assign({}, x, { hecha: hoy() }) : x); if (semSet({ t: L })) { toast('Pendiente hecho'); refresh(); } };
 /* Pestaña «Planificación» de la ficha: fases, cronograma, próximos 14 días y siguientes pasos */
 /* avance de una fase para mostrar: la calculada; una fase ya superada sin unidades vale 100 % */
-const pctFase = (i, v) => { const p = avanceFaseCalc(i, v.fase); return Math.round((p == null ? (v.pasada ? 1 : 0) : p) * 100); };
+const pctFase = (i, v) => v.avance;
 /* Tarjeta «Ciclo de vida»: lo que antes estaba repartido entre Fase, Estado, Avance y fechas, en un solo lugar */
 function cicloCard(i, V) {
-  const PR = esProp(i), fin = isDone(i), c = avanceCalc(i), m = avanceManualDe(i), ef = m != null ? m : c, fx = V.reduce((n, v) => n + hitosFuera(i, v).length, 0), expl = V.every(v => v.explicita);
-  const F_ = fasesDe(i), idx = F_.indexOf(i.fase), nx = F_[idx + 1], g = fin ? [] : (nx ? gates(i, nx) : PR ? gatesAprobar(i) : gates(i, 'Cierre')), okN = g.filter(x => x.ok).length;
+  const PR = esProp(i), fin = isDone(i), c = avanceCalc(i), m = avanceManualDe(i), ef = avanceEf(i), fx = V.reduce((n, v) => n + hitosFuera(i, v).length, 0), expl = V.every(v => v.explicita);
+  const F_ = fasesDe(i), idx = F_.indexOf(i.fase), nx = F_[idx + 1], g = fin ? [] : compuertas(i), okN = g.filter(x => x.ok).length;
   const kvs = [
     kv('Fase', faseTag(i)), kv('Estado', estPill(i.estado) + (i.estadoMotivo ? ` <small class="mut">${esc(i.estadoMotivo)}${i.estadoRev ? ' · revisión ' + fmtD(i.estadoRev) : ''}</small>` : '')),
     ...(PR ? [] : [kv('Avance', `<b>${ef}%</b> <small class="mut">${m != null ? 'ajustado a mano · calculado ' + c + '%' : 'calculado con hitos y subfases'}</small>${m != null ? ` <a class="lnk edit-only" data-act="avauto" data-id="${i.id}">Usar el calculado</a>` : ''}`)]),
@@ -702,8 +612,8 @@ export function planFichaHTML(i) {
       <div class="fz-card" style="padding:12px 14px"><h3 style="margin:0 0 6px">Próximos 14 días</h3>${prox.length ? prox.map(p => `<div class="fz-li" style="padding:7px 0"><b style="width:44px">${fzd(p.f)}</b><span class="fz-pill" style="color:${p.c};border:1px solid ${p.c}">${p.k}</span><span>${esc(p.t)}</span></div>`).join('') : '<p class="mut">Nada programado en los próximos 14 días.</p>'}</div></div>
     <div class="fz-card" style="flex:1 1 340px;min-width:0;padding:12px 14px"><div class="fz-ch" style="padding:0 0 4px;border:0"><h3>Siguientes pasos</h3><small class="mut">${P.length} sugerido${P.length === 1 ? '' : 's'}</small></div><p class="mut" style="font-size:12px;margin:0 0 10px">Calculados con las reglas de APIH: hitos, compuerta de fase, riesgos, compromisos y tenedores.</p>${P.length ? P.map(p => pasoHTML(p)).join('') : '<p class="mut">Sin pasos pendientes. ¡Todo al día!</p>'}</div></div>`;
 }
-Acts.avauto = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); i.avanceManual = null; sincAvance(i); i.actualizada = hoy(); log('Actualización', i.id, 'Avance: se usa el calculado (' + i.avance + '%)'); toast('Avance calculado: ' + i.avance + '%'); refresh(); };
-Acts.fasefix = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); const FF = fasesMaterializadas(i); if (!FF) return toast('Define el inicio y el fin plan (o al menos un hito) para fijar las fases', 'err'); const e = aplicarFasesFechas(i, FF); if (e) return toast(e, 'err'); i.actualizada = hoy(); log('Cambio', i.id, 'Fechas de las fases fijadas: ' + fasesDe(i).map(f => f + ' ' + rangoTx(i.fasesFechas[f].ini, i.fasesFechas[f].fin)).join(' · ')); toast('Fechas de las fases fijadas'); refresh(); };
+Acts.avauto = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); i.avanceManual = null; i.actualizada = hoy(); log('Actualización', i.id, 'Avance: se usa el calculado'); toast('Avance: se usa el calculado'); refresh(); };
+Acts.fasefix = async d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); const r = await cmdServidor('apih_fases_fechas', { p_id: i.id, p_ff: null }, 'Fechas de las fases fijadas'); if (r !== null) refresh(); };
 Acts.fasefechas = d => {
   const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto');
   const V = fasesVentana(i), v = {}, fields = [];
@@ -712,8 +622,7 @@ Acts.fasefechas = d => {
     extra: '<p class="mut" style="font-size:12px;margin:10px 0 0">Cada fase empieza después de que termina la anterior. El inicio plan y el fin plan del proyecto son el inicio de la primera y el fin de la última. Las subfases deben quedar dentro de su fase; los hitos fuera de su fase se marcan como alerta.</p>',
     onSave(o) {
       const FF = {}; V.forEach(x => { FF[x.fase] = { ini: o['i' + x.k], fin: o['f' + x.k] }; });
-      const e = aplicarFasesFechas(i, FF); if (e) { toast(e, 'err'); return false; }
-      i.actualizada = hoy(); log('Cambio', i.id, 'Fechas de las fases: ' + V.map(x => x.fase + ' ' + rangoTx(FF[x.fase].ini, FF[x.fase].fin)).join(' · ') + ' (plan ' + fmtD(i.inicioPlan) + ' → ' + fmtD(i.finPlan) + ')'); toast('Fechas guardadas'); refresh();
+      return cmdServidor('apih_fases_fechas', { p_id: i.id, p_ff: FF }, 'Fechas guardadas', true).then(r => { if (r === null) return false; refresh(); return true; });
     } });
 };
 Acts.fzir = d => { const f = F('fases', {}); f.tab = 'linea'; f.id = d.id; UI.view = 'fases'; render(); };
@@ -794,11 +703,11 @@ Views.riesgos = {
     if (f.hideClosed) rows = rows.filter(riesgoAbierto);
     if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(r => (r.desc + r.id + nameOf(r.ini) + r.dueno).toLowerCase().includes(q)); }
     if (f.ini) rows = rows.filter(r => r.ini === f.ini); if (f.estado) rows = rows.filter(r => r.estado === f.estado); if (f.cat) rows = rows.filter(r => r.cat === f.cat); if (f.dueno) rows = rows.filter(r => r.dueno === f.dueno);
-    if (f.nivel) rows = rows.filter(r => nivelRiesgo(expo(r)).n === f.nivel);
+    if (f.nivel) rows = rows.filter(r => nivelRiesgo(r).n === f.nivel);
     if (f.cell) { const [p, i] = f.cell.split(',').map(Number); rows = rows.filter(r => r.prob === p && r.imp === i); }
     rows.sort(by(r => -expo(r)));
     const cnt = (p, i) => open.filter(r => r.prob === p && r.imp === i);
-    const lv = n => open.filter(r => nivelRiesgo(expo(r)).n === n).length;
+    const lv = n => open.filter(r => nivelRiesgo(r).n === n).length;
     const heat = `<div class="heat" role="grid" aria-label="Matriz de riesgos 5 por 5"><div class="h-yl">Impacto</div><div class="h-body">${[5, 4, 3, 2, 1].map(im => `<div class="h-row"><span class="h-ax">${im}</span>${[1, 2, 3, 4, 5].map(p => { const c = cnt(p, im), e = p * im; return `<button class="h-c ${f.cell === p + ',' + im ? 'on' : ''}" style="background:${heatColor(e)}" data-act="hcell" data-c="${p},${im}" title="P${p} × I${im} = ${e} · ${c.length} riesgo(s)${c.length ? ': ' + esc(c.map(r => r.desc).join(' | ')) : ''}"><small>${e}</small>${c.length ? `<b>${c.length}</b>` : ''}</button>`; }).join('')}</div>`).join('')}<div class="h-row h-x"><span class="h-ax"></span>${[1, 2, 3, 4, 5].map(p => `<span class="h-ax">${p}</span>`).join('')}</div><div class="h-xl">Probabilidad</div></div></div>`;
     const byIni = Object.entries(open.reduce((m, r) => (m[r.ini] = (m[r.ini] || 0) + expo(r), m), {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([id, v]) => ({ l: nameOf(id), v, c: v >= 20 ? '#D13438' : '#F08A4B' }));
     return pageHead('Riesgos', 'Registro independiente con matriz 5×5. Exposición = probabilidad × impacto.', `<span class="edit-only">${btn('Nuevo riesgo', 'new', { d: { t: 'risk' }, ic: 'plus', cls: 'pri' })}</span>${btn('Exportar CSV', 'riskcsv', { ic: 'down' })}`) + `
@@ -814,7 +723,7 @@ Views.riesgos = {
       <select data-chg="flt" data-v="risk" data-f="nivel">${selOpts(['Crítico', 'Alto', 'Medio', 'Bajo'], f.nivel, 'Todos los niveles')}</select><select data-chg="flt" data-v="risk" data-f="dueno">${selOpts(uniq(St.riesgos.map(r => r.dueno).filter(Boolean)).sort(), f.dueno, 'Todos los dueños')}</select>
       <label class="chk tb-c"><input type="checkbox" ${f.hideClosed ? 'checked' : ''} data-chg="flt" data-v="risk" data-f="hideClosed" data-bool="1"> <span>Ocultar cerrados</span></label></div>
     <div class="tbl-w"><table class="tbl"><thead><tr><th>ID</th><th>Proyecto</th><th style="min-width:220px">Descripción</th><th class="n" title="Impacto">Imp.</th><th class="n" title="Probabilidad">Prob.</th><th class="n" title="Exposición">Exp.</th><th style="min-width:200px">Mitigación</th><th>Dueño</th><th>Estado</th></tr></thead><tbody>
-    ${rows.map(r => { const n = nivelRiesgo(expo(r)); return `<tr data-act="sel" data-t="risk" data-id="${r.id}" class="${UI.sel && UI.sel.id === r.id ? 'sel' : ''}"><td class="mono">${r.id}</td><td>${esc(nameOf(r.ini))}</td><td><b>${esc(r.desc)}</b><small>${esc(r.cat)}</small></td><td class="n">${r.imp}</td><td class="n">${r.prob}</td><td class="n"><span class="expo" style="background:${n.c}" title="${n.n}">${expo(r)}</span></td><td class="mit">${esc(r.mit || '—')}</td><td>${esc(r.dueno || '—')}</td><td><span class="pill soft">${r.estado}</span></td></tr>`; }).join('') || `<tr><td colspan="9">${empty('Sin riesgos con estos filtros', 'shield')}</td></tr>`}</tbody></table></div>`;
+    ${rows.map(r => { const n = nivelRiesgo(r); return `<tr data-act="sel" data-t="risk" data-id="${r.id}" class="${UI.sel && UI.sel.id === r.id ? 'sel' : ''}"><td class="mono">${r.id}</td><td>${esc(nameOf(r.ini))}</td><td><b>${esc(r.desc)}</b><small>${esc(r.cat)}</small></td><td class="n">${r.imp}</td><td class="n">${r.prob}</td><td class="n"><span class="expo" style="background:${n.c}" title="${n.n}">${expo(r)}</span></td><td class="mit">${esc(r.mit || '—')}</td><td>${esc(r.dueno || '—')}</td><td><span class="pill soft">${r.estado}</span></td></tr>`; }).join('') || `<tr><td colspan="9">${empty('Sin riesgos con estos filtros', 'shield')}</td></tr>`}</tbody></table></div>`;
   }
 };
 Acts.hcell = d => { const f = F('risk', {}); f.cell = f.cell === d.c ? '' : d.c; render(); };
@@ -1059,18 +968,10 @@ Object.defineProperties(ENLACES, {
   DESC_MAX: { get: () => DESC_MAX, enumerable: true, configurable: true },
   avanceCalc: { get: () => avanceCalc, enumerable: true, configurable: true },
   avanceEf: { get: () => avanceEf, enumerable: true, configurable: true },
-  avanceFaseCalc: { get: () => avanceFaseCalc, enumerable: true, configurable: true },
   avanceManualDe: { get: () => avanceManualDe, enumerable: true, configurable: true },
   fasesFechasDe: { get: () => fasesFechasDe, enumerable: true, configurable: true },
   fasesVentana: { get: () => fasesVentana, enumerable: true, configurable: true },
-  sincAvance: { get: () => sincAvance, enumerable: true, configurable: true },
-  fasesMaterializadas: { get: () => fasesMaterializadas, enumerable: true, configurable: true },
   hitosFuera: { get: () => hitosFuera, enumerable: true, configurable: true },
-  validarFasesFechas: { get: () => validarFasesFechas, enumerable: true, configurable: true },
-  reconciliarAvance: { get: () => reconciliarAvance, enumerable: true, configurable: true },
-  moverFinPlan: { get: () => moverFinPlan, enumerable: true, configurable: true },
-  setRangoPlan: { get: () => setRangoPlan, enumerable: true, configurable: true },
-  aplicarFasesFechas: { get: () => aplicarFasesFechas, enumerable: true, configurable: true },
   cutDesc: { get: () => cutDesc, enumerable: true, configurable: true },
   faseTag: { get: () => faseTag, enumerable: true, configurable: true },
   pcols: { get: () => pcols, enumerable: true, configurable: true },

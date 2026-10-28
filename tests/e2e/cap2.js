@@ -6,7 +6,7 @@ await p.evaluate(()=>{celebrar=()=>{};UI.uiOv='pro'; St.ini.push({id:'PRJ-002',t
  const mk=(id,t,l,ini,fin,ph)=>{const c=JSON.parse(JSON.stringify(base));Object.assign(c,{id,titulo:t,lider:l,inicioPlan:ini,finPlan:fin,fase:ph||'Ejecución',estado:'En curso'});St.ini.push(c)};
  base.lider='Ana Pérez';base.inicioPlan=addD(hoy(),-30);base.finPlan=addD(hoy(),150);
  mk('PRJ-003','Planificador a Brand','Ana Pérez',hoy(),addD(hoy(),100),'Planificación');mk('PRJ-004','Portal Proveedores','Ana Pérez',addD(hoy(),20),addD(hoy(),130));mk('PRJ-005','ERP','Ana Pérez',addD(hoy(),30),addD(hoy(),60));mk('PRJ-006','Ley 21.719','Ana Pérez',addD(hoy(),-5),addD(hoy(),40),'Transición');mk('PRJ-007','Datos X','Ana Pérez',addD(hoy(),35),addD(hoy(),90));mk('PRJ-008','Infra','Luis Soto',addD(hoy(),-10),addD(hoy(),200));mk('PRJ-009','Apps','Carla Díaz',addD(hoy(),-10),addD(hoy(),50));
- St.cfg.capacidadMax=5;go('capacidad')});await p.waitForTimeout(600);
+ St.cfg.capacidadMax=5;save()});await p.evaluate(async()=>{await DataService.flush();await DataService.refresh(false,true);go('capacidad')});await p.waitForTimeout(600);
 await p.screenshot({path:'cap_a.png'});
 await p.click('.cp-p');await p.waitForTimeout(400);await p.screenshot({path:'cap_b.png'});
 console.log(await p.evaluate(()=>JSON.stringify(capData(6).gente.map(p=>[p.n,p.cap,p.ns]))));

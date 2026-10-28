@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, gates, gatesAprobar, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
+import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, aplicarPlantilla, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
 import { AuthService, DataService, ESQUEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
@@ -208,7 +208,7 @@ function scrollHints() {   /* N-U-09: avisa cuando un tablero se desplaza horizo
 function kbFocusables() { $$('#main [data-act]').forEach(el => { if (el.matches('button,a,input,select,textarea,tr,td,th') || el.tabIndex >= 0 && el.hasAttribute('tabindex')) return; if (!el.matches(KB_ACT_TAGS) || el.dataset.act === 'noop') return; el.setAttribute('tabindex', '0'); if (!el.getAttribute('role')) el.setAttribute('role', 'button'); }); }
 document.addEventListener('keydown', e => { if ((e.key !== 'Enter' && e.key !== ' ') || !e.target || e.target.matches('button,a,input,select,textarea') || !e.target.dataset || !e.target.dataset.act || !e.target.closest('#main')) return; if (e.target.getAttribute('role') !== 'button') return; e.preventDefault(); e.target.click(); });
 export function render() {
-  syncFases(); ppInval(); try { (0, ENLACES.michelinSync)(); } catch (e) { console.error(e); } try { (0, ENLACES.escalarSync)(); } catch (e) { console.error(e); } try { if (typeof ENLACES.chkInsignias === 'function' && !UI.bdPrev) (0, ENLACES.chkInsignias)(); } catch (e) { } (0, ENLACES.guardAdmin)(); (0, ENLACES.guardAcceso)();
+  syncFases(); ppInval(); try { (0, ENLACES.mantenerSrv)(); } catch (e) { console.error(e); } try { if (typeof ENLACES.chkInsignias === 'function' && !UI.bdPrev) (0, ENLACES.chkInsignias)(); } catch (e) { } (0, ENLACES.guardAdmin)(); (0, ENLACES.guardAcceso)();
   const v = Views[UI.view]; if (!v) return;
   const act = document.activeElement, key = act && act.dataset ? act.dataset.key : null, ss = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
   const keep = {}; $$('[data-keep]').forEach(e => keep[e.dataset.keep] = [e.scrollLeft, e.scrollTop]);
@@ -245,7 +245,7 @@ function sanRow(r) { if (!r || typeof r !== 'object' || Array.isArray(r)) return
     else if (k === 'subfases' && Array.isArray(v)) v.forEach(sanRow); });
   return r; }
 export function sanSt(S) { ['ini', 'hitos', 'riesgos', 'decisiones', 'comites', 'compromisos', 'cambios', 'bitacora', 'notas', 'eventos'].forEach(k => { if (Array.isArray(S[k])) S[k].forEach(sanRow); }); return S; }
-export function refresh() { sanSt(St); (0, ENLACES.reconciliarAvance)(); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
+export function refresh() { sanSt(St); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
 
 /* ---------- panel contextual ---------- */
 export function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); if (t === 'ini') requestAnimationFrame(() => { const c = document.querySelector('.icard.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center', inline: 'nearest' }); }); }
@@ -296,7 +296,7 @@ export function panelIni(i) {
   } else if (t === 'hitos') {
     b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo hito', 'new', { d: { t: 'hito', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${hitosDe(i.id).sort(by('fecha')).map(h => { const e = hitoEstado(h); return `<div class="hrow"><input type="checkbox" ${h.completado ? 'checked' : ''} data-chg="hitotoggle" data-id="${h.id}" aria-label="Completado"><div><b class="${h.completado ? 'strike' : ''}">${esc(h.nombre)}</b><small style="color:${e.c}">${fmtD(h.fecha)} · ${e.t}</small></div>${(0, ENLACES.incChk)('hito', h.id)}<button class="icon-btn sm" data-act="edit" data-t="hito" data-id="${h.id}" aria-label="Editar">${icon('edit', 14)}</button></div>`; }).join('') || '<p class="mut">Sin hitos.</p>'}</div>`;
   } else if (t === 'riesgos') {
-    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo riesgo', 'new', { d: { t: 'risk', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${riesgosDe(i.id).sort(by(r => -expo(r))).map(r => { const n = nivelRiesgo(expo(r)); return `<div class="al-w"><button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>${(0, ENLACES.incChk)('rsk', r.id)}</div>`; }).join('') || '<p class="mut">Sin riesgos registrados.</p>'}</div>`;
+    b = `<div class="pn-sec"><div style="margin-bottom:8px">${btn('Nuevo riesgo', 'new', { d: { t: 'risk', ini: i.id }, ic: 'plus', cls: 'sm' })}</div>${riesgosDe(i.id).sort(by(r => -expo(r))).map(r => { const n = nivelRiesgo(r); return `<div class="al-w"><button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>${(0, ENLACES.incChk)('rsk', r.id)}</div>`; }).join('') || '<p class="mut">Sin riesgos registrados.</p>'}</div>`;
   } else if (t === 'actividad') {
     b = `<div class="pn-sec"><div class="composer"><input id="cmt" placeholder="Agregar comentario…" data-key="cmt"><button class="btn pri sm" data-act="comment" data-id="${i.id}">${icon('send', 13)}</button></div>${St.bitacora.filter(x => x.ini === i.id).slice(0, 25).map(x => `<div class="act"><span class="adot" style="background:${BIT_C[x.tipo]}"></span><div style="flex:1"><b>${esc(x.tipo)}</b> <small>${fmtTS(x.ts)} · ${esc(x.autor)}</small><label class="chk inc-l edit-only" title="Incluir esta nota en las presentaciones"><input type="checkbox" data-chg="bitpres" data-id="${esc(x.id)}" ${x.inPres === false ? '' : 'checked'}> <span>En presentación</span></label><p>${esc(x.texto)}</p></div></div>`).join('') || '<p class="mut">Sin actividad.</p>'}</div>`;
   } else if (t === 'alertas') {
@@ -310,7 +310,7 @@ export function panelIni(i) {
     `<div class="tabs sm">${tabs.map(([k, n]) => `<button class="${t === k ? 'on' : ''}" data-act="ptab" data-tab="${k}">${n}</button>`).join('')}</div><div class="pn-b">${b}</div>`;
 }
 export function panelRisk(r) {
-  const n = nivelRiesgo(expo(r)), i = byId(r.ini);
+  const n = nivelRiesgo(r), i = byId(r.ini);
   return pnHead('Riesgo · ' + r.id, esc(r.desc), `<span class="pill" style="--c:${n.c}">${n.n} · ${expo(r)}</span> <span class="pill soft">${r.estado}</span> <span class="pill soft">${esc(r.cat)}</span>`, `<span class="edit-only">${btn('Editar', 'edit', { d: { t: 'risk', id: r.id }, ic: 'edit', cls: 'sm' })}</span>`) +
     `<div class="pn-b"><div class="pn-sec"><div class="kvs">${kv('Iniciativa', iniLink(r.ini))}${kv('Probabilidad', r.prob + ' / 5')}${kv('Impacto', r.imp + ' / 5')}${kv('Exposición', `<span style="color:${n.c}">${expo(r)}</span>`)}${kv('Dueño', esc(r.dueno || '—'))}${kv('Identificado', fmtD(r.fIdent))}${kv('Próxima revisión', fmtD(r.fRev))}</div></div><div class="pn-sec"><h4>Plan de mitigación</h4><p class="desc">${esc(r.mit || 'Sin plan de mitigación definido.')}</p></div></div>`;
 }
@@ -418,7 +418,7 @@ export function syncInfo() {
   if (d.svc) return { c: 'ok', t: 'Guardado', tip: 'Conectado a ' + BK() + (s.last ? ' · último sync ' + s.last.toTimeString().slice(0, 5) : '') + (s.pending ? ' · ' + s.pending + ' pendiente(s)' : '') + (s.msLoad ? ' · carga ' + (s.msLoad / 1000).toFixed(1) + ' s' : '') + (s.msSave ? ' · último guardado ' + (s.msSave / 1000).toFixed(1) + ' s' : '') };
   if (s.state === 'auth') return { c: 'au', t: 'Iniciar sesión', tip: s.msg };
   if (s.state === 'error' || d.offlineWhy) return { c: 'er', t: 'Sin servidor · demo', tip: s.err || d.offlineWhy };
-  return { c: 'de', t: 'Modo demo', tip: 'Datos solo en memoria: se pierden al recargar. Configure la conexión en Administración.' };
+  return { c: 'de', t: 'Sin conexión', tip: 'Sin el servidor no hay datos ni se puede editar. Configure la conexión en Administración.' };
 }
 function updateSyncUI() {
   const i = syncInfo(), c = $('#syncChip'); if (c) { c.className = 'sync ' + i.c; c.innerHTML = '<i></i>' + esc(i.t); c.title = i.tip; }
@@ -433,7 +433,7 @@ Acts.syncgo = () => { F('adm', {}).tab = 'sp'; go('admin'); };
 export function banner() {
   const d = DataService, s = d.st, out = [];
   if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su correo corporativo para cargar los datos.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
-  else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Trabajando en modo demo (memoria): los cambios no se guardan.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
+  else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Sin el servidor la aplicación queda en solo lectura: no hay datos ni cambios locales.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
   if (d.svc && St.empty && !UI.bnOff2) out.push(['info', '<b>Las listas de ' + BK() + ' están vacías.</b> Puede cargar los datos del archivo original o comenzar a registrar propuestas.', btn('Cargar datos del archivo', 'spseed', { cls: 'pri sm' }) + btn('Ocultar', 'bnoff2', { cls: 'sm' })]);
   if (d.svc && s.state === 'error' && s.pending) out.push(['bad', '<b>Cambios sin sincronizar (' + s.pending + ').</b> ' + esc(s.err || ''), btn('Reintentar ahora', 'spretry', { cls: 'sm' })]);
   return out.map(([k, t, a]) => `<div class="banner ${k}">${icon(k === 'info' ? 'db' : 'warn', 16)}<span>${t}</span><div class="chips">${a || ''}</div></div>`).join('');
@@ -452,9 +452,9 @@ Acts.spretry = async () => {
 export function BK() { return 'Supabase'; }
 /* Avance de la fase activa (V23): calculado con sus subfases e hitos; sin unidades en la fase, el avance general. Ya no hay valor manual por fase. */
 export function avFase(i) {
-  const p = (0, ENLACES.avanceFaseCalc)(i, i.fase);
-  if (p != null) return { v: Math.round(p * 100), src: 'hitos' };
-  return { v: Math.round(i.avance || 0), src: 'general' };
+  const w = (0, ENLACES.fasesVentana)(i).find(x => x.actual);
+  if (w && w.unidades) return { v: w.avance, src: 'hitos' };
+  return { v: Math.round((0, ENLACES.avanceEf)(i)), src: 'general' };
 }
 export const avFaseTip = i => avFase(i).src === 'hitos' ? 'Fase ' + i.fase + ': calculado con sus subfases e hitos' : 'Fase ' + i.fase + ': sin hitos en la fase, se usa el avance general';
 Acts.spseed = () => confirmBox('Se crearán en ' + BK() + ' ~' + (seedState().ini.length + seedState().hitos.length + seedState().riesgos.length + seedState().bitacora.length) + ' elementos (datos del archivo original) en las listas APIH_*. ¿Continuar?', async () => {
@@ -712,10 +712,9 @@ Chg.cxfile = async el => {
 Acts.cxapply = () => {
   const R = CX.res; if (!R || (!R.plan.length && !R.hitos.length)) return;
   const go = () => {
-    R.plan.forEach(p => { Object.assign(p.i, p.ch); p.i.actualizada = hoy(); if (p.ch.avance !== undefined && !esProp(p.i)) p.i.avanceManual = p.ch.avance; if ((p.ch.inicioPlan !== undefined || p.ch.finPlan !== undefined) && !esProp(p.i)) (0, ENLACES.setRangoPlan)(p.i, p.i.inicioPlan, p.i.finPlan); });   /* V23: el rango plan reparte/reescala las fases; el avance cargado queda como ajuste manual */
+    R.plan.forEach(p => { Object.assign(p.i, p.ch); p.i.actualizada = hoy(); if (p.ch.avance !== undefined && !esProp(p.i)) p.i.avanceManual = p.ch.avance; });   /* el servidor reparte/reescala las fases según el rango plan; el avance cargado queda como ajuste manual */
     const tocadas = new Set(R.plan.map(p => p.i.id));
     R.hitos.forEach(h => { if (h.nuevo) St.hitos.push({ id: nextId('HIT', St.hitos), ...h.nuevo }); else Object.assign(h.cur, h.ch); const i = byId(h.id); if (i) { i.actualizada = hoy(); tocadas.add(i.id); } });
-    tocadas.forEach(id => { const i = byId(id); if (i) (0, ENLACES.sincAvance)(i); });
     const nN = R.hitos.filter(h => h.nuevo).length;
     log('Cambio', null, `Carga desde Excel (${CX.name}): ${R.plan.length} planificaciones actualizadas, ${nN} hitos nuevos, ${R.hitos.length - nN} hitos actualizados`);
     if (St.bitacora[0]) St.bitacora[0].inPres = false;
@@ -795,12 +794,12 @@ function iniForm(i, isPropArg) {
       if (!PR) { patch.avanceManual = o.avanceManual === '' || o.avanceManual == null ? null : Math.round(+o.avanceManual); delete patch.avance; }   /* V23: el avance se calcula; aquí solo el ajuste manual */
       if (nw) {
         const pre = PR ? 'PROP' : 'PRJ', ids = St.ini.filter(x => x.id.startsWith(pre + '-'));
-        const n = Object.assign({ id: nextId(pre, ids), tipo: T, legacy: '', creada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [[hoy(), patch.avance || 0]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, estado: PR ? 'Vigente' : 'En curso', propuestaOrigen: null, estadoMotivo: '', estadoRev: null, rag: 'Verde', avance: 0, gastado: 0, proyecto: null }, patch, { actualizada: hoy() });
-        St.ini.push(n); if (!PR && n.inicioPlan && n.finPlan) (0, ENLACES.setRangoPlan)(n, n.inicioPlan, n.finPlan); const nh = n.tipoIni ? aplicarPlantilla(n, n.tipoIni, PR ? FASES_PROP : FASES_PRJ, PR ? hoy() : (n.inicioPlan || hoy())) : 0; if (!PR) (0, ENLACES.sincAvance)(n); log('Cambio', n.id, (nh ? '[' + nh + ' hitos precargados del tipo «' + n.tipoIni + '»] ' : '') + (PR ? 'Propuesta creada: ' : 'Proyecto creado directamente: ') + n.titulo + (n.motivoAlta ? ' — ' + n.motivoAlta : '')); toast(T + ' ' + n.id + (PR ? ' creada' : ' creado')); UI.sel = { t: 'ini', id: n.id };
+        const n = Object.assign({ id: nextId(pre, ids), tipo: T, legacy: '', creada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, estado: PR ? 'Vigente' : 'En curso', propuestaOrigen: null, estadoMotivo: '', estadoRev: null, rag: 'Verde', avance: 0, gastado: 0, proyecto: null }, patch, { actualizada: hoy() });
+        St.ini.push(n); const nh = n.tipoIni ? aplicarPlantilla(n, n.tipoIni, PR ? FASES_PROP : FASES_PRJ, PR ? hoy() : (n.inicioPlan || hoy())) : 0; log('Cambio', n.id, (nh ? '[' + nh + ' hitos precargados del tipo «' + n.tipoIni + '»] ' : '') + (PR ? 'Propuesta creada: ' : 'Proyecto creado directamente: ') + n.titulo + (n.motivoAlta ? ' — ' + n.motivoAlta : '')); toast(T + ' ' + n.id + (PR ? ' creada' : ' creado')); UI.sel = { t: 'ini', id: n.id };
       } else {
         const diffs = []; [['rag', 'RAG'], ['prioridad', 'Prioridad'], ['lider', 'Líder'], ['finPlan', PR ? 'Fecha objetivo' : 'Fin plan'], ['finEst', 'Fin estimado'], ['presupuesto', PR ? 'Costo estimado' : 'Presupuesto']].forEach(([k, l]) => { if (k in patch && String(i[k]) !== String(patch[k])) diffs.push(`${l}: ${i[k] ?? '—'} → ${patch[k] ?? '—'}`); });
         if (patch.tipoIni && patch.tipoIni !== i.tipoIni && !hitosDe(i.id).length) { const nh = aplicarPlantilla(i, patch.tipoIni, fasesDe(i), (PR ? hoy() : i.inicioPlan) || hoy()); if (nh) toast(nh + ' hitos precargados del tipo «' + patch.tipoIni + '»'); }
-        const av0 = i.avance; Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i); if (!PR) { (0, ENLACES.sincAvance)(i); if (i.avance !== av0) diffs.push(`Avance: ${av0} → ${i.avance}`); }
+        Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i);
         log(diffs.some(d => d.startsWith('Avance')) ? 'Actualización' : 'Cambio', i.id, diffs.length ? 'Actualizada: ' + diffs.join('; ') : 'Ficha actualizada', null); toast('Cambios guardados');
       }
       refresh();
@@ -823,7 +822,7 @@ Acts.edit = d => {
 /* ---------- RAG / comentarios / hitos ---------- */
 Acts.applyrag = d => { const i = byId(d.id); log('Cambio', i.id, `RAG ${i.rag} → ${d.rag} (sugerido por reglas automáticas)`); i.rag = d.rag; i.actualizada = hoy(); toast('RAG actualizado'); refresh(); };
 Acts.comment = d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; log('Comentario', d.id, t); toast('Comentario agregado'); refresh(); setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
-export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; if ((0, ENLACES.conServidor)()) return (0, ENLACES.hitoEnServidor)(id, !h.completado); h.completado = !h.completado; h.fechaReal = h.completado ? hoy() : null; const i = byId(h.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); if (h.completado) (0, ENLACES.autoCompletar)(i); } log('Actualización', h.ini, (h.completado ? 'Hito completado: ' : 'Hito reabierto: ') + h.nombre); toast(h.completado ? 'Hito completado' : 'Hito reabierto'); refresh(); }
+export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; return (0, ENLACES.hitoEnServidor)(id, !h.completado); }   // completar o reabrir un hito es un comando del servidor (avance y cierre automático en la base)
 Chg.hitotoggle = el => toggleHito(el.dataset.id); Acts.hitotoggle = d => toggleHito(d.id);
 
 /* ---------- Hito ---------- */
@@ -838,8 +837,8 @@ export function hitoForm(h, ini) {
       if (o.subfase) { const sx = (0, ENLACES.subfasesDe)(byId(o.ini)).find(x => x.id === o.subfase); if (!sx) { toast('La subfase elegida no es de esta iniciativa', 'err'); return false; } if (!o.fase) o.fase = sx.fase; if (o.fase !== sx.fase) { toast('La subfase «' + sx.nombre + '» es de ' + sx.fase + ': el hito debe estar en esa fase', 'err'); return false; } if (o.fecha < sx.inicio || o.fecha > sx.fin) toast('Aviso: la fecha del hito queda fuera de la subfase «' + sx.nombre + '» (' + (0, ENLACES.rangoTx)(sx.inicio, sx.fin) + ')', 'warn'); } else delete o.subfase;
       if (!nw && !o.subfase) delete h.subfase;
       if ((o.desc || '').length > ENLACES.DESC_MAX) { toast('La descripción no puede superar ' + ENLACES.DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = (0, ENLACES.cutDesc)(o.desc.trim()); else delete o.desc;
-      if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { const viaRpc = (0, ENLACES.conServidor)() && !!h.completado !== !!o.completado, comp = o.completado; if (viaRpc) { delete o.completado; delete o.fechaReal; } Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); if (viaRpc) (0, ENLACES.hitoEnServidor)(h.id, !!comp); }   /* con servidor, completar/reabrir pasa por el comando (avance y cierre automático en la base) */
-      const i = byId(o.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); if (!(0, ENLACES.conServidor)() && o.completado) (0, ENLACES.autoCompletar)(i); } refresh(); }
+      if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { const viaRpc = !!h.completado !== !!o.completado, comp = o.completado; if (viaRpc) { delete o.completado; delete o.fechaReal; } Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); if (viaRpc) (0, ENLACES.hitoEnServidor)(h.id, !!comp); }   /* con servidor, completar/reabrir pasa por el comando (avance y cierre automático en la base) */
+      const i = byId(o.ini); if (i) { i.actualizada = hoy(); } refresh(); }
   });
   /* N-U-04/05: al cambiar Iniciativa o Fase se recalculan las opciones de Fase y Subfase */
   const fi = $('#f_ini'), ff = $('#f_fase'), fs = $('#f_subfase');
@@ -890,20 +889,7 @@ Acts.resolvedec = d => {
     fields: [{ k: 'estado', l: 'Resultado', t: 'select', opts: ['Aprobada', 'Rechazada', 'Diferida'] }, { k: 'fResol', l: 'Fecha', t: 'date' }, { k: 'resolucion', l: 'Resolución / comentario de cierre', t: 'textarea', w: 3 }, { k: 'aplicar', l: 'Efecto', t: 'check', lbl: 'Aplicar efecto: ' + EFECTO(x.tipo, byId(x.ini)), w: 3 }],
     extra: `<p class="mut" style="margin-top:8px"><b>${esc(x.tipo)}</b> · ${esc(x.titulo)}</p>`,
     onSave(o) {
-      if ((0, ENLACES.conServidor)()) return (0, ENLACES.resolverEnServidor)(x, o);
-      if (o.estado === 'Diferida') { x.limite = addD(x.limite && x.limite > hoy() ? x.limite : hoy(), 14); x.resolucion = o.resolucion; log('Decisión', x.ini, `Decisión diferida: ${x.titulo}`, 'Nueva fecha ' + fmtD(x.limite)); toast('Decisión diferida 14 días'); return refresh(); }
-      x.estado = o.estado; x.resolucion = o.resolucion; x.fResol = o.fResol; x.aplicada = false;
-      const i = byId(x.ini);
-      if (i && isDone(i) && ['Pausar', 'Cancelar'].includes(x.tipo)) toast('El proyecto ya está cerrado: no se aplica el efecto', 'err');
-      if (o.estado === 'Aprobada' && o.aplicar && i) {
-        const mot = o.resolucion || 'Decisión de comité ' + (x.comite || '');
-        if (x.tipo === 'Iniciar' && esProp(i) && i.estado !== 'Aprobada' && !isDone(i)) { const falta = gatesAprobar(i).filter(g => !g.ok).map(g => g.t); if (falta.length) toast('No se crea el proyecto. Falta: ' + falta.join('; '), 'err'); else { i.fase = 'Aprobación'; const n = (0, ENLACES.aprobarPropuesta)(i, mot); toast('Proyecto ' + n.id + ' creado desde ' + i.id); x.aplicada = true; } }   // F-15c
-        else if (x.tipo === 'Acelerar' && !esProp(i)) { i.prioridad = 'Alta'; if (i.estado === 'Pausado') { i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; } x.aplicada = true; }
-        else if (x.tipo === 'Pausar' && !isDone(i)) { i.estado = esProp(i) ? 'En espera' : 'Pausado'; i.estadoMotivo = mot; i.estadoRev = addD(hoy(), 30); x.aplicada = true; }
-        else if (x.tipo === 'Cancelar' && !isDone(i)) { i.estado = esProp(i) ? 'Rechazada' : 'Cancelado'; i.estadoMotivo = mot; i.estadoRev = null; x.aplicada = true; }
-        i.actualizada = hoy();
-      }
-      log('Decisión', x.ini, `${x.tipo} · ${o.estado}: ${x.titulo}` + (o.resolucion ? ' — ' + o.resolucion : ''), x.aplicada ? 'Efecto aplicado' : null); toast('Decisión ' + o.estado.toLowerCase()); refresh();
+      return (0, ENLACES.resolverEnServidor)(x, o);   // la resolución y su efecto son un comando transaccional del servidor
     }
   });
 };

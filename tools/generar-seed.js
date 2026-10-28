@@ -19,7 +19,7 @@ function iniciativa(i, o) {
     avance: o.avance, inicioPlan: ini, finPlan: dia(ini, 7 + n * o.paso + 14), presupuesto: o.presupuesto, logros: 'Logro sintético.', proximos: 'Próximo paso sintético.', hitos, riesgos };
 }
 const out = { formato: 'apih-iniciativas', v: 1, iniciativas: [
-  iniciativa('B', { hitos: 21, dist: [5, 9, 4, 3], inicio: '2026-10-01', paso: 7, completados: 2, riesgos: 9, area: 'AREA-B', fase: 'Planificación', rag: 'Amarillo', prioridad: 'Media', avance: 15, presupuesto: 2500 }),
+  iniciativa('B', { hitos: 21, dist: [5, 9, 4, 3], inicio: '2026-10-01', paso: 7, completados: 2, riesgos: 9, area: 'AREA-B', fase: 'Planificación', rag: 'Ámbar', prioridad: 'Media', avance: 15, presupuesto: 2500 }),
   iniciativa('A', { hitos: 9, dist: [3, 3, 2, 1], inicio: '2026-09-01', paso: 14, completados: 6, riesgos: 2, area: 'AREA-A', fase: 'Transición', rag: 'Verde', prioridad: 'Alta', avance: 70, presupuesto: 1000 })
 ] };
 const destino = path.join(__dirname, '..', 'docs', 'seed', 'iniciativas-sinteticas.json');

@@ -15,6 +15,7 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
       .forEach(([nm, f, d, c, ok]) => St.hitos.push({ id: nextId('HIT', St.hitos), ini: pr.id, nombre: nm, fase: f, fecha: d, completado: !!ok, resp: x.lider, cat: c }));
     St.riesgos.push({ id: nextId('RSK', St.riesgos), ini: pr.id, desc: 'Proveedor sin referencias en minería', cat: 'Proveedor', prob: 3, imp: 4, estado: 'Abierto', dueno: x.lider, fIdent: '2026-10-12', fRev: '2026-10-28', mit: 'Pedir referencias' });
     UI.view = 'gantt'; render(); }, plan);
+  await p.evaluate(async () => { save(); await DataService.flush(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(300);
   await p.waitForTimeout(400);
   const r = {}, n = s => p.$$eval(s, a => a.length);
   // 2) Planificación: Gantt, Roadmap, Fases, Hitos y Riesgos con selector de tipo
@@ -48,7 +49,7 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   await p.evaluate(() => { UI.view = 'proyectos'; F('prj', {}).mode = 'board'; render(); }); await p.waitForTimeout(250);
   await p.screenshot({ path: '/tmp/t/fin-tablero.png' }); r.tableroCols = await p.$$eval('.kcol', a => a.length); r.tableroProp = await p.$$eval('.kcol[data-fase="Evaluación"] .icard', a => a.map(x => x.dataset.id).join(','));
   await p.evaluate(() => { const b = St.ini.find(x => x.id === 'PRO-050'); St.ini.push(Object.assign({}, b, { id: 'PRO-051', titulo: 'Propuesta sin fechas', inicioPlan: null, finPlan: null, creada: '2026-10-01' }));
-    St.hitos.push({ id: nextId('HIT', St.hitos), ini: 'PRO-051', nombre: 'Evaluar', fase: 'Evaluación', fecha: '2026-10-25', completado: false, resp: 'Christian Tolosa' }); selectEntity('ini', 'PRO-051', 'resumen'); }); await p.waitForTimeout(300);
+    St.hitos.push({ id: nextId('HIT', St.hitos), ini: 'PRO-051', nombre: 'Evaluar', fase: 'Evaluación', fecha: '2026-10-25', completado: false, resp: 'Christian Tolosa' }); }); await p.evaluate(async () => { save(); await DataService.flush(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(300); await p.evaluate(() => selectEntity('ini', 'PRO-051', 'resumen')); await p.waitForTimeout(300);
   r.panelTabs = await p.$$eval('#panel [role=tab], #panel .tabs button', a => a.map(x => x.textContent.trim()).join('|'));
   await p.click('button:has-text("Ficha")'); await p.waitForTimeout(400); r.sinFechasPasos = await p.$$eval('.fz-steps .fz-step small', a => a[0] ? a[0].textContent : ''); r.sinFechasGantt = await p.$$eval('.fz-box .fz-row', a => a.length);
   await p.screenshot({ path: '/tmp/t/fin-c.png' });

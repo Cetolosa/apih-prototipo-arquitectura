@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, fasesDe, gates, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgosDe, save } from './01-nucleo.js';
+import { $, fasesDe, compuertas, isDone, rel, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, DEC_C, FL, IC, MESES, MONEDAS, St, _audSt, audParse, audSnap, avatar, by, byId, desv, diasSinUpd, diffD, esAdmin, esProp, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTS, forecast, hitoEstado, hitosDe, hoy, icon, log, miUsuario, monOf, nivelRiesgo, pD, pad, ppInval, riesgoAbierto, riesgoCritico, riesgosDe, save } from './01-nucleo.js';
 import { AuthService, SB, SBLogin } from './02-datos.js';
 import { estPill, pnHead, ragPill, Acts, Chg, F, Modal, NAV, UI, Views, banner, btn, closePops, confirmBox, copyText, fasePill, fitMain, go, navBadge, openForm, panelIni, refresh, render, renderChrome, selOpts, selectEntity, syncPop, toast } from './03-interfaz.js';
 import { faseTag, pasosDe, planFichaHTML, senalesIni, subfasesDe } from './05-vistas.js';
@@ -177,7 +177,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   function secRiesgos(i) {
     const rall = riesgosDe(i.id).sort(by(r => -expo(r))), fr = (UI.fcat || {}).r || '', rs = fr ? rall.filter(r => (r.cat || '—') === fr) : rall;
     if (!rall.length) return [0, V.emptyRich({ ic: 'shield', title: 'Sin riesgos registrados', line: 'Registrar un riesgo a tiempo es más barato que explicarlo después.', p: ['Registrar riesgo', 'new', { t: 'risk', ini: i.id }, 'shield'] })];
-    return [rall.length, catChips('r', rall.map(r => r.cat || '—')) + (rs.map(r => { const n = nivelRiesgo(expo(r)); return `<button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${esc(r.cat || 'Sin categoría')} · ${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>`; }).join('') || '<p class="mut">Sin riesgos en esta categoría.</p>')];
+    return [rall.length, catChips('r', rall.map(r => r.cat || '—')) + (rs.map(r => { const n = nivelRiesgo(r); return `<button class="al" data-act="sel" data-t="risk" data-id="${r.id}"><span class="expo" style="background:${n.c}">${expo(r)}</span><span><b>${esc(r.desc)}</b><small>${esc(r.cat || 'Sin categoría')} · ${r.estado} · ${esc(r.dueno || 'sin dueño')}</small></span></button>`; }).join('') || '<p class="mut">Sin riesgos en esta categoría.</p>')];
   }
   function secDec(i) {
     const ds = DECS().filter(d => d.ini === i.id);
@@ -288,11 +288,11 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   /* Panorama de la ficha: etapa, cuatro cifras, qué sigue y cronograma. Lo demás queda en filas plegadas («Todo lo demás»). */
   function panoFicha(i) {
     const PR = esProp(i), FS = fasesDe(i), idx = Math.max(0, FS.indexOf(i.fase)), fin = isDone(i), sig = FS[idx + 1] || null, to = fin ? null : (sig || 'Cierre'), H = hoy();
-    const g = to ? gates(i, to) : [], gok = g.filter(x => x.ok).length;
+    const g = to ? compuertas(i) : [], gok = g.filter(x => x.ok).length;
     const strip = `<section class="pa-fase" aria-label="Etapa"><div class="pa-seg">${FS.map((f, k) => `<div><i class="${k < idx ? 'd' : k === idx ? 'c' : ''}"></i><span class="${k === idx ? 'on' : ''}">${k < idx ? '✓ ' : ''}${esc(f)}${k === idx ? ' · actual' : ''}</span></div>`).join('')}</div><div class="pa-go">${to && !fin ? `<span>Para pasar a <b>${esc(to)}</b>: <b>${gok} de ${g.length}</b> condiciones</span>` : ''}${fin ? '' : `<span class="edit-only">${btn('Cambiar etapa', 'etapa', { d: { id: i.id }, ic: 'chev' })}</span>`}</div></section>`;
     if (PR) return strip;
     const av = Math.round(+i.avance || 0), pl = Math.round(esperado(i)), dv = desv(i), fc = forecast(i), pres = +i.presupuesto || 0, gas = i.gastado == null || i.gastado === '' ? null : +i.gastado, gp = pres > 0 && gas != null && isFinite(gas) ? Math.round(gas / pres * 100) : null;
-    const um = +cfgI(i, 'umbralCritico') || 15, rs = riesgosDe(i.id).filter(riesgoAbierto), rk = rs.filter(r => expo(r) >= um), rks = rk.filter(r => !String(r.mit || '').trim());
+    const um = +cfgI(i, 'umbralCritico') || 15, rs = riesgosDe(i.id).filter(riesgoAbierto), rk = rs.filter(riesgoCritico), rks = rk.filter(r => !String(r.mit || '').trim());
     const kp = (t, v, sub, bad, extra) => `<div class="pa-k"><span class="pa-kt">${t}</span><div class="pa-kv"><b>${v}</b>${sub ? `<span class="${bad ? 'bad-t' : 'mut'}">${sub}</span>` : ''}</div>${extra || ''}</div>`;
     const cifras = `<section class="pa-ks" aria-label="Cifras">${kp('Avance', av + ' %', 'plan ' + pl + ' %', false, `<div class="pa-bar"><i style="width:${Math.max(0, Math.min(100, av))}%"></i><u style="left:${Math.max(0, Math.min(100, pl))}%"></u></div>`)}${kp('Fin proyectado', fc ? fmtD(fc) : '—', dv > 0 ? '+' + dv + ' d' : 'en plazo', dv > 0, i.finPlan ? `<span class="mut pa-ks2">Plan: ${fmtD(i.finPlan)}</span>` : '')}${kp('Gasto', gp != null ? gp + ' %' : '—', gp != null ? fmtMon(gas, monOf(i)) + ' de ' + fmtMon(pres, monOf(i)) : '', false, gp != null && gp > av + 10 ? '<span class="bad-t pa-ks2">Por encima del avance</span>' : '')}${kp('Riesgos críticos', String(rk.length), 'de ' + rs.length + ' abiertos', false, rks.length ? '<span class="bad-t pa-ks2">' + rks.length + ' sin mitigación</span>' : '')}</section>`;
     const hs = hitosDe(i.id).filter(h => !h.completado).sort(by('fecha')).slice(0, 4), edit = !soloLectura() && puedeEditarIni(i);
@@ -371,7 +371,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   function panelResumen(i) {
     const H = hoy(), FS = fasesDe(i), idx = FS.indexOf(i.fase), fin = isDone(i), sig = FS[idx + 1] || null, to = fin ? null : (sig || 'Cierre');
     const sen = senalesIni(i), hs = hitosDe(i.id).filter(h => !h.completado).sort(by('fecha')).slice(0, 3);
-    const g = to ? gates(i, to) : [], gok = g.filter(x => x.ok).length, falta = g.filter(x => !x.ok).map(x => x.t);
+    const g = to ? compuertas(i) : [], gok = g.filter(x => x.ok).length, falta = g.filter(x => !x.ok).map(x => x.t);
     const dec = St.decisiones.filter(d => d.ini === i.id && d.estado === 'Pendiente').map(d => ({ o: d.limite || '9', h: `<div><b>Decisión</b> «${esc(d.titulo)}» · ${d.limite && d.limite < H ? '<span class="bad-t">vencida hace ' + diffD(H, d.limite) + ' d</span>' : d.limite ? 'vence ' + rel(d.limite) : 'sin fecha límite'}${d.area ? ' · ' + esc(d.area) : ''}</div>` }));
     const cmp = (St.compromisos || []).filter(c => c.ini === i.id && c.estado === 'Abierto').map(c => ({ o: c.limite || '9', h: `<div><b>${c.limite && c.limite < H ? '<span class="bad-t">Compromiso vencido</span>' : 'Compromiso'}</b> «${esc(c.texto)}»${c.resp ? ' · ' + esc(c.resp) : ''}${c.limite && c.limite < H ? ' · hace ' + diffD(H, c.limite) + ' d' : c.limite ? ' · ' + rel(c.limite) : ''}</div>` }));
     const dep = (i.deps || []).map(id => byId(id)).filter(Boolean).map(x => ({ o: '99', h: `<div><b>Depende de</b> ${esc(x.id)} ${esc(x.titulo)} · ${esc(x.estado)}${x.tipo === 'Proyecto' ? ', ' + Math.round(+x.avance || 0) + ' %' : ''}</div>` }));
@@ -802,7 +802,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
         como: 'Ábrelos desde la ficha y márcalos <b>Cumplido</b>, o cámbiales la fecha límite si se acordó otra.', btn: [bAct('Ir a los compromisos', 'cocir', { id: i.id, k: 'com' }, true)] });
     }
     if (off('rsk')) {
-      const um = cfgI(i, 'umbralCritico'), rs = riesgosDe(i.id).filter(riesgoAbierto).filter(r => (r.fRev && r.fRev < E) || (expo(r) >= um && !String(r.mit || '').trim()));
+      const um = cfgI(i, 'umbralCritico'), rs = riesgosDe(i.id).filter(riesgoAbierto).filter(r => (r.fRev && r.fRev < E) || (riesgoCritico(r) && !String(r.mit || '').trim()));
       out.push({ k: 'rsk', t: 'Riesgos', por: rs.length + ' riesgo' + (rs.length === 1 ? '' : 's') + ' por atender:',
         lista: rs.slice(0, 4).map(r => '«' + cut(r.desc, 60) + '» · ' + ((r.fRev && r.fRev < E) ? 'revisión vencida el ' + fmtD(r.fRev) : 'crítico (' + expo(r) + ') sin plan de mitigación')),
         como: 'Abre el riesgo y <b>escribe el plan de mitigación</b> o <b>actualiza la fecha de próxima revisión</b>.', btn: [bAct('Abrir el primer riesgo', 'sel', { t: 'risk', id: rs[0] ? rs[0].id : '' }, true), bAct('Ver riesgos de la ficha', 'cocir', { id: i.id, k: 'rie' })] });

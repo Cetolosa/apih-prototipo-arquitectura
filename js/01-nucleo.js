@@ -8,7 +8,7 @@ import { ENLACES } from './00-registro.js';
      SPA ...................... 03 … 11          (interfaz, vistas, administración, gobierno, presentaciones)
 
    PERSISTENCIA: Postgres (Supabase) con autorización en el servidor. No se usa localStorage para datos.
-   Sin configuración de Supabase la app corre en MODO DEMO (memoria; se pierde al recargar).
+   Sin configuración del servidor la app queda en solo lectura y vacía: todas las reglas y datos viven en el servidor.
 
    CONFIGURACIÓN: apih-config.js define window.APIH_OVERRIDE = { auth, supabase } (sin recompilar).
    ===================================================================== */
@@ -331,19 +331,14 @@ export const esSB = i => !!i && i.estado === 'Stand By';
 export const isLive = i => !isDone(i) && !esSB(i);
 export const isActive = i => !esProp(i) && FASES_ACT.includes(i.fase) && i.estado === 'En curso';
 /* ---- Filtros globales V6: Área + Responsable + «Solo lo mío» (válidos en todas las pantallas) ---- */
-export const ADMIN_USERS = ['Christian Tolosa'];                          // único administrador (ver también esAdmin())
-export const FL = { resp: '', mine: false, verComo: '' };                  // estado en memoria (no se persiste)
+/* Permisos: los decide el SERVIDOR (apih_contexto + puede_editar por fila). Aquí solo se guarda lo que él entregó; no se calcula nada. */
+export const PERM = { ctx: null, edit: new Map() };
+export const FL = { resp: '', mine: false, verComo: '' };                  // estado en memoria (no se persiste); verComo lo fija el servidor
 export const miUsuario = () => FL.verComo || St.cfg.usuario;                // «yo»: usuario real o el que el admin está simulando
 export const respSel = () => FL.mine ? miUsuario() : FL.resp;
-const ADMIN_EMAILS = ['tolosa-christian@aramark.cl'];                         // + correo corporativo de Aramark si corresponde
 export const _nrm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-export function esAdminReal() {   // tolerante: «Christian Tolosa Delpino», mayúsculas, tildes o correo
-  const u = _nrm(St.cfg.usuario), au = (typeof ENLACES.AuthService !== 'undefined' && ENLACES.AuthService.user && ENLACES.AuthService.user()) || null, em = _nrm(au && (au.email || au.username));
-  // S-17: con sesión autenticada, el administrador se decide solo por el correo de la sesión (el nombre lo escribe cualquiera)
-  if (au) return !!em && ADMIN_EMAILS.some(e => _nrm(e) === em);
-  return ADMIN_USERS.some(a => { const n = _nrm(a); return u === n || u.startsWith(n + ' '); });   // sin sesión (demo/local) solo
-}
-export const esAdmin = () => !FL.verComo && esAdminReal();
+export let esAdminReal = () => !!(PERM.ctx && (PERM.ctx.esAdmin || PERM.ctx.comoDe));   // el administrador de verdad, incluso mientras usa «Ver como»
+export const esAdmin = () => !!(PERM.ctx && PERM.ctx.esAdmin);
 export let _PP = null;                                                     // nombre → Set de iniciativas donde participa (se invalida en render/save)
 export const ppInval = () => { _PP = null; };
 export function personProjects(n) {
@@ -376,46 +371,31 @@ export let _ixGen = 0; const _ix = {};
 const _porIni = (k, id) => { const arr = St[k]; let c = _ix[k]; if (!c || c.arr !== arr || c.n !== arr.length || c.g !== _ixGen) { const m = new Map(); arr.forEach(x => { let l = m.get(x.ini); if (!l) m.set(x.ini, l = []); l.push(x); }); _ix[k] = c = { arr, n: arr.length, g: _ixGen, m }; } return (c.m.get(id) || []).slice(); };
 export const hitosDe = id => _porIni('hitos', id);
 export const riesgosDe = id => _porIni('riesgos', id);
-export function hitoEstado(h) {   // semaforización automática
-  if (h.completado) return (h.fechaReal && h.fechaReal > h.fecha) ? { k: 'late', t: 'Completado con retraso', c: '#F2A100' } : { k: 'done', t: 'Completado', c: '#107C10' };
-  const d = diffD(h.fecha, hoy());
-  if (d < 0) return { k: 'over', t: 'Vencido (' + (-d) + ' d)', c: '#D13438' };
-  if (d <= 7) return { k: 'soon', t: 'Vence ' + rel(h.fecha), c: '#F2A100' };
-  return { k: 'ok', t: 'En plazo', c: '#0D446A' };
-}
-export function forecast(i) {   // fin proyectado
-  if (i.estado === 'Completado') return i.finReal || i.finEst || i.finPlan;
-  let f = i.finEst || i.finPlan;
-  const open = hitosDe(i.id).filter(h => !h.completado).map(h => h.fecha);
-  if (open.length) { const m = open.reduce((a, b) => a > b ? a : b); if (FASES_ACT.includes(i.fase) && m > f) f = m; }
-  if (isLive(i) && FASES_ACT.includes(i.fase) && i.avance < 100 && f < hoy()) f = hoy();
-  return f;
-}
-export const desv = i => (i.finPlan && forecast(i)) ? Math.max(0, diffD(forecast(i), i.finPlan)) : 0;
-export const atrasado = i => isLive(i) && FASES_ACT.includes(i.fase) && desv(i) > (0, ENLACES.cfgI)(i,'tolDesv');
-export const esperado = i => {   // avance esperado lineal
-  const s = i.inicioPlan, e = i.finPlan; if (!s || !e) return 0; const t = diffD(hoy(), s), T = Math.max(1, diffD(e, s));
-  return Math.max(0, Math.min(100, t / T * 100));
-};
-export const roi = i => i.presupuesto > 0 ? (((+i.beneficio || 0) - i.presupuesto) / i.presupuesto) * 100 : null;   // F-09: sin beneficio = 0, no NaN
-export const expo = r => r.prob * r.imp;
-export const nivelRiesgo = e => e >= (0, ENLACES.cfgMi)('umbralCritico') ? { n: 'Crítico', c: '#D13438' } : e >= 10 ? { n: 'Alto', c: '#CA5010' } : e >= 5 ? { n: 'Medio', c: '#F2A100' } : { n: 'Bajo', c: '#107C10' };
+/* Valores calculados: los entrega el SERVIDOR (apih_calculos). Aquí solo se leen; si aún no llegó el dato (registro recién creado, sin sincronizar)
+   se devuelve un valor neutro y la pantalla se completa en cuanto el servidor responde. No hay fórmulas en el navegador. */
+export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, cielo: null };
+const _ci = i => (i && CALC.ini[i.id]) || null;
+const HITO_NEUTRO = { k: 'ok', t: 'En plazo', c: '#0D446A' }, NIVEL_NEUTRO = { n: 'Bajo', c: '#107C10' };
+export const hitoEstado = h => (h && CALC.hitos[h.id]) || HITO_NEUTRO;
+export const forecast = i => { const c = _ci(i); return c ? c.forecast : (i.finEst || i.finPlan); };
+export const desv = i => { const c = _ci(i); return c ? c.desv : 0; };
+export const atrasado = i => { const c = _ci(i); return !!(c && c.atrasado); };
+export const esperado = i => { const c = _ci(i); return c ? c.esperado : 0; };
+export const roi = i => { const c = _ci(i); return c ? c.roi : null; };
+export const expo = r => { const c = r && CALC.riesgos[r.id]; return c ? c.expo : 0; };
+export const nivelRiesgo = r => { const c = r && CALC.riesgos[r.id]; return c ? c.nivel : NIVEL_NEUTRO; };
 export const riesgoAbierto = r => r.estado !== 'Cerrado';
-export const riesgosCriticos = () => RIESGOS().filter(r => riesgoAbierto(r) && expo(r) >= (0, ENLACES.cfgI)(byId(r.ini),'umbralCritico') && (!byId(r.ini) || (isLive(byId(r.ini)) && inArea(byId(r.ini)))));   // F-16
-export const diasSinUpd = i => i.actualizada ? diffD(hoy(), i.actualizada) : 999;
-export function ragSugerido(i) {   // RAG automático sugerido
-  let p = 0; const why = [];
-  const d = desv(i); if (d > 30) { p += 2; why.push('desviación de ' + d + ' d'); } else if (d > (0, ENLACES.cfgI)(i,'tolDesv')) { p += 1; why.push('desviación de ' + d + ' d'); }
-  const hv = hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).length; if (hv >= 2) { p += 2; why.push(hv + ' hitos vencidos'); } else if (hv) { p += 1; why.push('1 hito vencido'); }
-  const rc = riesgosDe(i.id).filter(r => riesgoAbierto(r) && expo(r) >= (0, ENLACES.cfgI)(i,'umbralCritico')).length; if (rc) { p += 2; why.push(rc + ' riesgo(s) crítico(s)'); }
-  if (FASES_ACT.includes(i.fase) && esperado(i) - i.avance > 25) { p += 1; why.push('avance bajo lo esperado'); }
-  if (isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > (0, ENLACES.cfgI)(i,'diasSinUpdate') * 2) { p += 1; why.push('sin actualización'); }
-  return { rag: p >= 4 ? 'Rojo' : p >= 2 ? 'Ámbar' : 'Verde', why };
-}
-export function critScore(i) {   // ranking de proyectos críticos
-  const r = { 'Rojo': 40, 'Ámbar': 20, 'Verde': 0 }[i.rag] || 0;
-  return r + Math.min(30, desv(i) / 2) + sum(riesgosDe(i.id).filter(riesgoAbierto), x => expo(x)) / 2 + ({ Alta: 12, Media: 6, Baja: 0 }[i.prioridad] || 0) + hitosDe(i.id).filter(h => !h.completado && h.fecha < hoy()).length * 4;
-}
+export const riesgoCritico = r => !!(r && CALC.riesgos[r.id] && CALC.riesgos[r.id].critico);
+export const riesgosCriticos = () => RIESGOS().filter(r => riesgoCritico(r) && (!byId(r.ini) || (isLive(byId(r.ini)) && inArea(byId(r.ini)))));   // F-16
+export const diasSinUpd = i => { const c = _ci(i); return c ? c.dsu : 999; };
+export const ragSugerido = i => { const c = _ci(i); return c ? c.rag : { rag: i.rag, why: [] }; };
+export const critScore = i => { const c = _ci(i); return c ? c.crit : 0; };
+/* Avance: el servidor lo calcula (hitos y subfases ponderados por días de cada fase) y lo guarda; aquí solo se leen sus valores */
+export const avanceEf = i => { const c = _ci(i); return c && c.avance != null ? c.avance : Math.round(+(i && i.avance) || 0); };
+export const avanceCalc = i => { const c = _ci(i); return c && c.avanceCalc != null ? c.avanceCalc : 0; };
+export const avanceManualDe = i => { const c = _ci(i); return c ? c.avanceManual : null; };
+/* Ventana de cada fase (inicio, fin, avance, hitos cerrados) tal como la entrega el servidor */
+export const ventanasSrv = i => { const c = _ci(i); return c && Array.isArray(c.ventanas) ? c.ventanas : []; };
 export function kpis() {
   const L = scope(), live = L.filter(isLive), act = L.filter(isActive), P = scopeP(), pl = P.filter(isLive);
   const M = { pres: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.presupuesto), gas: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.gastado), presPipe: sumM(pl, i => i.presupuesto), valorPipe: sumM(pl, i => i.beneficio), beneficio: sumM(live, i => i.beneficio) };
@@ -430,44 +410,10 @@ export function kpis() {
   };
 }
 /* Compuertas de gobierno por transición */
-export function gates(i, to) {
-  const g = [], ok = (c, t) => g.push({ ok: !!c, t });
-  const hs = hitosDe(i.id), av = (0, ENLACES.avanceCalc)(i);   /* V23: las compuertas leen el avance CALCULADO, nunca el ajuste manual */
-  /* con servidor rige el umbral de la organización (el servidor no conoce los ajustes personales) */
-  const umbral = () => (0, ENLACES.conServidor)() ? +St.cfg.umbralCritico : (0, ENLACES.cfgI)(i, 'umbralCritico'), sinMit = r => riesgoAbierto(r) && expo(r) >= umbral() && !String(r.mit || '').trim();
-  if (to === 'Evaluación') { ok(i.problema || i.desc, 'Problema/objetivo descrito'); ok(i.sponsor, 'Sponsor identificado'); }
-  if (to === 'Caso de Negocio') { ok(i.sponsor, 'Sponsor identificado'); ok(i.score, 'Evaluación de valor/esfuerzo completada'); ok(i.lider, 'Líder asignado'); }
-  if (to === 'Aprobación') { ok(i.presupuesto > 0, 'Presupuesto estimado'); ok(i.beneficio > 0 || i.categoria === 'Transversal', 'Beneficio esperado'); ok(i.bc, 'Business case redactado'); }
-  
-  if (to === 'Ejecución') { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.presupuesto > 0 || i.categoria === 'Transversal', 'Presupuesto asignado'); ok(hs.length >= 2, 'Al menos 2 hitos planificados'); ok(!riesgosDe(i.id).some(sinMit), 'Riesgos críticos con plan de mitigación'); ok(i.lider, 'Líder asignado'); }
-  if (to === 'Transición') {   /* V23: antes «Avance ≥ 80 %» (número manual); ahora un hecho verificable */
-    ok(hs.filter(h => fasesDe(i).indexOf(h.fase) < fasesDe(i).indexOf(to)).every(h => h.completado), 'Hitos de las fases anteriores completados');
-    ok(!hs.some(h => !h.completado && h.fecha < hoy()), 'Sin hitos vencidos'); ok(!riesgosDe(i.id).some(sinMit), 'Riesgos críticos con plan de mitigación');
-  }
-  if (!['Evaluación', 'Caso de Negocio', 'Aprobación', 'Ejecución', 'Transición', 'Cierre'].includes(to) && FASES_PRJ.includes(to) && to !== FASES_PRJ[0]) { ok(i.inicioPlan && i.finPlan, 'Fechas plan definidas'); ok(i.lider, 'Líder asignado'); }
-  { const F_ = fasesDe(i), a = F_.indexOf(i.fase), b = F_.indexOf(to); if (b > a && a >= 0 && to !== 'Transición') { const pend = hs.filter(h => h.fase === i.fase && !h.completado); if (hs.some(h => h.fase === i.fase)) ok(!pend.length, 'Hitos de la fase ' + i.fase + ' completados' + (pend.length ? ' (faltan ' + pend.length + ')' : '')); } }
-  if (to === 'Cierre') { ok(av >= 100, 'Avance al 100%'); ok(hs.filter(h => h.fase !== to).every(h => h.completado), 'Todos los hitos completados'); ok(!riesgosDe(i.id).some(r => riesgoAbierto(r) && expo(r) >= umbral()), 'Sin riesgos críticos abiertos'); }   /* F-06, F-07 */
-  return g;
-}
-/* compuertas para APROBAR una propuesta y convertirla en proyecto */
-export function gatesAprobar(i) {
-  const g = [], ok = (c, t) => g.push({ ok: !!c, t });
-  ok(i.fase === 'Aprobación', 'Propuesta en fase Aprobación'); ok(i.sponsor, 'Sponsor identificado'); ok(i.lider, 'Líder asignado');
-  ok(i.presupuesto > 0, 'Presupuesto asignado'); ok(i.bc, 'Business case redactado');
-  ok(St.decisiones.find(d => d.ini === i.id && d.tipo === 'Iniciar' && d.estado === 'Aprobada'), 'Decisión "Iniciar" aprobada en comité');
-  return g;
-}
+/* Compuertas del siguiente paso (próxima fase; aprobar si es propuesta en su última fase; completar si es la última): las define el servidor */
+export const compuertas = i => (_ci(i) && _ci(i).sig) || [];
 function canon(i) { return ['id', 'titulo', 'sponsor', 'lider', 'area', 'estado', 'rag', 'prioridad', 'presupuesto', 'avance']; }
-export function completitud(i) {
-  const crit = [['sponsor', 'Sponsor'], ['lider', 'Líder'], ['area', 'Área'], ['prioridad', 'Prioridad'], ['inicioPlan', 'Inicio plan'], ['finPlan', 'Fin plan']];
-  const rec = [['presupuesto', 'Presupuesto'], ['beneficio', 'Beneficio'], ['desc', 'Descripción'], ['bc', 'Business case'], ['negocio', 'Resp. negocio']];
-  const opt = [['proveedor', 'Proveedor'], ['resumen', 'Resumen ejecutivo'], ['proximos', 'Próximos pasos']];
-  const miss = l => l.filter(([k]) => !i[k]).map(([, n]) => n);
-  const mc = miss(crit), mr = miss(rec), mo = miss(opt);
-  if (!hitosDe(i.id).length) mr.push('Hitos');
-  const tot = crit.length * 3 + rec.length * 2 + opt.length + 2, got = tot - mc.length * 3 - mr.length * 2 - mo.length;
-  return { crit: mc, rec: mr, opt: mo, pct: Math.max(0, Math.round(got / tot * 100)) };
-}
+export const completitud = i => { const c = _ci(i); return c ? c.compl : { crit: [], rec: [], opt: [], pct: 0 }; };
 
 
 // Enlaces para módulos anteriores (ver 00-registro.js)
