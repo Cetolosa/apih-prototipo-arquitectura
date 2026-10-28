@@ -9,4 +9,4 @@ window.APIH_OVERRIDE = {
   }
 };
 /* Versión del prototipo de arquitectura. Fecha y commit se completan en el despliegue. */
-window.APIH_BUILD = { v: 'A1.1', b: '', c: '' };
+window.APIH_BUILD = { v: 'A1.2', b: '', c: '' };
