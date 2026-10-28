@@ -26,6 +26,7 @@ $$ select case when jsonb_typeof(j -> 'score') <> 'object' then 0 else
             + (case when coalesce(j ->> 'lider', '') = '' then 0 else greatest(0, least(1, 1 - n_lider::numeric / greatest(1, cap))) * 5 end) * .10
             + (6 - (j #>> '{score,riesgo}')::numeric) * .05) / 5 * 100)::int end $$;
 
+drop function if exists public.apih_calculos_base();   -- repetible: apih_calculos() vuelve a ser la versión completa justo antes
 alter function public.apih_calculos() rename to apih_calculos_base;
 revoke all on function public.apih_calculos_base() from public, anon, authenticated;
 
