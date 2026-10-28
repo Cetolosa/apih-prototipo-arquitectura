@@ -66,7 +66,7 @@ begin
                then (select string_agg(btrim(x #>> '{}'), ',') from jsonb_array_elements(p_datos -> 'areaArr') x where btrim(x #>> '{}') <> '')
                else coalesce(public.apih_txt(p_datos, 'area'), public.apih_txt(i0, 'area')) end;
   d := d || jsonb_build_object('area', coalesce(area, 'BISE'));
-  if not public.apih_edita_area(d ->> 'area') then raise exception 'APIH: sin permiso sobre el área elegida' using errcode = '42501', hint = 'areaArr'; end if;
+  if not (public.apih_edita_area(d ->> 'area') or (not nw and public.apih_areas(d ->> 'area') = public.apih_areas(public.apih_area_vis(r.area)))) then raise exception 'APIH: sin permiso sobre el área elegida' using errcode = '42501', hint = 'areaArr'; end if;
   -- puntaje de priorización de una propuesta
   if es_prop and (p_datos ? 'sE' or p_datos ? 'sV' or p_datos ? 'sF' or p_datos ? 'sR') then
     foreach k in array array['sE', 'sV', 'sF', 'sR'] loop

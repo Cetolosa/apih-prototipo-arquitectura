@@ -58,3 +58,11 @@ La carga desde Excel y «Completar con archivo» siguen leyendo y previsualizand
 ## Comentarios y acciones del Reglas PMO
 
 `apih_comentar` (autor y hora los fija el servidor), `apih_aplicar_rag` (usa el RAG que calcula el servidor), `apih_avance_auto`, `apih_recordar_avance` y `apih_accion_recuperacion` (crea la acción en el próximo comité programado; solo quien gobierna). El cliente solo invoca el comando.
+
+## Acceso por auto-registro y proyectos asignados
+
+Cualquiera crea su cuenta desde la pantalla de acceso (Supabase Auth). Sin perfil activo no ve ni escribe nada; la SPA llama `apih_solicitar_acceso`, que deja el perfil **pendiente**, y muestra una pantalla de espera. Administra lo habilita en Administración → Usuarios (`apih_usuarios`, `apih_guardar_usuario`, `apih_desactivar_usuario`): rol, áreas, permisos y **proyectos asignados**.
+
+Un proyecto asignado se ve y (Colaborador/Responsable) se edita aunque sea de otra área: el servidor agrega a `registros.area` un código propio de cada proyecto (`@PRJ-001`) y las reglas de visibilidad y escritura, que ya comparan áreas, lo reconocen sin duplicar lógica. Los hitos, riesgos, decisiones, etc. heredan ese código del proyecto. `apih_area_vis` quita los códigos cuando el área se muestra o se copia a datos.
+
+Para que Supabase deje crear cuentas sin dominio fijo: Authentication → Providers → Email (registro habilitado; se recomienda «Confirm email»). El trigger de dominio ya no restringe.

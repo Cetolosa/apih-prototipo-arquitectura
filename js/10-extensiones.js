@@ -681,6 +681,12 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       const r = await fetch(SB.cfg.url + '/auth/v1/recover?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(r.status === 429 ? 'Demasiados intentos; espera unos minutos e inténtalo de nuevo' : (j.msg || j.error_description || 'No se pudo enviar el correo (' + r.status + ')')); }
     },
+    async registrar(nombre, email, pw) {
+      const r = await fetch(SB.cfg.url + '/auth/v1/signup', { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pw, data: { nombre } }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 429 ? 'Demasiados intentos; espera unos minutos e inténtalo de nuevo' : r.status === 422 && /password|weak/i.test(j.msg || j.error_code || '') ? 'La contraseña es muy débil' : (j.msg || j.error_description || 'No se pudo crear la cuenta (' + r.status + ')'));
+      return j;
+    },
     async setPassword(token, auth) {
       const r = await fetch(SB.cfg.url + '/auth/v1/user', { method: 'PUT', headers: { apikey: SB.cfg.anonKey, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: auth }) });
       if (!r.ok) { const j = await r.json().catch(() => ({})); const e = new Error(j.msg || j.error_description || ('HTTP ' + r.status)); e.status = r.status; e.code = j.error_code; throw e; }
@@ -712,12 +718,12 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:var(--bg,#f3f4f6);padding:16px';
     document.body.appendChild(d);
     const paso1 = () => {
-      d.innerHTML = `<form class="sb-card" autocomplete="on"><h1>APIH</h1><p class="sb-sub">Portfolio Intelligence Hub · acceso solo para personas autorizadas</p>
+      d.innerHTML = `<form class="sb-card" autocomplete="on"><h1>APIH</h1><p class="sb-sub">Portfolio Intelligence Hub</p>
         <label for="sb-mail">Correo corporativo</label><input id="sb-mail" type="email" autocomplete="username" required placeholder="nombre.apellido@aramark.cl">
         <label for="sb-key">Contraseña</label><input id="sb-key" type="password" autocomplete="current-password" required>
         <label class="sb-chk"><input id="sb-rem" type="checkbox"> Recordar en este dispositivo</label>
-        <button class="btn pri" id="sb-go" type="submit">Entrar</button><button type="button" class="sb-lnk" id="sb-forgot">¿Primera vez u olvidaste tu contraseña?</button><p id="sb-msg" role="alert">${msg ? String(msg).replace(/</g, '&lt;') : ''}</p>
-        <small>Escribe tu correo y presiona el enlace de arriba: te llegará un correo para crear o cambiar tu contraseña.</small><small style="text-align:center;opacity:.6;margin-top:6px">APIH ${VER.v} · ${VER.b}</small></form>`;
+        <button class="btn pri" id="sb-go" type="submit">Entrar</button><button type="button" class="sb-lnk" id="sb-forgot">¿Olvidaste tu contraseña?</button><button type="button" class="sb-lnk" id="sb-new">¿No tienes cuenta? Crear cuenta</button><p id="sb-msg" role="alert">${msg ? String(msg).replace(/</g, '&lt;') : ''}</p>
+        <small>Si olvidaste tu contraseña, escribe tu correo y presiona el enlace: te llegará un correo para crear una nueva.</small><small style="text-align:center;opacity:.6;margin-top:6px">APIH ${VER.v} · ${VER.b}</small></form>`;
       const f = d.querySelector('form'), m = d.querySelector('#sb-msg'), b = d.querySelector('#sb-go');
       d.querySelector('#sb-forgot').addEventListener('click', async () => {
         const em = d.querySelector('#sb-mail').value.trim().toLowerCase(); m.style.color = '#c0392b';
@@ -725,12 +731,38 @@ import { GUIA, presLayout } from './09-presentaciones.js';
         m.style.color = ''; m.textContent = 'Enviando…';
         try { await SB2.recover(em); m.textContent = 'Si el correo está autorizado, te llegará un enlace para crear tu contraseña.'; } catch (e) { m.style.color = '#c0392b'; m.textContent = e.message; }
       });
+      d.querySelector('#sb-new').addEventListener('click', () => paso2());
       f.addEventListener('submit', async ev => {
         ev.preventDefault(); b.disabled = true; m.style.color = ''; m.textContent = 'Verificando…';
         try { await SB.login(d.querySelector('#sb-mail').value, d.querySelector('#sb-key').value, d.querySelector('#sb-rem').checked); location.reload(); }
         catch (e) { m.style.color = '#c0392b'; m.textContent = e.message; b.disabled = false; }
       });
       setTimeout(() => { const i = d.querySelector('#sb-mail'); if (i) i.focus(); }, 50);
+    };
+    /* crear cuenta: queda pendiente hasta que Administra le asigne un rol */
+    const paso2 = () => {
+      d.innerHTML = `<form class="sb-card" autocomplete="on"><h2>Crear cuenta</h2><p class="sb-sub">Tu cuenta quedará pendiente hasta que un administrador te asigne un rol.</p>
+        <label for="sb-nom">Nombre y apellido</label><input id="sb-nom" autocomplete="name" required>
+        <label for="sb-mail">Correo</label><input id="sb-mail" type="email" autocomplete="username" required>
+        <label for="sb-n1">Contraseña</label><input id="sb-n1" type="password" autocomplete="new-password" required><div class="sb-str"><i id="sb-bar"></i></div>
+        <label for="sb-n2">Repítela</label><input id="sb-n2" type="password" autocomplete="new-password" required>
+        <small>Mínimo 10 caracteres, con letras y números.</small><button class="btn pri" id="sb-go" type="submit">Crear cuenta</button><button type="button" class="sb-lnk" id="sb-back">Ya tengo cuenta: entrar</button><p id="sb-msg" role="alert"></p></form>`;
+      const f = d.querySelector('form'), m = d.querySelector('#sb-msg'), b = d.querySelector('#sb-go'), n1 = d.querySelector('#sb-n1'), bar = d.querySelector('#sb-bar');
+      d.querySelector('#sb-back').addEventListener('click', () => paso1());
+      n1.addEventListener('input', () => { const s = SB2.fuerza(n1.value); bar.style.width = s * 20 + '%'; bar.style.background = s < 3 ? '#c0392b' : s < 4 ? '#F2A100' : '#107C10'; });
+      f.addEventListener('submit', async ev => {
+        ev.preventDefault(); m.style.color = '#c0392b';
+        const nom = d.querySelector('#sb-nom').value.trim(), em = d.querySelector('#sb-mail').value.trim().toLowerCase(), pw = n1.value;
+        if (!nom) { m.textContent = 'Escribe tu nombre'; return; }
+        const err = SB2.valida(pw, em); if (err) { m.textContent = err; return; } if (pw !== d.querySelector('#sb-n2').value) { m.textContent = 'Las contraseñas no coinciden'; return; }
+        b.disabled = true; m.style.color = ''; m.textContent = 'Creando cuenta…';
+        try {
+          const j = await SB2.registrar(nom, em, pw);
+          if (j.access_token) { SB.sess = { email: em, access: j.access_token, refresh: j.refresh_token, exp: Math.floor(Date.now() / 1000) + (j.expires_in || 3600), _st: 's' }; SB.persist(); location.reload(); return; }
+          m.textContent = 'Cuenta creada. Revisa tu correo para confirmarla y luego entra con tu contraseña. Un administrador te asignará un rol.';
+        } catch (e) { m.style.color = '#c0392b'; m.textContent = e.message; b.disabled = false; }
+      });
+      setTimeout(() => { const i = d.querySelector('#sb-nom'); if (i) i.focus(); }, 50);
     };
     /* llegada desde el correo de recuperación: #access_token=…&type=recovery */
     const paso3 = () => {
@@ -758,6 +790,20 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       setTimeout(() => n1.focus(), 50);
     };
     if (/type=recovery/.test(location.hash)) paso3(); else paso1();
+  };
+  /* cuenta sin rol: pantalla de espera (cubre la aplicación; no se ve ningún dato) */
+  SBLogin.espera = function (estado, email) {
+    if (document.getElementById('sb-espera')) return;
+    const d = document.createElement('div'); d.id = 'sb-espera'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', 'Cuenta pendiente');
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:var(--bg,#f3f4f6);padding:16px';
+    const em = email || (SB.sess && SB.sess.email) || '';
+    d.innerHTML = `<div class="sb-card"><h1>APIH</h1>${estado === 'inactivo'
+      ? `<h2>Acceso desactivado</h2><p class="sb-sub">${esc(em)}</p><p>Tu acceso no está habilitado. Si crees que es un error, pide a un administrador que lo revise.</p>`
+      : `<h2>Cuenta pendiente</h2><p class="sb-sub">${esc(em)}</p><p>Tu cuenta fue creada y está esperando que un administrador te asigne un rol. Cuando lo haga, presiona «Revisar de nuevo».</p>`}
+      <button class="btn pri" id="sb-re">Revisar de nuevo</button><button type="button" class="sb-lnk" id="sb-out">Cerrar sesión</button></div>`;
+    document.body.appendChild(d);
+    d.querySelector('#sb-re').addEventListener('click', () => location.reload());
+    d.querySelector('#sb-out').addEventListener('click', () => { SB.logout(); location.reload(); });
   };
   /* cambiar mi contraseña */
   Acts.pwchange = () => {
