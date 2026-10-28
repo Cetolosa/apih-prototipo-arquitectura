@@ -356,7 +356,7 @@ Views.presentaciones = {
     const body = fz ? '<p class="mut">Presentación guardada: contenido y selección congelados.</p>' : !M ? '<p class="mut">Elige un proyecto o propuesta.</p>' : tab === 'entra' ? queEntra(c) : tab === 'hist' ? histTab() : tab === 'estilo' ? estiloTab() : slideList(c, M);
     return head + (fz ? `<div class="note warn" style="margin-bottom:12px">${icon('book', 14)}<span>Estás viendo una presentación guardada (copia congelada: <b>${esc((St.pres.find(p => p.id === c.frozen) || {}).nombre || c.frozen)}</b>).</span> <button class="lnk" data-act="phlive">Volver a datos vivos</button> <button class="lnk" data-act="phdup" data-id="${c.frozen}">Duplicar para editar</button></div>` : '') + `
     <div class="pres-w">${cfgCard}<section class="pres-s">${prev}
-      <section class="card"><div class="tabs sm">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-act="ptab" data-k="${k}">${n}</button>`).join('')}</div><div style="margin-top:12px">${tab === 'estilo' ? estiloTab() : fz && tab !== 'hist' ? body : tab === 'hist' ? histTab() : body}</div></section></section></div>`;
+      <section class="card"><div class="tabs sm">${tabs.map(([k, n]) => `<button class="${tab === k ? 'on' : ''}" data-act="ptabp" data-k="${k}">${n}</button>`).join('')}</div><div style="margin-top:12px">${tab === 'estilo' ? estiloTab() : fz && tab !== 'hist' ? body : tab === 'hist' ? histTab() : body}</div></section></section></div>`;
   }
 };
 
@@ -367,7 +367,7 @@ const temaSave = o => { ptemaSet(Object.assign({}, ptemaEf(), { preset: TEMA.cur
 Acts.ptema = d => { ptemaSet({ preset: d.p }); save(); prr(); };
 Chg.ptemaf = el => temaSave({ [el.dataset.k]: el.value });
 Chg.ptemac = el => temaSave({ preset: ptemaEf().preset || '', colores: Object.assign({}, TEMA.cur.colores, { [el.dataset.k]: el.value }) });
-Acts.ptab = d => { pcfg().tab = d.k; prr(); };
+Acts.ptabp = d => { pcfg().tab = d.k; prr(); };
 Acts.palc = d => { const c = pcfg(); c.alcance = d.a; c.idx = 0; c.frozen = ''; if (d.a === 'proyecto' && !c.proys.length && UI.sel && UI.sel.t === 'ini') { c.proys = [UI.sel.id]; c.cur = UI.sel.id; } prr(); };
 Chg.padd = el => { const c = pcfg(); if (el.value && !c.proys.includes(el.value)) { c.proys.push(el.value); c.cur = c.cur || el.value; c.idx = 0; } prr(); };
 Acts.prm = d => { const c = pcfg(); c.proys = c.proys.filter(x => x !== d.id); if (c.cur === d.id) c.cur = c.proys[0] || ''; prr(); };

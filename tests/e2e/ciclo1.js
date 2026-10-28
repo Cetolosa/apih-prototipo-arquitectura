@@ -27,6 +27,9 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await ev(() => { render(); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(300);
   r.btnCambiar = await p.$$eval('[data-act="etapa"]', a => a.length);
   r.btnViejos = await p.$$eval('[data-act="estado"]', a => a.length);
+  // pestañas del panel: cambian de contenido (Resumen → Hitos)
+  await p.click('#panel .tabs [data-tab="hitos"]'); await p.waitForTimeout(200);
+  r.pestana = await p.$eval('#panel .tabs .on', e => e.dataset.tab);
   // 2) formulario de edición: sin fase ni avance libre; sí el ajuste manual
   await ev(() => Acts.edit({ t: 'ini', id: 'V23-A' })); await p.waitForTimeout(250);
   r.editSinFase = await p.$$eval('#f_fase', a => a.length) === 0;
@@ -61,7 +64,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   // 9) arrastrar en el tablero ya no salta compuertas: abre el mismo diálogo
   const mal = [];
   const w = (k, v) => { if (JSON.stringify(r[k]) !== JSON.stringify(v)) mal.push(k + ' = ' + JSON.stringify(r[k]) + ' (esperado ' + JSON.stringify(v) + ')'); };
-  w('fase', 'Ejecución'); w('btnCambiar', 1); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
+  w('fase', 'Ejecución'); w('pestana', 'hitos'); w('btnCambiar', 1); w('btnViejos', 0); w('editSinFase', true); w('editSinAvance', true); w('editManual', true);
   w('calcA', 25); w('calcAfase', 100); w('manual', '90|25|90'); w('gateLeeCalc', 'Avance al 100%,Todos los hitos completados'.split(',').filter(x => x === 'Avance al 100%').join(',')); w('legacy', '60|60|' + r.legacy.split('|')[2]); w('subfase', 75);
   w('reparto', '2026-01-01>2026-01-15 2026-01-16>2026-03-11 2026-03-12>2026-03-26 2026-03-27>2026-04-10'); w('derivaFin', '2026-04-10'); w('moverFin', '2026-05-10|2026-05-10');
   w('auto', 'Completado|100|true'); w('sbCampo', 1); w('sbSinMotivo', 'En curso'); w('sbOk', 'Stand By');
