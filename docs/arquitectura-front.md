@@ -54,3 +54,7 @@ La carga desde Excel y «Completar con archivo» siguen leyendo y previsualizand
 
 ## Actualización semanal
 `apih_actualizacion_semanal` valida y guarda la actualización (avance como ajuste manual, RAG, fin estimado, logros, próximos pasos, issue), marca la fecha, deja la foto semanal de fases y subfases (`snapFase`) y escribe la bitácora; «Sin novedades» solo confirma vigencia. El historial de avance (`hist`) lo mantiene el servidor. La guardia ya no permite que `06-administracion.js` escriba `hist`.
+
+## Comentarios y acciones del Reglas PMO
+
+`apih_comentar` (autor y hora los fija el servidor), `apih_aplicar_rag` (usa el RAG que calcula el servidor), `apih_avance_auto`, `apih_recordar_avance` y `apih_accion_recuperacion` (crea la acción en el próximo comité programado; solo quien gobierna). El cliente solo invoca el comando.

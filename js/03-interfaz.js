@@ -809,8 +809,8 @@ Acts.edit = d => {
 
 /* ---------- cambio de fase y de estado: un solo diálogo, «Cambiar etapa» (04-flujos.js) ---------- */
 /* ---------- RAG / comentarios / hitos ---------- */
-Acts.applyrag = d => { const i = byId(d.id); log('Cambio', i.id, `RAG ${i.rag} → ${d.rag} (sugerido por reglas automáticas)`); i.rag = d.rag; i.actualizada = hoy(); toast('RAG actualizado'); refresh(); };
-Acts.comment = d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; log('Comentario', d.id, t); toast('Comentario agregado'); refresh(); setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
+Acts.applyrag = async d => { await (0, ENLACES.cmdServidor)('apih_aplicar_rag', { p_id: d.id }, 'RAG actualizado'); };
+Acts.comment = async d => { const el = $('#cmt'); const t = el && el.value.trim(); if (!t) return; const r = await (0, ENLACES.cmdServidor)('apih_comentar', { p_ini: d.id, p_texto: t, p_tema: null, p_en_pres: true }, 'Comentario agregado'); if (r) setTimeout(() => { const e2 = $('#cmt'); if (e2) e2.focus(); }, 30); };
 export function toggleHito(id) { const h = St.hitos.find(x => x.id === id); if (!h) return; return (0, ENLACES.hitoEnServidor)(id, !h.completado); }   // completar o reabrir un hito es un comando del servidor (avance y cierre automático en la base)
 Chg.hitotoggle = el => toggleHito(el.dataset.id); Acts.hitotoggle = d => toggleHito(d.id);
 

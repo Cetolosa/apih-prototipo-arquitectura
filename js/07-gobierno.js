@@ -576,8 +576,8 @@ Acts.fx = d => {
   const i = byId(a.id);
   switch (a.a) {
     case 'fxrag': Acts.applyrag({ id: a.id, rag: a.rag }); break;
-    case 'fxnudge': log('Comentario', a.id, `Recordatorio del Reglas PMO: solicitar actualización de avance a ${i.lider}.`); toast('Recordatorio enviado a ' + i.lider + ' (registrado)'); refresh(); break;
-    case 'fxacc': { const c = St.comites.filter(x => x.estado === 'Programado').sort(by('fecha'))[0]; if (!c) return toast('No hay un comité programado', 'err'); c.acciones.push({ id: 'ACC-' + Math.random().toString(36).slice(2, 6), texto: 'Plan de recuperación de cronograma: ' + i.titulo, resp: i.lider, limite: addD(hoy(), 7), estado: 'Abierta', ini: i.id }); log('Cambio', i.id, 'Acción de recuperación creada por el Reglas PMO'); toast('Acción creada en el próximo comité'); refresh(); break; }
+    case 'fxnudge': (async () => { const r = await (0, ENLACES.cmdServidor)('apih_recordar_avance', { p_id: a.id }, null); if (r) toast('Recordatorio enviado a ' + (r.lider || '—') + ' (registrado)'); })(); break;
+    case 'fxacc': (async () => { const r = await (0, ENLACES.cmdServidor)('apih_accion_recuperacion', { p_id: a.id }, 'Acción creada en el próximo comité'); void r; })(); break;
     case 'fxsel': selectEntity('ini', a.id); break;
     case 'fxhito': hitoForm(St.hitos.find(h => h.id === a.id)); break;
     case 'fxdone': toggleHito(a.id); break;
