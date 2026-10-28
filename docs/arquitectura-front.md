@@ -28,5 +28,8 @@ La SPA presenta; **el servidor decide y calcula**. Permisos (`apih_contexto`, `r
 ### Formularios por comando del servidor
 Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromiso`) y **comités** (`apih_guardar_comite`, `apih_comite_agregar/quitar/marcar/sugerido/armar/cerrar`); eliminar: `apih_eliminar`. Ids, valores iniciales, fecha real, agenda y bitácora los fija el servidor.
 
+### Avisos (notificaciones)
+`apih_calculos().notif` entrega el catálogo, la preferencia efectiva (catálogo → organización → persona) y los avisos de quien llama (hitos y compromisos, riesgo crítico, decisiones, atraso, sin actualizar, propuestas estancadas, cambios y eventos de bitácora), con sus canales. La campana y la matriz de Notificaciones solo presentan; guardar la configuración hace que el servidor vuelva a evaluar. Lo leído sigue por navegador (localStorage).
+
 ### Reglas que aún no se mueven (residuales declarados)
-Reglas de notificación (`notifPara`), umbrales de `execSummary`/KPIs, `personasData`, misiones/pasos, `log()` de bitácora en el cliente (otros flujos), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
+Umbrales de `execSummary`/KPIs, `personasData`, misiones/pasos, `log()` de bitácora en el cliente (otros flujos), validaciones de formulario de otras pantallas, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial).
