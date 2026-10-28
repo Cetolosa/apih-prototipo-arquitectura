@@ -78,7 +78,7 @@ $$
 declare
   hoy date := public.apih_hoy(); fases text[] := array_remove(public.apih_fases(false), 'Cierre');
   ini jsonb := '{}'::jsonb; hit jsonb := '{}'::jsonb; rsk jsonb := '{}'::jsonb;
-  r record; j jsonb; i record;
+  r record; j jsonb; i record; ff text[]; ix int; sig jsonb;
   hitos jsonb := '{}'::jsonb;      -- por iniciativa: arreglo de hitos
   riesgos jsonb := '{}'::jsonb;    -- por iniciativa: arreglo de {id, expo, abierto}
   hs jsonb; rs jsonb; abiertas date[]; n_hit int; vivo boolean; hecho boolean; es_prop boolean; fc date; fin_plan date; ds int; tol numeric; umb numeric;
@@ -131,7 +131,13 @@ begin
     rag := case when p >= 4 then 'Rojo' when p >= 2 then 'Ámbar' else 'Verde' end;
     crit := (case j ->> 'rag' when 'Rojo' then 40 when 'Ámbar' then 20 else 0 end) + least(30, ds / 2.0) + sumexp / 2
             + (case j ->> 'prioridad' when 'Alta' then 12 when 'Media' then 6 else 0 end) + hv * 4;
-    ini := ini || jsonb_build_object(i.id, jsonb_build_object(
+    -- compuertas del siguiente paso: próxima fase; si no hay, aprobar (propuesta) o completar (proyecto)
+    ff := public.apih_fases(es_prop); ix := array_position(ff, j ->> 'fase');
+    sig := case when hecho then '[]'::jsonb
+                when ix is not null and ix < cardinality(ff) then public.apih_compuertas(i.id, ff[ix + 1])
+                when es_prop then public.apih_compuertas_aprobar(i.id)
+                else public.apih_compuertas(i.id, 'Cierre') end;
+    ini := ini || jsonb_build_object(i.id, jsonb_build_object('sig', sig,
       'forecast', fc, 'desv', ds, 'atrasado', (vivo and (j ->> 'fase') = any (fases) and ds > tol), 'esperado', esp,
       'roi', case when public.apih_num(j, 'presupuesto') > 0 then ((public.apih_num(j, 'beneficio') - public.apih_num(j, 'presupuesto')) / public.apih_num(j, 'presupuesto')) * 100 end,
       'rag', jsonb_build_object('rag', rag, 'why', why), 'crit', crit, 'dsu', dsu, 'hv', hv, 'umbral', umb, 'tol', tol,

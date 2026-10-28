@@ -36,6 +36,13 @@ select pg_temp.ok((public.apih_calculos()->'riesgos'->'CR-1'->>'expo')::int = 16
 select pg_temp.ok(not (public.apih_calculos()->'riesgos'->'CR-2'->>'critico')::boolean and (public.apih_calculos()->'riesgos'->'CR-2'->'nivel'->>'n') = 'Bajo', 'riesgo cerrado no es crítico');
 select pg_temp.ok((public.apih_calculos()->'ini'->'CP-1'->'compl'->>'pct')::int between 1 and 99, 'completitud parcial');
 select pg_temp.ok((public.apih_calculos()->'ini'->'CP-1'->>'crit')::numeric > 40, 'ranking de criticidad');
+select pg_temp.ok(jsonb_array_length(public.apih_calculos()->'ini'->'CP-1'->'sig') > 0, 'compuertas del siguiente paso vienen en el cálculo');
+select pg_temp.ok((select bool_and((x->>'ok') is not null) from jsonb_array_elements(public.apih_calculos()->'ini'->'CP-1'->'sig') x), 'cada compuerta trae su estado');
+select pg_temp.ok((select (x->>'ok')::boolean from jsonb_array_elements(public.apih_compuertas('CP-1','Transición')) x where x->>'t' = 'Sin hitos vencidos') = false, 'compuerta de hitos vencidos incumplida');
+select pg_temp.ok(exists (select 1 from jsonb_array_elements(public.apih_compuertas('CP-1','Transición')) x where x->>'t' like 'Hitos de las fases anteriores%'), 'la lista incluye también las cumplidas o pendientes de cada tema');
+select pg_temp.ok(cardinality(public.apih_faltan_transicion('CP-1','Transición')) = (select count(*) from jsonb_array_elements(public.apih_compuertas('CP-1','Transición')) x where not (x->>'ok')::boolean), 'faltan = las compuertas con ok falso');
+select pg_temp.ok(jsonb_array_length(public.apih_etapas('CP-1')) >= 4 and exists (select 1 from jsonb_array_elements(public.apih_etapas('CP-1')) e where e->>'id' = 'f:Transición' and jsonb_array_length(e->'gates') > 0), 'apih_etapas lista los movimientos con sus compuertas');
+select pg_temp.ok(jsonb_array_length(public.apih_etapas('CP-2')) = 0, 'una iniciativa en estado final no tiene movimientos');
 rollback;
 begin; set local role authenticated;
 select pg_temp.como('inv-a@test.cl');
