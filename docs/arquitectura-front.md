@@ -19,3 +19,11 @@
 
 ## Ciclo de vida (V23)
 Cambio de etapa único, avance calculado y fechas por fase: ver [ciclo-de-vida.md](ciclo-de-vida.md). La lógica vive en `js/05-vistas.js` (avance, fechas) y `js/04-flujos.js` (diálogo), con espejo en SQL (`20261027001100_ciclo_de_vida.sql`) verificado por contratos compartidos.
+
+## Una sola fuente de reglas: el servidor (backend único)
+La SPA presenta; **el servidor decide y calcula**. Permisos (`apih_contexto`, `registros_v.puede_editar`, RLS), compuertas, avance y fechas de fase, puntajes de priorización, semáforos, hallazgos/alertas, EVM, capacidad, estrellas e insignias («cielo»), línea base y escalamiento de decisiones, y la auditoría por campos viven en funciones `apih_*` de `supabase/migrations/` (equivalente de la API de TI). El cliente lee el resultado (`CALC`, `CIELO()`) y ejecuta comandos con `cmdServidor` (una vía por operación).
+- Guardia: `node tools/guardia-reglas.js` (CI) falla si reaparece una regla retirada en `js/`, si la SPA escribe campos del servidor o si llama a un `apih_*` inexistente.
+- Pruebas: `tools/test-sql.sh` (reglas en Postgres), `tools/correr-e2e.js` (flujos contra backend real de pruebas).
+
+### Reglas que aún no se mueven (residuales declarados)
+Reglas de notificación (`notifPara`), umbrales de `execSummary`/KPIs, `personasData`, misiones/pasos, bitácora generada en cliente (`log()`), validaciones de formulario, `aplicarPlantilla`, flujo «Con archivo» y carga de Excel; además el `hist` del avance semanal (el servidor guarda su propio historial). Candidatos de la siguiente iteración.
