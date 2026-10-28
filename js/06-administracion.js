@@ -415,17 +415,11 @@ Acts.wk = d => {
       { k: 'issue', l: 'Issue o bloqueo actual', w: 3 }
     ],
     extra: `<div style="margin-top:10px;display:flex;gap:14px;flex-wrap:wrap"><a class="lnk" data-act="wknc" data-id="${i.id}">✓ Sin novedades: solo confirmar que sigue vigente</a><a class="lnk" data-act="informe" data-id="${i.id}">Ver informe de estado</a><a class="lnk" data-act="acunew" data-id="${i.id}">+ Compromiso</a></div>${abiertos.length ? `<div class="note" style="margin-top:8px"><span><b>Compromisos abiertos (${abiertos.length}):</b> ${abiertos.slice(0, 4).map(a => esc(cut(a.texto, 50)) + ' — ' + esc(a.resp || 's/r') + (a.limite ? ' (' + fmtD(a.limite) + ')' : '')).join(' · ')}</span></div>` : ''}`,
+    /* El servidor valida, guarda los campos, la foto semanal y la bitácora (apih_actualizacion_semanal); aquí solo se pide y se celebra */
     onSave(o) {
-      const b0 = (0, ENLACES.cieloOn)() ? (0, ENLACES.estrellasOn)(i) : null, diffs = [];
-      if (+o.avance !== +i.avance) diffs.push(`Avance ${i.avance}% → ${o.avance}%`);
-      if (o.rag !== i.rag) diffs.push(`RAG ${i.rag} → ${o.rag}`);
-      if ((o.finEst || '') !== (i.finEst || '')) diffs.push(`Fin estimado ${fmtD(i.finEst)} → ${fmtD(o.finEst)}`);
-      if (+o.avance !== +i.avance || !i.hist.length || i.hist[i.hist.length - 1][0] !== hoy()) i.hist.push([hoy(), +o.avance]);
-      i.avanceManual = +o.avance;   /* el servidor lo deja sin ajuste si coincide con el calculado */
-      const patch = { rag: o.rag, finEst: o.finEst || i.finEst, logros: o.logros || i.logros, proximos: o.proximos, issue: o.issue };
-      Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); snapFases(i);
-      log('Actualización', i.id, 'Actualización semanal' + (diffs.length ? ': ' + diffs.join('; ') : ': sin cambios de indicadores') + (o.logros ? '. Logros: ' + o.logros : '') + (o.proximos ? '. Próximos: ' + o.proximos : '') + (o.issue ? '. Issue: ' + o.issue : ''));
-      toast('Actualización guardada'); refresh(); (0, ENLACES.celebrar)(i, b0); wkNext();
+      const b0 = (0, ENLACES.cieloOn)() ? (0, ENLACES.estrellasOn)(i) : null;
+      return cmdServidor('apih_actualizacion_semanal', { p_id: i.id, p_datos: { avance: o.avance, rag: o.rag, finEst: o.finEst || '', logros: o.logros || '', proximos: o.proximos || '', issue: o.issue || '' }, p_sin_novedades: false }, 'Actualización guardada', true)
+        .then(r => { if (r === null) return false; refresh(); (0, ENLACES.celebrar)(byId(i.id), b0); wkNext(); return true; });
     }
   });
 };
@@ -433,8 +427,7 @@ Acts.wkset = d => { const el = $('#f_' + d.f); if (!el) return; el.value = d.v; 
 Acts.wkpass = () => { const t = $('#f_logros'), p = $('#f_proximos'); if (!t || !p) return; t.value = (t.value ? t.value + '\n' : '') + p.value.trim(); };
 Acts.wknc = d => {
   const i = byId(d.id); if (!i) return; Modal.close(); const b0 = (0, ENLACES.cieloOn)() ? (0, ENLACES.estrellasOn)(i) : null;
-  if (!i.hist.length || i.hist[i.hist.length - 1][0] !== hoy()) i.hist.push([hoy(), i.avance]);
-  snapFases(i); i.actualizada = hoy(); log('Actualización', i.id, 'Actualización semanal: sin novedades, el proyecto sigue vigente'); toast('Confirmado: sin novedades'); refresh(); (0, ENLACES.celebrar)(i, b0); wkNext();
+  cmdServidor('apih_actualizacion_semanal', { p_id: i.id, p_datos: {}, p_sin_novedades: true }, 'Confirmado: sin novedades').then(r => { if (r === null) return; refresh(); (0, ENLACES.celebrar)(byId(i.id), b0); wkNext(); });
 };
 /* informe de estado listo para copiar */
 export function informeTxt(i) {
@@ -466,12 +459,6 @@ const repFmt = (iso, long) => { if (!iso) return ''; const p = String(iso).slice
 const repLines = t => String(t || '').split('\n').map(s => s.trim()).filter(Boolean);
 const repDia = iso => ['DOM', 'LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'][pD(iso).getDay()] + ' ' + repFmt(iso).slice(0, 5);
 /* avance de fase y de cada subfase en cada actualización: alimenta el «↑ desde» del reporte */
-export function snapFases(i) {
-  if (!i || esProp(i)) return;
-  const m = {}; m['F:' + i.fase] = avFase(i).v;
-  subfasesDe(i).forEach(s => { const hs = hitosSub(i, s), d = hs.filter(h => h.completado).length; m['s:' + s.id] = hs.length ? Math.round(d / hs.length * 100) : 0; });
-  i.snapFase = (i.snapFase || []).filter(x => x[0] !== hoy()); i.snapFase.push([hoy(), m]); if (i.snapFase.length > 26) i.snapFase = i.snapFase.slice(-26);
-}
 const repPrev = (i, key) => { const s = (i.snapFase || []).filter(x => x[0] < hoy()).slice(-1)[0]; return s && s[1] && s[1][key] != null ? s[1][key] : ''; };
 const repSubsActivas = i => subfasesDe(i).filter(s => s.fase === i.fase && s.inicio <= hoy() && (s.fin >= hoy() || hitosSub(i, s).some(h => !h.completado))).sort(by('inicio'));
 const repFormaAuto = i => repSubsActivas(i).length >= 2 ? 'B' : 'A';
@@ -755,5 +742,4 @@ Object.defineProperties(ENLACES, {
   bellPop: { get: () => bellPop, enumerable: true, configurable: true },
   cut: { get: () => cut, enumerable: true, configurable: true },
   rondaIds: { get: () => rondaIds, enumerable: true, configurable: true },
-  snapFases: { get: () => snapFases, enumerable: true, configurable: true },
 });

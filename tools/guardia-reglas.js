@@ -24,7 +24,7 @@ const CAMPOS_SERVIDOR = [['avanceCalc', /\.avanceCalc\s*=(?!=)/], ['hist', /\.hi
   ['escalada', /\.escalada\s*=(?!=)/], ['base', /\.base\s*=(?!=)/], ['baseHist', /\.baseHist\s*(=(?!=)|\.push\()/], ['hallazgos', /CALC\.hallazgos\s*(=(?!=)|\.push\()/]];
 /* Excepciones declaradas (archivo → campo): 02-datos.js copia el valor que ENTREGA el servidor a la copia local (aplicarDerivados, sin marcarla como edición);
    06-administracion.js agrega el punto al historial al guardar la actualización semanal (residual: el servidor ya guarda su propio historial). */
-const PERMITIDO = { '02-datos.js': ['avanceCalc', 'hist'], '06-administracion.js': ['hist'] };
+const PERMITIDO = { '02-datos.js': ['avanceCalc', 'hist'] };
 archivos.forEach(({ f, s }) => CAMPOS_SERVIDOR.forEach(([n, rx]) => { if (rx.test(s) && !(PERMITIDO[f] || []).includes(n)) fallas.push(`${f}: la SPA escribe «${n}», que escribe el servidor`); }));
 
 // 3) toda llamada al servidor existe en las migraciones
