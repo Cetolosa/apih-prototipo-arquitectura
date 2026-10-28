@@ -346,14 +346,18 @@ import { GUIA, presLayout } from './09-presentaciones.js';
   ENLACES.panelIni = function (i) {
     let h = panelIni0(i);
     h = h.replace('<div class="pn-a">', `<div class="pn-a"><button class="btn sm" data-act="ficha" data-id="${esc(i.id)}" title="Ver todo en una sola página">${icon('full', 14)}<span>Ficha</span></button>`);
-    /* panel: acciones principales visibles (Actualizar / Ficha) y el resto en «Herramientas»; la fase como tarjeta con barra */
+    /* panel = RESUMEN: Ficha, Informe y 1 a 1. Todo lo que cambia datos (actualizar, editar, etapa, herramientas) vive en la ficha */
     try {
       const t = document.createElement('template'); t.innerHTML = h; const f = t.content, pa = f.querySelector('.pn-a');
       if (pa) {
-        const bs = [...pa.querySelectorAll('button')], vis = [], tools = [];
-        bs.forEach(b => { const tx = b.textContent.trim(); b.classList.remove('sm'); if (b.classList.contains('pri')) { b.classList.add('pn-main'); vis.push(b.outerHTML); } else if (/^(Ficha|Reporte|1 a 1)/.test(tx)) vis.push(b.outerHTML); else tools.push(b.outerHTML); });
-        vis.sort((x, y) => (/pn-main/.test(y) ? 1 : 0) - (/pn-main/.test(x) ? 1 : 0)); pa.innerHTML = vis.join('') + (tools.length ? `<div class="popw"><button class="btn" data-act="pop" data-id="pop-ptools" aria-haspopup="true">Herramientas <span aria-hidden="true">▾</span></button><div class="pop" id="pop-ptools" style="right:0">${tools.join('')}</div></div>` : '');
+        const bs = [...pa.querySelectorAll('button')], vis = [];
+        bs.forEach(b => { const tx = b.textContent.trim(); b.classList.remove('sm'); if (/^Ficha/.test(tx)) { b.classList.add('pri', 'pn-main'); vis.unshift(b.outerHTML); } else if (/^(Informe|1 a 1)/.test(tx)) vis.push(b.outerHTML); });
+        pa.innerHTML = vis.join('');
       }
+      f.querySelectorAll('.pn-b .edit-only, .pn-b [data-act="new"], .pn-b [data-act="gfix"], .pn-b [data-act="cxapply"]').forEach(x => x.remove());
+      f.querySelectorAll('.pn-b input[type="checkbox"], .pn-b select, .pn-b textarea').forEach(x => x.setAttribute('disabled', ''));
+      f.querySelectorAll('.pn-b .composer').forEach(x => x.remove());
+      f.querySelectorAll('.pn-b [data-act]').forEach(x => { if (['advance', 'basego', 'applyrag', 'edit', 'comment', 'etapa', 'wk', 'hitotoggle', 'noop'].includes(x.dataset.act)) x.remove(); });
       const fl = f.querySelector('.pn-b .flow'), fs = fl && fl.closest('.pn-sec');
       if (fs) {
         const lnk = fs.querySelector('.flow-l a'), dv = document.createElement('div'); dv.className = 'pn-sec pn-ph2';
@@ -361,7 +365,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       }
       h = [...f.childNodes].map(n => n.outerHTML || n.textContent || '').join('');
     } catch (e) { }
-    h = h.replace('<p class="mut">Sin hitos.</p>', V.emptyRich({ ic: 'flag', title: 'Sin hitos todavía', line: 'Cárgalos con la plantilla de Excel o crea el primero.', p: ['Cargar plantilla Excel', 'cargaxl', {}, 'up'], s: ['Crear hito', 'new', { t: 'hito', ini: i.id }, 'flag'] }));
+    h = h.replace('<p class="mut">Sin hitos.</p>', V.emptyRich({ ic: 'flag', title: 'Sin hitos todavía', line: 'Créalos desde la ficha, con la plantilla de Excel o a mano.' }, true));
     return h;
   };
   /* la ficha usa toda la página: no se «encajan» sus bloques en cajas con scroll */

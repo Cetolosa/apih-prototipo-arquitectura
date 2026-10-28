@@ -35,6 +35,8 @@ jobs:
         run: |
           F=$(TZ=America/Santiago date '+%d-%m-%Y %H:%M')
           sed -i "s|b: '', c: ''|b: '$F', c: '${GITHUB_SHA::7}'|" _site/apih-config.js
+          sed -i -E "s|v: '(A[0-9]+\.[0-9]+)'|v: '\1.${GITHUB_RUN_NUMBER}'|" _site/apih-config.js   # la versión cambia en cada publicación (A1.1.57)
+          grep -qE "v: 'A[0-9]+\.[0-9]+\.${GITHUB_RUN_NUMBER}'" _site/apih-config.js
           grep -q "c: '${GITHUB_SHA::7}'" _site/apih-config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
