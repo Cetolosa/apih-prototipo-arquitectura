@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html apih-config.js _site/
-          cp -r js css _site/
+          cp -r js css img _site/
           touch _site/.nojekyll
       - name: Inyectar la clave publishable (variable de Actions, no está en el repositorio)
         env:

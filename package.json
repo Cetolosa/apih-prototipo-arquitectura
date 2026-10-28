@@ -10,7 +10,8 @@
     "seed": "node tools/generar-seed.js",
     "serve": "node tools/servir-demo.js",
     "test:e2e": "node tools/correr-e2e.js",
-    "test:guardia": "node tools/guardia-reglas.js"
+    "test:guardia": "node tools/guardia-reglas.js",
+    "pruebas-ti": "node pruebas-ti/correr.js"
   },
   "devDependencies": {
     "pg": "^8.23.1",
