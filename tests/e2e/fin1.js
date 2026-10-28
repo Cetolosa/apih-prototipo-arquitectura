@@ -32,7 +32,8 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   // 1) Ficha de propuesta con Planificación e Hitos, filtro por categoría
   await p.evaluate(() => { UI.view = 'propuestas'; render(); selectEntity('ini', 'PRO-050', 'resumen'); }); await p.waitForTimeout(300);
   await p.click('button:has-text("Ficha")'); await p.waitForTimeout(400);
-  r.tabsFicha = await p.$$eval('.fl2-tab', a => a.map(x => x.textContent.trim()).join('|'));
+  await p.evaluate(() => Acts.flall({ m: 'open' })); await p.waitForTimeout(300);
+  r.tabsFicha = await p.$$eval('.fl-list .fl-t', a => a.map(x => x.textContent.trim()).join('|'));
   r.planProp = await n('.fz-steps .fz-step'); r.ganttFicha = await n('.fz-box .fz-row');
   await p.screenshot({ path: '/tmp/t/fin-b.png' });
   r.chipsH = await n('.cat-chips [data-t="h"]'); await p.click('.cat-chips [data-t="h"][data-c="Entregable"]'); await p.waitForTimeout(250);

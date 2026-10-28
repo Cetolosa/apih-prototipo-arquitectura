@@ -23,7 +23,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.opcFase = await p.$$eval('#et_acc option', a => a.map(x => x.value).join(','));
   await p.selectOption('#et_acc', 'f:Ejecución'); await p.waitForTimeout(100);
   r.gatesVisibles = await p.$$eval('#et_d .gates > div', a => a.length);
-  await p.click('[data-act="etapago"]'); await p.waitForTimeout(300);
+  await p.uncheck('#et_repro'); await p.click('[data-act="etapago"]'); await p.waitForTimeout(300);   // el reparto de fechas se prueba aparte (etapa-plan)
   r.fase = await ev(() => byId('V23-A').fase);
   // sin botones sueltos de Fase/Estado en el panel
   await ev(() => { render(); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(300);

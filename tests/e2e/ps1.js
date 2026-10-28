@@ -15,9 +15,9 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
     UI.view = 'fases'; render(); }, plan);
   await p.waitForTimeout(500);
   const r = {};
-  await p.evaluate(() => { Acts.ficha({ id: 'PRJ-050' }); }); await p.waitForTimeout(600);
-  await p.evaluate(() => { const b = document.querySelector('[data-act="fltab"][data-k="pla"]'); b && b.click(); }); await p.waitForTimeout(500);
-  r.tabPla = await p.$$eval('[data-act="fltab"][data-k="pla"]', a => a.length);
+  await p.evaluate(() => { Acts.ficha({ id: 'PRJ-050' }); Acts.flall({ m: 'open' }); }); await p.waitForTimeout(600);
+  await p.waitForTimeout(500);
+  r.tabPla = await p.$$eval('#fl-pla', a => a.length);   // la sección Planificación (ya no hay barra de pestañas: filas plegadas)
   r.pasosFicha = await p.$$eval('.ps-it', a => a.map(x => x.querySelector('.ps-t').textContent));
   r.pasos = await p.$$eval('.ps-it', a => a.length); r.fasesFicha = await p.$$eval('.fz-step', a => a.length); r.ganttFicha = await p.$$eval('.fz-sub', a => a.length);
   await p.screenshot({ path: '/tmp/t/ps-ficha.png', fullPage: true });
