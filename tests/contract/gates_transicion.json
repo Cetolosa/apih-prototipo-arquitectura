@@ -1,0 +1,634 @@
+[
+ {
+  "nombre": "planificación → ejecución completo",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Ejecución",
+  "faltan": []
+ },
+ {
+  "nombre": "planificación → ejecución sin nada",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "",
+   "presupuesto": 0,
+   "inicioPlan": "",
+   "finPlan": "",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 3,
+    "imp": 5,
+    "mit": "",
+    "estado": "Abierto"
+   }
+  ],
+  "hasta": "Ejecución",
+  "faltan": [
+   "Fechas plan definidas",
+   "Presupuesto asignado",
+   "Al menos 2 hitos planificados",
+   "Riesgos críticos con plan de mitigación",
+   "Líder asignado",
+   "Hitos de la fase Planificación completados (faltan 1)"
+  ]
+ },
+ {
+  "nombre": "transversal no necesita presupuesto",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 0,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Transversal"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Ejecución",
+  "faltan": []
+ },
+ {
+  "nombre": "riesgo crítico con mitigación pasa",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 3,
+    "imp": 5,
+    "mit": "plan",
+    "estado": "Abierto"
+   }
+  ],
+  "hasta": "Ejecución",
+  "faltan": []
+ },
+ {
+  "nombre": "riesgo crítico cerrado sin mitigación pasa",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 5,
+    "imp": 5,
+    "mit": "",
+    "estado": "Cerrado"
+   }
+  ],
+  "hasta": "Ejecución",
+  "faltan": []
+ },
+ {
+  "nombre": "12 está bajo el umbral 15",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 3,
+    "imp": 4,
+    "mit": "",
+    "estado": "Abierto"
+   }
+  ],
+  "hasta": "Ejecución",
+  "faltan": []
+ },
+ {
+  "nombre": "mitigación en blanco no cuenta",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Planificación",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 3,
+    "imp": 5,
+    "mit": "  ",
+    "estado": "Abierto"
+   }
+  ],
+  "hasta": "Ejecución",
+  "faltan": [
+   "Riesgos críticos con plan de mitigación"
+  ]
+ },
+ {
+  "nombre": "ejecución → transición con un hito de ejecución vencido",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Ejecución",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2000-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Transición",
+  "faltan": [
+   "Hitos de las fases anteriores completados",
+   "Sin hitos vencidos"
+  ]
+ },
+ {
+  "nombre": "ejecución → transición completo",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Ejecución",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Transición",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Transición",
+  "faltan": []
+ },
+ {
+  "nombre": "transición exige también la planificación",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Ejecución",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Transición",
+  "faltan": [
+   "Hitos de las fases anteriores completados"
+  ]
+ },
+ {
+  "nombre": "transición → cierre con hito de cierre pendiente y riesgo crítico abierto",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Transición",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Transición",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Cierre",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [
+   {
+    "prob": 3,
+    "imp": 5,
+    "mit": "plan",
+    "estado": "Abierto"
+   }
+  ],
+  "hasta": "Cierre",
+  "faltan": [
+   "Avance al 100%",
+   "Sin riesgos críticos abiertos"
+  ]
+ },
+ {
+  "nombre": "transición → cierre con un hito de ejecución sin cerrar",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Transición",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Transición",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Cierre",
+  "faltan": [
+   "Avance al 100%",
+   "Todos los hitos completados"
+  ]
+ },
+ {
+  "nombre": "completar desde cierre, todo cerrado",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Cierre",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Transición",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Cierre",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Cierre",
+  "faltan": []
+ },
+ {
+  "nombre": "completar desde cierre con el último hito pendiente",
+  "ini": {
+   "tipo": "Proyecto",
+   "fase": "Cierre",
+   "estado": "En curso",
+   "sponsor": "S",
+   "lider": "L",
+   "presupuesto": 100,
+   "inicioPlan": "2026-01-01",
+   "finPlan": "2026-12-31",
+   "categoria": "Tecnología"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Cierre",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Cierre",
+  "faltan": [
+   "Avance al 100%"
+  ]
+ },
+ {
+  "nombre": "propuesta recepción → evaluación sin datos",
+  "ini": {
+   "tipo": "Propuesta",
+   "fase": "Recepción",
+   "estado": "Vigente",
+   "sponsor": "",
+   "lider": "L",
+   "desc": "",
+   "presupuesto": 100,
+   "beneficio": 50,
+   "bc": "bc",
+   "categoria": "Tecnología",
+   "score": {
+    "estrategia": 3,
+    "valor": 3,
+    "esfuerzo": 3,
+    "riesgo": 3
+   }
+  },
+  "hitos": [
+   {
+    "fase": "Recepción",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "riesgos": [],
+  "hasta": "Evaluación",
+  "faltan": [
+   "Problema/objetivo descrito",
+   "Sponsor identificado",
+   "Hitos de la fase Recepción completados (faltan 1)"
+  ]
+ },
+ {
+  "nombre": "propuesta con problema descrito",
+  "ini": {
+   "tipo": "Propuesta",
+   "fase": "Recepción",
+   "estado": "Vigente",
+   "sponsor": "S",
+   "lider": "L",
+   "desc": "",
+   "presupuesto": 100,
+   "beneficio": 50,
+   "bc": "bc",
+   "categoria": "Tecnología",
+   "score": {
+    "estrategia": 3,
+    "valor": 3,
+    "esfuerzo": 3,
+    "riesgo": 3
+   },
+   "problema": "p"
+  },
+  "hitos": [],
+  "riesgos": [],
+  "hasta": "Evaluación",
+  "faltan": []
+ },
+ {
+  "nombre": "propuesta → caso de negocio sin evaluación ni líder",
+  "ini": {
+   "tipo": "Propuesta",
+   "fase": "Evaluación",
+   "estado": "Vigente",
+   "sponsor": "S",
+   "lider": "",
+   "desc": "d",
+   "presupuesto": 100,
+   "beneficio": 50,
+   "bc": "bc",
+   "categoria": "Tecnología"
+  },
+  "hitos": [],
+  "riesgos": [],
+  "hasta": "Caso de Negocio",
+  "faltan": [
+   "Evaluación de valor/esfuerzo completada",
+   "Líder asignado"
+  ]
+ },
+ {
+  "nombre": "propuesta → aprobación sin costo, beneficio ni business case",
+  "ini": {
+   "tipo": "Propuesta",
+   "fase": "Caso de Negocio",
+   "estado": "Vigente",
+   "sponsor": "S",
+   "lider": "L",
+   "desc": "d",
+   "presupuesto": 0,
+   "beneficio": 0,
+   "bc": "",
+   "categoria": "Tecnología",
+   "score": {
+    "estrategia": 3,
+    "valor": 3,
+    "esfuerzo": 3,
+    "riesgo": 3
+   }
+  },
+  "hitos": [],
+  "riesgos": [],
+  "hasta": "Aprobación",
+  "faltan": [
+   "Presupuesto estimado",
+   "Beneficio esperado",
+   "Business case redactado"
+  ]
+ },
+ {
+  "nombre": "propuesta transversal sin beneficio",
+  "ini": {
+   "tipo": "Propuesta",
+   "fase": "Caso de Negocio",
+   "estado": "Vigente",
+   "sponsor": "S",
+   "lider": "L",
+   "desc": "d",
+   "presupuesto": 100,
+   "beneficio": 0,
+   "bc": "bc",
+   "categoria": "Transversal",
+   "score": {
+    "estrategia": 3,
+    "valor": 3,
+    "esfuerzo": 3,
+    "riesgo": 3
+   }
+  },
+  "hitos": [],
+  "riesgos": [],
+  "hasta": "Aprobación",
+  "faltan": []
+ }
+]

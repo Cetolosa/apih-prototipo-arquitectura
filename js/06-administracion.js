@@ -265,8 +265,10 @@ Chg.impinifile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
         n.id = nextId(pre, St.ini.filter(y => y.id.startsWith(pre + '-'))); n.finEst = n.finEst || n.finPlan || null; delete n.hitos; delete n.riesgos; delete n.subfases; St.ini.push(n); const nh0 = St.hitos.length;
         (x.hitos || []).forEach(h => { const f = h.fecha || addD(n.inicioPlan || hoy(), +h.dias || 0), ok = !!h.completado; St.hitos.push({ id: nextId('HIT', St.hitos), ini: n.id, nombre: h.nombre, fase: h.fase || n.fase, fecha: f, completado: ok, fechaReal: ok ? (h.fechaReal || f) : null, resp: h.resp || n.lider || '', ...(h.cat && hitoCats().includes(h.cat) ? { cat: h.cat } : {}), ...(typeof h.desc === 'string' && h.desc.trim() ? { desc: cutDesc(h.desc.trim()) } : {}) }); nh++; });
         if (x.faseNota && typeof x.faseNota === 'object' && !Array.isArray(x.faseNota)) { n.faseNota = {}; fasesDe(n).forEach(fx => { const v = x.faseNota[fx]; if (typeof v === 'string' && v.trim()) n.faseNota[fx] = cutDesc(v.trim()); }); if (!Object.keys(n.faseNota).length) delete n.faseNota; }
+        if (!PR) { const FF = (0, ENLACES.fasesMaterializadas)(n); if (FF) (0, ENLACES.aplicarFasesFechas)(n, FF); }   /* V23: las fechas de fase quedan explícitas desde el alta */
         sfImportar(n, x.subfases, m => avisos.push(n.titulo + ': ' + m)); (x.hitos || []).forEach((h, k) => { if (!h || !h.subfase) return; const hh = St.hitos[nh0 + k], sf = hh && sfRef(n, h.subfase, hh.fase); if (!hh) return; if (!sf) { delete hh.subfase; return avisos.push(n.titulo + ': el hito «' + hh.nombre + '» apunta a una subfase que no existe (' + h.subfase + ')'); } if (sf.fase !== hh.fase) { delete hh.subfase; return avisos.push(n.titulo + ': el hito «' + hh.nombre + '» es de ' + hh.fase + ' y la subfase «' + sf.nombre + '» de ' + sf.fase + ' (sin subfase)'); } hh.subfase = sf.id; });
         (x.riesgos || []).forEach(r => { St.riesgos.push({ id: nextId('RSK', St.riesgos), ini: n.id, cat: 'Técnico', prob: 3, imp: 3, estado: 'Abierto', dueno: n.lider || '', fIdent: hoy(), fRev: addD(hoy(), 30), mit: '', ...r }); nr++; });
+        (0, ENLACES.sincAvance)(n);
         log('Cambio', n.id, T + (PR ? ' importada: ' : ' importado: ') + n.titulo + (x.hitos ? ' (' + x.hitos.length + ' hitos' + (x.riesgos ? ', ' + x.riesgos.length + ' riesgos' : '') + ')' : '')); });
       const ns = St.ini.slice(-nuevas.length).reduce((a, x) => a + subfasesDe(x).length, 0);
       toast(nuevas.length + ' iniciativa(s) importada(s), ' + nh + ' hitos, ' + nr + ' riesgos' + (ns ? ', ' + ns + ' subfases' : '') + (avisos.length ? ' · ' + avisos.length + ' aviso(s): ' + avisos.slice(0, 2).join(' | ') : ''), avisos.length ? 'err' : 'ok'); avisos.forEach(a => log('Cambio', '', 'Importación: ' + a)); refresh(); if (avisos.length) Modal.open({ title: 'Avisos de la importación (' + avisos.length + ')', body: '<ul style="margin:0;padding-left:18px;line-height:1.5">' + avisos.map(a => '<li>' + esc(a) + '</li>').join('') + '</ul><p class="mut" style="margin-top:10px">Quedaron registrados en la Bitácora.</p>', footer: '<button class="btn pri" data-act="mclose">Cerrar</button>' }); }, 'Importar');   // N-U-08
@@ -324,7 +326,7 @@ Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = '
     const ver = x => x === '' || x == null ? '—' : String(x).slice(0, 70);
     Object.keys(P).forEach(k => { const v = P[k], a = i[k];
       if (ARCH_TXT.includes(k)) { if (typeof v !== 'string') return err.push(k + ': debe ser texto'); if (k === 'titulo' && !v.trim()) return err.push('titulo vacío'); if (v !== (a || '')) { L(k, ver(a), ver(v)); ap.push(() => { i[k] = v; }); } }
-      else if (ARCH_NUM.includes(k)) { if (typeof v !== 'number' || !isFinite(v) || v < 0 || (k === 'avance' && v > 100)) return err.push(k + ': número inválido (' + v + ')'); if (v !== (a || 0)) { L(k, ver(a || 0), v); ap.push(() => { i[k] = v; if (k === 'avance') i.hist.push([hoy(), v]); }); } }
+      else if (ARCH_NUM.includes(k)) { if (typeof v !== 'number' || !isFinite(v) || v < 0 || (k === 'avance' && v > 100)) return err.push(k + ': número inválido (' + v + ')'); if (v !== (a || 0)) { L(k, ver(a || 0), v); ap.push(() => { i[k] = v; if (k === 'avance') i.avanceManual = v; });   /* V23: el avance del archivo es un ajuste manual */ } }
       else if (ARCH_DATE.includes(k)) { if (v !== null && v !== '' && !archFecha(v)) return err.push(k + ': fecha inválida (' + v + ')'); const nv = v || null; if (nv !== (a || null)) { L(k, ver(a), ver(nv)); ap.push(() => { i[k] = nv; }); } }
       else if (k === 'rag' || k === 'prioridad' || k === 'moneda') { const cat = k === 'rag' ? RAGS : k === 'prioridad' ? PRIOS : Object.keys(MONEDAS); if (!cat.includes(v)) return err.push(k + ': valor inválido (' + v + ')'); if (v !== a) { L(k, ver(a), v); ap.push(() => { i[k] = v; }); } }
       else err.push('Campo no editable por esta vía: ' + k); });
@@ -332,7 +334,7 @@ Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = '
     const bloqueo = ip && fp && fp < ip;
     if (o.notas_de_fase && typeof o.notas_de_fase === 'object' && !Array.isArray(o.notas_de_fase)) Object.keys(o.notas_de_fase).forEach(fx => { const v = o.notas_de_fase[fx]; if (!fasesDe(i).includes(fx)) return err.push('Nota de fase: «' + fx + '» no es una fase de ' + tipoLbl(i).toLowerCase()); if (typeof v !== 'string' || v.length > DESC_MAX) return err.push('Nota de fase ' + fx + ': texto inválido'); if ((faseNotaP(i, fx) || '') !== v) { ch.push('Nota de fase ' + fx); ap.push(() => { i.faseNota = Object.assign({}, i.faseNota); if (v.trim()) i.faseNota[fx] = cutDesc(v.trim()); else delete i.faseNota[fx]; }); } });
     const sfN = [];   // subfases que el archivo crea o cambia (para resolver referencias de hitos al validar)
-    (Array.isArray(o.subfases) ? o.subfases : []).forEach(x => { const e0 = err.length; const tmp = { id: i.id, tipo: i.tipo, fase: i.fase, inicioPlan: i.inicioPlan, finPlan: i.finPlan, creada: i.creada, subfases: [] }; sfImportar(Object.assign(tmp, { subfases: [] }), [x], m => err.push(m)); if (err.length > e0) return;
+    (Array.isArray(o.subfases) ? o.subfases : []).forEach(x => { const e0 = err.length; const tmp = { id: i.id, tipo: i.tipo, fase: i.fase, inicioPlan: i.inicioPlan, finPlan: i.finPlan, fasesFechas: i.fasesFechas, creada: i.creada, subfases: [] }; sfImportar(Object.assign(tmp, { subfases: [] }), [x], m => err.push(m)); if (err.length > e0) return;
       const w = ventanaDe(i, x.fase) || {}, ex = subfasesDe(i).find(s => (x.id && s.id === x.id) || (s.fase === x.fase && _nrm(s.nombre) === _nrm(x.nombre)));
       sfN.push({ id: ex ? ex.id : null, nombre: x.nombre, fase: x.fase });
       if (ex && ex.nombre === x.nombre && ex.fase === x.fase && ex.inicio === (x.inicio || w.ini) && ex.fin === (x.fin || w.fin) && (x.resp == null || x.resp === (ex.resp || ''))) return;   // sin cambios
@@ -369,7 +371,7 @@ Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = '
     const lst = ch.slice(0, 40).map(x => '• ' + esc(x)).join('<br>') + (ch.length > 40 ? '<br>… y ' + (ch.length - 40) + ' más' : '');
     confirmBox('<b>Revisar cambios del archivo</b><br>' + ch.length + ' cambio(s) propuesto(s) en ' + esc(i.titulo) + ' (formato: campo: antes → después):<br><br>' + lst + (err.length ? '<br><br><b style="color:var(--red)">Se omiten ' + err.length + ':</b><br>' + err.slice(0, 15).map(x => '✕ ' + esc(x)).join('<br>') : '') + '<br><br>¿Aplicar?', () => {
       if (bloqueo) { toast('finPlan anterior a inicioPlan: corrige el archivo', 'err'); return; }
-      ap.forEach(f => f()); i.actualizada = hoy(); log('Cambio', i.id, 'Completado con archivo: ' + ch.length + ' cambio(s) aplicados desde archivo'); toast(ch.length + ' cambio(s) aplicados'); refresh(); }, 'Aplicar');
+      ap.forEach(f => f()); if (!esProp(i)) { if (P.inicioPlan !== undefined || P.finPlan !== undefined) (0, ENLACES.setRangoPlan)(i, i.inicioPlan, i.finPlan); (0, ENLACES.sincAvance)(i); } i.actualizada = hoy(); log('Cambio', i.id, 'Completado con archivo: ' + ch.length + ' cambio(s) aplicados desde archivo'); toast(ch.length + ' cambio(s) aplicados'); refresh(); }, 'Aplicar');
   } catch (e) { toast(e instanceof SyntaxError ? 'El archivo no es un JSON válido' : 'No se pudo leer: ' + e.message, 'err'); } }; r.readAsText(fl); };
 Acts.reset = () => confirmBox(DataService.svc ? 'Se reemplazarán TODOS los datos de ' + BK() + ' por los datos del archivo original. ¿Continuar?' : 'Se perderán los cambios y se restaurarán los datos de demostración. ¿Continuar?', () => { ENLACES.St = seedState(); UI.sel = null; shell(); toast('Datos restaurados'); refresh(); }, 'Restaurar', true);
 
@@ -511,14 +513,14 @@ Acts.wk = d => {
   const i = byId(d.id); if (!i || esProp(i)) return;
   if ((0, ENLACES.soloLectura)() || !(0, ENLACES.puedeEditarIni)(i)) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   if (!d.first && !UI.wkq) UI.wkn = 0;
-  const sg = ragSugerido(i), ah = avanceHitos(i), fc = forecast(i), dv = desv(i), q = UI.wkq, pos = UI.wkn ? UI.wkn - (q ? q.length : 0) : 0;
+  const sg = ragSugerido(i), ah = { v: (0, ENLACES.avanceCalc)(i), d: hitosDe(i.id).filter(h => h.completado).length, n: hitosDe(i.id).length }, fc = forecast(i), dv = desv(i), q = UI.wkq, pos = UI.wkn ? UI.wkn - (q ? q.length : 0) : 0;
   const abiertos = ACUERDOS().filter(a => a.ini === i.id && a.estado === 'Abierto');
   const v = { avance: i.avance || 0, rag: i.rag, logros: '', proximos: i.proximos || '', issue: i.issue || '', finEst: i.finEst || i.finPlan || '' };
   const use = (f, val, txt) => `<a class="lnk" data-act="wkset" data-f="${f}" data-v="${esc(val)}">${txt}</a>`;
   openForm({
     title: (pos ? `Actualización semanal (${pos} de ${UI.wkn}) · ` : 'Actualización semanal · ') + i.titulo, values: v, saveLabel: pos && q && q.length ? 'Guardar y siguiente' : 'Guardar',
     fields: [
-      { k: 'avance', l: 'Avance (%)', t: 'range', w: 1, hint: ah ? `Hitos: ${ah.d} de ${ah.n} cerrados = ${ah.v}% · ${use('avance', ah.v, 'usar')}` : 'Sin hitos: define hitos para sugerir el avance' },
+      { k: 'avance', l: 'Avance (%)', t: 'range', w: 1, hint: `Calculado por fases, subfases e hitos: <b>${ah.v}%</b> (${ah.d} de ${ah.n} hitos cerrados) · ${use('avance', ah.v, 'usar el calculado')}. Si lo cambias, queda como ajuste manual.` },
       { k: 'rag', l: 'Salud (RAG)', t: 'select', opts: RAGS, w: 1, hint: `Reglas sugieren <b>${sg.rag}</b>${sg.why.length ? ' (' + esc(sg.why.join(', ')) + ')' : ''} · ${use('rag', sg.rag, 'usar')}` },
       { k: 'finEst', l: 'Fin estimado', t: 'date', w: 1, hint: fc && i.finPlan && fc > i.finPlan ? `Pronóstico ${dv} d sobre la línea base · <a class="lnk" data-act="chgnew" data-id="${i.id}">registrar cambio</a>` : '' },
       { k: 'logros', l: 'Logros de la semana', t: 'textarea', w: 3, hint: i.proximos ? `Lo prometido: «${esc(cut(i.proximos, 140))}» · <a class="lnk" data-act="wkpass">pasar a logros</a>` : '' },
@@ -532,8 +534,9 @@ Acts.wk = d => {
       if (o.rag !== i.rag) diffs.push(`RAG ${i.rag} → ${o.rag}`);
       if ((o.finEst || '') !== (i.finEst || '')) diffs.push(`Fin estimado ${fmtD(i.finEst)} → ${fmtD(o.finEst)}`);
       if (+o.avance !== +i.avance || !i.hist.length || i.hist[i.hist.length - 1][0] !== hoy()) i.hist.push([hoy(), +o.avance]);
-      const patch = { avance: +o.avance, rag: o.rag, finEst: o.finEst || i.finEst, logros: o.logros || i.logros, proximos: o.proximos, issue: o.issue };
-      Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); snapFases(i);
+      i.avanceManual = +o.avance === (0, ENLACES.avanceCalc)(i) ? null : +o.avance;   /* V23: igual al calculado = sin ajuste */
+      const patch = { rag: o.rag, finEst: o.finEst || i.finEst, logros: o.logros || i.logros, proximos: o.proximos, issue: o.issue };
+      Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); snapFases(i); (0, ENLACES.sincAvance)(i);
       log('Actualización', i.id, 'Actualización semanal' + (diffs.length ? ': ' + diffs.join('; ') : ': sin cambios de indicadores') + (o.logros ? '. Logros: ' + o.logros : '') + (o.proximos ? '. Próximos: ' + o.proximos : '') + (o.issue ? '. Issue: ' + o.issue : ''));
       toast('Actualización guardada'); refresh(); (0, ENLACES.celebrar)(i, b0); wkNext();
     }
@@ -831,7 +834,7 @@ Acts.chgdec = d => {
     onSave(o) {
       if (conServidor()) { return cmdServidor('apih_resolver_cambio', { p_id: c.id, p_estado: d.e, p_nota: o.nota || '' }, 'Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado'), true).then(r => r !== null); }
       c.estado = d.e; c.aprobador = o.aprobador; c.nota = o.nota; c.fDec = hoy();
-      if (ap) { if (c.fNue) { i.finPlan = c.fNue; if (!i.finEst || i.finEst < c.fNue) i.finEst = c.fNue; } if (+c.pNue > 0) i.presupuesto = +c.pNue; i.actualizada = hoy(); }
+      if (ap) { if (c.fNue) { (0, ENLACES.moverFinPlan)(i, c.fNue); if (!i.finEst || i.finEst < c.fNue) i.finEst = c.fNue; } if (+c.pNue > 0) i.presupuesto = +c.pNue; i.actualizada = hoy(); }
       log('Decisión', c.ini, `Cambio ${c.id} ${ap ? 'aprobado' : 'rechazado'} por ${o.aprobador}${o.nota ? ': ' + o.nota : ''}${ap ? '. Línea base: ' + chgEfecto(c) : ''}`); toast('Cambio ' + (ap ? 'aprobado y aplicado a la línea base' : 'rechazado')); refresh();
     }
   });

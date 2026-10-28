@@ -302,7 +302,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     const tpl = h => { const t = document.createElement('template'); t.innerHTML = h; return t.content; };
     const pf = tpl(R.pills); pf.querySelectorAll('.pill.tp,.pill.soft').forEach(x => x.remove());
     const af = tpl(R.acts), main = [], seg = [], more = [];
-    af.querySelectorAll('button').forEach(b => { const t = b.textContent.trim(); b.classList.remove('sm'); b.setAttribute('title', t); if (/^Actualizar/.test(t)) main.push(b.outerHTML.replace('class="btn', 'class="btn')); else if (/^(Reporte|1 a 1|Informe|Editar|Gantt|Presentar)/.test(t)) seg.push(b.outerHTML); else more.push(b.outerHTML); });
+    af.querySelectorAll('button').forEach(b => { const t = b.textContent.trim(); b.classList.remove('sm'); b.setAttribute('title', t); if (/^(Actualizar|Cambiar etapa|Aprobar)/.test(t)) main.push(b.outerHTML.replace('class="btn', 'class="btn')); else if (/^(Reporte|1 a 1|Informe|Editar|Gantt|Presentar)/.test(t)) seg.push(b.outerHTML); else more.push(b.outerHTML); });
     const kick = R.kicker.replace(/\s*<button[\s\S]*?<\/button>/g, '');
     const acts = `<div class="fl2-a">${main.join('')}${seg.join('')}${more.length ? `<div class="popw"><button class="btn" data-act="pop" data-id="pop-flmore" aria-label="Más acciones" title="Fase, estado y más">${icon('dots', 16)}<span>Más</span></button><div class="pop" id="pop-flmore" style="right:0">${more.join('')}</div></div>` : ''}</div>`;
     const PRIM = ['res', 'pla', 'cif', 'sal', 'log', 'hit', 'rie'], prim = lista.filter(x => PRIM.includes(x[0])), rest = lista.filter(x => !PRIM.includes(x[0]));

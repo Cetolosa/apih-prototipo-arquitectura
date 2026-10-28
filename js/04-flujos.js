@@ -1,7 +1,7 @@
 import { ENLACES } from './00-registro.js';
-import { $, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esc, estadosDe, fmtD, fmtMon, gates, gatesAprobar, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
+import { $, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, aplicarPlantilla, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, gates, gatesAprobar, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
 import { DataService } from './02-datos.js';
-import { Acts, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
+import { Acts, Chg, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
 /* =====================================================================
    V5 · Flujo Propuesta → Proyecto
    migración de datos V3/V4, aprobación (crea el proyecto), cambio de estado
@@ -43,6 +43,8 @@ function aprobarPropuesta(p, nota) {
   St.hitos.filter(h => h.ini === p.id).forEach(h => h.ini = n.id);
   St.hitos.filter(h => h.ini === n.id && h.fase && FASES_PROP.includes(h.fase) && !h.completado).forEach(h => { h.completado = true; h.fechaReal = hoy(); });   // etapas de propuesta ya superadas
   if (n.tipoIni) aplicarPlantilla(n, n.tipoIni, FASES_PRJ, n.inicioPlan || hoy());   // hitos de las fases del proyecto según la metodología
+  if (n.inicioPlan && n.finPlan) (0, ENLACES.setRangoPlan)(n, n.inicioPlan, n.finPlan);   /* V23: el proyecto nace con fechas explícitas por fase */
+  (0, ENLACES.sincAvance)(n);
   St.ini.forEach(x => { if (x.deps && x.deps.includes(p.id)) x.deps = x.deps.map(d => d === p.id ? n.id : d); });
   p.estado = 'Aprobada'; p.proyecto = n.id; p.actualizada = hoy(); p.estadoMotivo = nota || ''; p.estadoRev = null;
   log('Decisión', p.id, `Propuesta aprobada → proyecto ${n.id}` + (nota ? ' — ' + nota : '')); log('Cambio', n.id, `Proyecto creado desde la propuesta ${p.id}`);
@@ -74,7 +76,7 @@ Acts.aprobargo = d => {
 async function esperarSync() { for (let k = 0; k < 40 && (DataService.busy || DataService.dirty); k++) { if (!DataService.busy) DataService.flush(); await new Promise(r => setTimeout(r, 250)); } }
 export const conServidor = () => !!(DataService.svc && DataService.svc.rpc);
 async function hitoEnServidor(id, completado) {
-  try { await esperarSync(); await DataService.svc.rpc('apih_hito_estado', { p_id: id, p_completado: completado }); await DataService.refresh(false, true); toast(completado ? 'Hito completado' : 'Hito reabierto'); }
+  try { await esperarSync(); const r = await DataService.svc.rpc('apih_hito_estado', { p_id: id, p_completado: completado }); await DataService.refresh(false, true); toast(r && r.autoCompletado ? 'Hito completado · el proyecto se cerró al terminar su última fase' : completado ? 'Hito completado' : 'Hito reabierto'); }
   catch (e) { errorServidor(e); }
 }
 export async function resolverEnServidor(x, o) {
@@ -108,33 +110,97 @@ export async function aprobarEnServidor(p, miss, force, nota) {
     Modal.close(); UI.sel = { t: 'ini', id: nid }; UI.tab = 'resumen'; toast('Proyecto ' + nid + ' creado. Siguiente paso: planifica sus hitos y riesgos'); refresh();
   } catch (e) { errorServidor(e); }
 }
-/* Cambio de estado con motivo y fecha de revisión */
-Acts.estado = d => {
+/* =====================================================================
+   V23 · «Cambiar etapa»: UN solo diálogo para mover de fase, cambiar de estado, aprobar y completar.
+   Antes eran tres entradas (Fase, Estado, Aprobar) más el formulario Editar y el arrastre del pipeline.
+   Con servidor, el cambio es un comando transaccional (apih_transicion) que vuelve a evaluar las compuertas en la base.
+   ===================================================================== */
+const ETIQ_ESTADO = { 'Pausado': 'Pausar', 'En espera': 'Poner en espera', 'Stand By': 'Dejar en Stand By', 'Cancelado': 'Cancelar proyecto', 'Rechazada': 'Rechazar propuesta', 'Retirada': 'Retirar propuesta', 'En curso': 'Reactivar proyecto', 'Vigente': 'Reactivar propuesta' };
+export function etapasPosibles(i) {
+  if (!i || isDone(i)) return [];
+  const PR = esProp(i), F_ = fasesDe(i), idx = F_.indexOf(i.fase), ult = F_[F_.length - 1], out = [];
+  if (!esSB(i)) {
+    F_.forEach((f, k) => { if (k !== idx) out.push({ id: 'f:' + f, g: 'Mover de fase', t: (k > idx ? 'Avanzar a ' : 'Volver a ') + f, kind: 'fase', to: f, gates: gates(i, f) }); });
+    if (PR && i.fase === ult) out.push({ id: 'aprobar', g: 'Mover de fase', t: 'Aprobar y crear proyecto', kind: 'aprobar', gates: gatesAprobar(i) });
+    if (!PR && i.fase === ult) out.push({ id: 'e:Completado', g: 'Mover de fase', t: 'Completar proyecto', kind: 'estado', estado: 'Completado', gates: gates(i, 'Cierre'), motivo: false, rev: false });
+  }
+  estadosDe(i).filter(e => e !== i.estado && e !== 'Aprobada' && e !== 'Completado').forEach(e => out.push({ id: 'e:' + e, g: 'Cambiar estado', t: ETIQ_ESTADO[e] || e, kind: 'estado', estado: e, gates: [], motivo: EST_MOTIVO.includes(e), rev: EST_REVISION.includes(e) }));
+  return out;
+}
+Acts.etapa = d => {
   if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
-  const i = byId(d.id); if (isDone(i)) return;
-  const opts = estadosDe(i).filter(e => e !== 'Aprobada' && (e !== 'Completado' || i.fase === 'Cierre'));
-  openForm({
-    title: 'Cambiar estado · ' + i.titulo, saveLabel: 'Aplicar', values: { estado: i.estado, motivo: i.estadoMotivo || '', rev: i.estadoRev || '' },
-    fields: [{ k: 'estado', l: 'Nuevo estado', t: 'select', opts, w: 3 }, { k: 'motivo', l: 'Motivo (obligatorio para ' + EST_MOTIVO.join(', ') + ')', t: 'textarea', w: 3 }, { k: 'rev', l: 'Fecha de revisión (obligatoria para ' + EST_REVISION.join(' y ') + ')', t: 'date' }],
-    extra: `<p class="mut" style="margin-top:8px">${esProp(i) ? 'Para aprobar una propuesta usa “Aprobar y crear proyecto”.' : 'Completado solo está disponible en la fase Cierre.'} «Stand By» saca la ${tipoLbl(i).toLowerCase()} de indicadores, alertas y presentación (solo se cuenta); para reactivarla elige ${esProp(i) ? 'Vigente' : 'En curso'}.</p>`,
-    onSave(o) {
-      if (EST_MOTIVO.includes(o.estado) && !o.motivo) { toast('Indica el motivo del estado ' + o.estado, 'err'); return false; }
-      if (EST_REVISION.includes(o.estado) && !o.rev) { toast('Indica la fecha de revisión', 'err'); return false; }
-      if (o.estado === 'Completado') { const falta = gates(i, 'Cierre').filter(x => !x.ok).map(x => x.t); if (falta.length) { toast('No se puede completar. Falta: ' + falta.join('; '), 'err'); return false; } }   // F-05/U-12
-      const aplicar = () => { const prev = i.estado; i.estado = o.estado; i.estadoMotivo = EST_MOTIVO.includes(o.estado) ? o.motivo : ''; i.estadoRev = EST_REVISION.includes(o.estado) ? o.rev : null; i.actualizada = hoy();
-        if (o.estado === 'Completado') i.finReal = hoy();
-        if (prev !== o.estado) log('Cambio', i.id, `Estado: ${prev} → ${o.estado}` + (o.motivo ? ' — ' + o.motivo : ''));
-        toast('Estado actualizado'); refresh(); };
-      if (o.estado === 'Cancelado') { confirmBox('¿Cancelar «' + esc(i.titulo) + '»? Dejará de contar en KPIs y alertas. Puedes reabrirlo después.', aplicar, 'Cancelar proyecto', true); return false; }   // U-02
-      aplicar();
-    }
+  const i = byId(d.id); if (!i) return; if (isDone(i)) return toast(tipoLbl(i) + ' en estado final (' + i.estado + ')', 'err');
+  const L = etapasPosibles(i); if (!L.length) return toast('No hay movimientos posibles para esta ' + tipoLbl(i).toLowerCase(), 'err');
+  const F_ = fasesDe(i), idx = F_.indexOf(i.fase), sig = L.find(x => x.id === 'f:' + F_[idx + 1]) || L.find(x => x.id === 'aprobar') || L[0], pre = (d.pre && L.find(x => x.id === d.pre)) || sig;
+  const grupos = [...new Set(L.map(x => x.g))];
+  Modal.open({
+    title: 'Cambiar etapa · ' + i.titulo,
+    body: `<div class="flow big">${F_.map((x, k) => `<span class="${k < idx ? 'done' : k === idx ? 'cur' : ''}"><i></i>${esc(x)}</span>`).join('')}</div><p class="mut" style="margin:6px 0 0">Ahora: fase <b>${esc(i.fase)}</b> · estado <b>${esc(i.estado)}</b></p>
+    <div class="fgrid"><div class="fld w3"><label for="et_acc">¿Qué quieres hacer?</label><select id="et_acc" data-chg="etapaacc" data-id="${i.id}">${grupos.map(g => `<optgroup label="${esc(g)}">${L.filter(x => x.g === g).map(x => `<option value="${esc(x.id)}"${x.id === pre.id ? ' selected' : ''}>${esc(x.t)}</option>`).join('')}</optgroup>`).join('')}</select></div></div><div id="et_d" style="margin-top:6px"></div>`,
+    footer: `<button class="btn" data-act="mclose">Cancelar</button><button class="btn pri" data-act="etapago" data-id="${i.id}">Aplicar</button>`
   });
+  Chg.etapaacc($('#et_acc'));
 };
+Chg.etapaacc = el => {
+  const i = byId(el.dataset.id), a = etapasPosibles(i).find(x => x.id === el.value); if (!a) return;
+  const miss = a.gates.filter(x => !x.ok), adm = (0, ENLACES.esAdministra)();
+  const g = a.gates.length ? `<div class="gates">${a.gates.map(x => `<div class="${x.ok ? 'ok' : 'no'}">${icon(x.ok ? 'check' : 'x', 14)}<span>${esc(x.t)}</span>${x.ok ? '' : ` <a class="lnk" data-act="gfix" data-id="${i.id}">Corregir</a>`}</div>`).join('')}</div>` : (a.kind === 'fase' ? '<p class="mut">Sin compuertas para esta fase.</p>' : '');
+  const campos = a.kind === 'estado' && (a.motivo || a.rev) ? `<div class="fgrid">${a.motivo ? `<div class="fld w3"><label for="et_mot">Motivo (obligatorio)</label><textarea id="et_mot" rows="2" maxlength="500">${esc(i.estadoMotivo || '')}</textarea></div>` : ''}${a.rev ? `<div class="fld w2"><label for="et_rev">Fecha de revisión (obligatoria)</label><input id="et_rev" type="date" value="${esc(i.estadoRev || '')}"></div>` : ''}</div>` : '';
+  const nota = a.kind === 'estado' && a.estado === 'Stand By' ? `<p class="mut" style="font-size:12px">Stand By saca la ${tipoLbl(i).toLowerCase()} de indicadores, alertas y presentación (solo se cuenta). Para reactivarla vuelve a este diálogo.</p>` : a.kind === 'aprobar' ? '<p class="mut" style="font-size:12px">Se abrirá la aprobación: crea el proyecto y traspasa hitos y riesgos.</p>' : '';
+  const forzar = miss.length && adm ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="et_force"> <span>Forzar pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado en bitácora)</span></label><div class="fld" id="et_fw" style="display:none;margin-top:8px"><label for="et_fmot">Motivo del cambio forzado (obligatorio)</label><input id="et_fmot" type="text" maxlength="200"></div>` : (miss.length ? '<p class="mut" style="font-size:12px">Completa las condiciones pendientes: solo el rol Administra puede forzarlas.</p>' : '');
+  $('#et_d').innerHTML = g + campos + nota + forzar;
+  const fc = $('#et_force'); if (fc) fc.addEventListener('change', () => { $('#et_fw').style.display = fc.checked ? '' : 'none'; });
+};
+Acts.etapago = async d => {
+  const i = byId(d.id); if (!i) return; const a = etapasPosibles(i).find(x => x.id === ($('#et_acc') || {}).value); if (!a) return;
+  if (a.kind === 'aprobar') { Modal.close(); return Acts.aprobar({ id: i.id }); }
+  const miss = a.gates.filter(x => !x.ok), force = !!($('#et_force') && $('#et_force').checked), adm = (0, ENLACES.esAdministra)();
+  if (miss.length && !adm) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
+  if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar» (solo Administra).`, 'err');
+  const fmot = miss.length ? String(($('#et_fmot') || {}).value || '').trim() : '';
+  if (miss.length && !fmot) return toast('Indica el motivo del cambio forzado', 'err');
+  const motivo = a.motivo ? String(($('#et_mot') || {}).value || '').trim() : '', rev = a.rev ? String(($('#et_rev') || {}).value || '') : '';
+  if (a.motivo && !motivo) return toast('Indica el motivo del estado ' + a.estado, 'err');
+  if (a.rev && !rev) return toast('Indica la fecha de revisión', 'err');
+  const ctx = { a, motivo, rev, miss, fmot };
+  if (conServidor()) {
+    const r = await cmdServidor('apih_transicion', { p_id: i.id, p_fase: a.kind === 'fase' ? a.to : null, p_estado: a.kind === 'estado' ? a.estado : null, p_motivo: motivo, p_rev: rev || null, p_forzar: !!(miss.length && force), p_nota: fmot }, null, false);
+    if (r === null) return; Modal.close(); toast(a.kind === 'fase' ? 'Fase actualizada a ' + a.to : 'Estado actualizado a ' + a.estado); refresh(); return;
+  }
+  if (a.kind === 'estado' && a.estado === 'Cancelado') { Modal.close(); return confirmBox('¿Cancelar «' + esc(i.titulo) + '»? Dejará de contar en KPIs y alertas. Puedes reabrirlo después.', () => { aplicarEtapaLocal(i, ctx); }, 'Cancelar proyecto', true); }
+  Modal.close(); aplicarEtapaLocal(i, ctx);
+};
+function aplicarEtapaLocal(i, { a, motivo, rev, miss, fmot }) {
+  const forzado = miss.length ? ` (forzado: ${fmot}; faltaba: ${miss.map(m => m.t).join(', ')})` : '';
+  if (a.kind === 'fase') {
+    const from = i.fase; i.fase = a.to; i.faseDesde = hoy(); i.actualizada = hoy();
+    if (a.to === 'Ejecución' && !i.inicioReal) i.inicioReal = hoy();
+    if (a.to === 'Ejecución' && !i.base && i.inicioPlan && i.finPlan) (0, ENLACES.congelarBase)(i, false);
+    (0, ENLACES.sincAvance)(i);
+    log('Cambio', i.id, `Cambio de fase: ${from} → ${a.to}` + forzado); toast('Fase actualizada a ' + a.to); refresh();
+  } else {
+    const prev = i.estado; i.estado = a.estado; i.estadoMotivo = a.motivo ? motivo : ''; i.estadoRev = a.rev ? rev : null; i.actualizada = hoy();
+    if (a.estado === 'Completado') i.finReal = hoy();
+    (0, ENLACES.sincAvance)(i);
+    if (prev !== a.estado) log('Cambio', i.id, `Estado: ${prev} → ${a.estado}` + (motivo ? ' — ' + motivo : '') + forzado);
+    toast('Estado actualizado'); refresh();
+  }
+}
+/* Alias: los botones y enlaces anteriores abren el mismo diálogo ya posicionado */
+Acts.advance = d => { const i = byId(d.id); if (i && esProp(i) && i.fase === fasesDe(i)[fasesDe(i).length - 1] && !isDone(i) && !esSB(i)) return Acts.aprobar({ id: d.id }); return Acts.etapa({ id: d.id }); };
+Acts.estado = d => Acts.etapa({ id: d.id, pre: (() => { const i = byId(d.id); const L = etapasPosibles(i).filter(x => x.kind === 'estado' && x.id !== 'e:Completado'); return L[0] && L[0].id; })() });
+/* Cierre automático: al completar el último hito, si el proyecto está en la última fase y cumple todas las compuertas de cierre, queda Completado */
+export function autoCompletar(i) {
+  if (!i || esProp(i) || isDone(i) || i.estado !== 'En curso' || i.fase !== fasesDe(i)[fasesDe(i).length - 1]) return false;
+  if (gates(i, 'Cierre').some(x => !x.ok)) return false;
+  i.estado = 'Completado'; i.finReal = hoy(); i.estadoMotivo = ''; i.estadoRev = null; i.actualizada = hoy(); (0, ENLACES.sincAvance)(i);
+  log('Cambio', i.id, 'Estado: En curso → Completado — cierre automático: se completó lo último de la fase ' + i.fase); toast('Proyecto completado: se cerró la última fase'); return true;
+}
 Acts.reabrirPrj = d => {   // N-F-07
   const i = byId(d.id); if (!i || esProp(i) || !isDone(i) || !(0, ENLACES.esAdministra)()) return (0, ENLACES.NO_PERM)('Solo Administra puede reabrir un proyecto cerrado');
   openForm({
     title: 'Reabrir proyecto · ' + i.titulo, saveLabel: 'Reabrir', values: { nota: '' }, fields: [{ k: 'nota', l: 'Motivo de la reapertura (queda en la bitácora)', t: 'textarea', req: true, w: 3 }],
-    onSave(o) { if (conServidor()) { return cmdServidor('apih_reabrir', { p_id: i.id, p_nota: o.nota }, 'Proyecto reabierto', true).then(r => r !== null); } const prev = i.estado; i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; i.finReal = null; i.actualizada = hoy(); log('Cambio', i.id, `Proyecto reabierto (era ${prev}): ${o.nota}`); toast('Proyecto reabierto'); refresh(); }
+    onSave(o) { if (conServidor()) { return cmdServidor('apih_reabrir', { p_id: i.id, p_nota: o.nota }, 'Proyecto reabierto', true).then(r => r !== null); } const prev = i.estado; i.estado = 'En curso'; i.estadoMotivo = ''; i.estadoRev = null; i.finReal = null; i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); log('Cambio', i.id, `Proyecto reabierto (era ${prev}): ${o.nota}`); toast('Proyecto reabierto'); refresh(); }
   });
 };
 Acts.reopen = d => {
@@ -181,6 +247,8 @@ export function myWork() {
 
 // Enlaces para módulos anteriores (ver 00-registro.js)
 Object.defineProperties(ENLACES, {
+  autoCompletar: { get: () => autoCompletar, enumerable: true, configurable: true },
+  etapasPosibles: { get: () => etapasPosibles, enumerable: true, configurable: true },
   aprobarPropuesta: { get: () => aprobarPropuesta, enumerable: true, configurable: true },
   conServidor: { get: () => conServidor, enumerable: true, configurable: true },
   diasEnFase: { get: () => diasEnFase, enumerable: true, configurable: true },

@@ -948,7 +948,7 @@ function areaDeAccion(d, el) {
 }
 const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spsync', 'splogout', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
 const CHG_ADMIN = ['cfg', 'spc', 'impfile', 'impinifile'];
-const ACT_EDIT = ['carmar', 'advance', 'advgo', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota'];
+const ACT_EDIT = ['carmar', 'advance', 'etapa', 'etapago', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota', 'avauto', 'fasefix', 'fasefechas'];
 const CHG_EDIT = ['advto', 'hitotoggle', 'acutoggle', 'bitpres'];
 const ACT_COM = ['csug', 'cdel', 'cpart', 'ctema', 'cacc', 'cdec', 'cclose'];
 const CHG_COM = ['catt', 'ctoggle'];

@@ -1,0 +1,338 @@
+[
+ {
+  "nombre": "sin hitos, primera fase",
+  "proy": {
+   "fase": "Planificación"
+  },
+  "hitos": [],
+  "avance": 0
+ },
+ {
+  "nombre": "sin hitos, fase 2: la anterior cuenta como cerrada",
+  "proy": {
+   "fase": "Ejecución"
+  },
+  "hitos": [],
+  "avance": 25
+ },
+ {
+  "nombre": "hitos sueltos en dos fases",
+  "proy": {
+   "fase": "Ejecución"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 33
+ },
+ {
+  "nombre": "subfases y hitos sueltos",
+  "proy": {
+   "fase": "Ejecución",
+   "subfases": [
+    {
+     "id": "SFA",
+     "nombre": "SFA",
+     "fase": "Ejecución",
+     "inicio": "2026-01-01",
+     "fin": "2026-12-31"
+    },
+    {
+     "id": "SFB",
+     "nombre": "SFB",
+     "fase": "Ejecución",
+     "inicio": "2026-01-01",
+     "fin": "2026-12-31"
+    }
+   ]
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "subfase": "SFA",
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "subfase": "SFA",
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "subfase": "SFB",
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 41
+ },
+ {
+  "nombre": "ponderado por días (todas las fases con fechas)",
+  "proy": {
+   "fase": "Ejecución",
+   "fasesFechas": {
+    "Planificación": {
+     "ini": "2026-01-01",
+     "fin": "2026-01-10"
+    },
+    "Ejecución": {
+     "ini": "2026-01-11",
+     "fin": "2026-02-09"
+    },
+    "Transición": {
+     "ini": "2026-02-10",
+     "fin": "2026-02-19"
+    },
+    "Cierre": {
+     "ini": "2026-02-20",
+     "fin": "2026-03-01"
+    }
+   }
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 33
+ },
+ {
+  "nombre": "fechas solo en algunas fases: pesos iguales",
+  "proy": {
+   "fase": "Ejecución",
+   "fasesFechas": {
+    "Planificación": {
+     "ini": "2026-01-01",
+     "fin": "2026-01-10"
+    }
+   }
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 33
+ },
+ {
+  "nombre": "subfase sin hitos vale 0",
+  "proy": {
+   "fase": "Planificación",
+   "subfases": [
+    {
+     "id": "SFX",
+     "nombre": "SFX",
+     "fase": "Planificación",
+     "inicio": "2026-01-01",
+     "fin": "2026-12-31"
+    }
+   ]
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 17
+ },
+ {
+  "nombre": "fases anteriores sin hitos cuentan 100 %",
+  "proy": {
+   "fase": "Transición"
+  },
+  "hitos": [
+   {
+    "fase": "Transición",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 75
+ },
+ {
+  "nombre": "fase desconocida: no hay fases cerradas",
+  "proy": {
+   "fase": "Fase X"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 25
+ },
+ {
+  "nombre": "hito con subfase de otra fase cuenta como suelto (la subfase vacía de una fase pasada vale 0)",
+  "proy": {
+   "fase": "Ejecución",
+   "subfases": [
+    {
+     "id": "SFP",
+     "nombre": "SFP",
+     "fase": "Planificación",
+     "inicio": "2026-01-01",
+     "fin": "2026-12-31"
+    }
+   ]
+  },
+  "hitos": [
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "subfase": "SFP",
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 25
+ },
+ {
+  "nombre": "todo cerrado",
+  "proy": {
+   "fase": "Cierre",
+   "fasesFechas": {
+    "Planificación": {
+     "ini": "2026-01-01",
+     "fin": "2026-01-10"
+    },
+    "Ejecución": {
+     "ini": "2026-01-11",
+     "fin": "2026-02-09"
+    },
+    "Transición": {
+     "ini": "2026-02-10",
+     "fin": "2026-02-19"
+    },
+    "Cierre": {
+     "ini": "2026-02-20",
+     "fin": "2026-03-01"
+    }
+   }
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Ejecución",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Transición",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Cierre",
+    "completado": true,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 100
+ },
+ {
+  "nombre": "hitos de fases que no existen se ignoran",
+  "proy": {
+   "fase": "Planificación"
+  },
+  "hitos": [
+   {
+    "fase": "Planificación",
+    "completado": true,
+    "fecha": "2100-01-01"
+   },
+   {
+    "fase": "Recepción",
+    "completado": false,
+    "fecha": "2100-01-01"
+   }
+  ],
+  "avance": 25
+ }
+]
