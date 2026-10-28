@@ -261,7 +261,7 @@ function renderPanel() {
   const sc = $('.pn-b', p) ? $('.pn-b', p).scrollTop : 0;
   p.innerHTML = h; const b = $('.pn-b', p); if (b) b.scrollTop = sc;
 }
-function pnHead(kicker, title, pills, actions) { return `<div class="pn-h"><div class="pn-k">${kicker}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><h3>${title}</h3><div class="pn-p">${pills || ''}</div><div class="pn-a">${actions || ''}</div></div>`; }
+export function pnHead(kicker, title, pills, actions) { return `<div class="pn-h"><div class="pn-k">${kicker}<button class="icon-btn sm" data-act="panelx" title="Cerrar panel" aria-label="Cerrar panel">${icon('x', 15)}</button></div><h3>${title}</h3><div class="pn-p">${pills || ''}</div><div class="pn-a">${actions || ''}</div></div>`; }
 export const kv = (k, v) => `<div class="kv"><span>${k}</span><b>${v}</b></div>`;
 function panelHome() {
   const me = miUsuario(), mine = St.ini.filter(i => i.lider === me && isLive(i) && FASES_ACT.includes(i.fase));

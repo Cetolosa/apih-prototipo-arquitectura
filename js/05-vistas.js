@@ -183,7 +183,7 @@ Views.proyectos = {
     const f = F('prj', { q: '', mode: 'board', resp: '', hideDone: true });
     let rows = scopeAll().filter(porTipo); if (f.q) { const q = f.q.toLowerCase(); rows = rows.filter(i => (i.titulo + i.lider + i.id).toLowerCase().includes(q)); } if (f.resp) rows = rows.filter(i => i.lider === f.resp); if (f.hideDone) rows = rows.filter(isLive);
     const KF = planTipo() === 'prj' ? FASES_PRJ : planTipo() === 'prop' ? FASES_PROP : [...FASES_PROP.filter(fs => rows.some(i => i.fase === fs)), ...FASES_PRJ];   // N-U-09: sin columnas de propuestas vacías
-    const card = i => { const hs = hitosDe(i.id), hd = hs.filter(h => h.completado).length, nh = nextHito(i); return `<article tabindex="0" role="button" class="icard ${UI.sel && UI.sel.id === i.id ? 'sel' : ''}" draggable="true" data-id="${i.id}" data-act="sel" data-t="ini">
+    const card = i => { if (!esProp(i)) return cardProyecto(i, UI.sel && UI.sel.id === i.id); const hs = hitosDe(i.id), hd = hs.filter(h => h.completado).length, nh = nextHito(i); return `<article tabindex="0" role="button" class="icard ${UI.sel && UI.sel.id === i.id ? 'sel' : ''}" draggable="true" data-id="${i.id}" data-act="sel" data-t="ini">
       <div class="ic-t"><span class="mono">${i.id}</span>${esProp(i) ? tipoPill(i) : ''}${!['En curso', 'Vigente'].includes(i.estado) ? estPill(i.estado) : ''}${esProp(i) ? '' : ragPill(i.rag)}</div><h3>${esc(i.titulo)}</h3>
       <div class="ic-ph" style="font-size:12px;margin:-2px 0 4px">${faseTag(i)}</div>
       ${f.mode === 'cards' ? `<p class="ic-d">${esc((i.resumen || i.desc || '').slice(0, 150))}</p>` : ''}
@@ -438,6 +438,31 @@ function faseNotaForm(i, fase) {
 }
 Acts.fnota = d => faseNotaForm(byId(d.id), d.f);
 
+/* ======================= V23 · Tarjeta y panel complementarios =======================
+   Tarjeta: ¿dónde está y cómo va?  Panel: ¿por qué está así y qué sigue?  (señales, próximos hitos y pendientes con otras personas) */
+export function senalesIni(i) {
+  const out = [], H = hoy(), um = +(0, ENLACES.cfgI)(i, 'umbralCritico') || 15, hs = hitosDe(i.id), ven = hs.filter(h => !h.completado && h.fecha && h.fecha < H).sort(by('fecha'));
+  const dv = desv(i); if (dv > 0) out.push({ bad: true, t: 'Atrasado ' + dv + ' d.', d: 'Termina el ' + fmtD(forecast(i)) + '; el plan decía ' + fmtD(i.finPlan) + '.' });
+  if (ven.length) out.push({ bad: true, t: ven.length + (ven.length === 1 ? ' hito vencido:' : ' hitos vencidos:'), d: ven.slice(0, 2).map(h => h.nombre + ' (' + diffD(H, h.fecha) + ' d)').join(', ') + (ven.length > 2 ? ' y ' + (ven.length - 2) + ' más.' : '.') });
+  const rk = riesgosDe(i.id).filter(r => riesgoAbierto(r) && expo(r) >= um && !String(r.mit || '').trim());
+  if (rk.length) out.push({ bad: true, t: rk.length + (rk.length === 1 ? ' riesgo crítico sin mitigación:' : ' riesgos críticos sin mitigación:'), d: String(rk[0].desc || rk[0].id).slice(0, 60) + (rk.length > 1 ? ' y ' + (rk.length - 1) + ' más.' : '.') });
+  const pres = +i.presupuesto || 0, gas = i.gastado == null || i.gastado === '' ? null : +i.gastado;
+  if (pres > 0 && gas != null && isFinite(gas)) { const gp = Math.round(gas / pres * 100), av = Math.round(+i.avance || 0); out.push(gp > av + 10 ? { bad: true, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' } : { bad: false, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' }); }
+  if (!out.some(x => x.bad)) out.unshift({ bad: false, t: 'Sin señales de alerta.', d: '' });
+  return out;
+}
+/* tarjeta de iniciativa (proyectos): lectura de un segundo */
+function cardProyecto(i, sel) {
+  const FS = fasesDe(i), k = Math.max(0, FS.indexOf(i.fase)), nh = nextHito(i), H = hoy(), ven = hitosDe(i.id).filter(h => !h.completado && h.fecha && h.fecha < H).length, dv = desv(i), plan = Math.round(esperado(i)), av = Math.round(+i.avance || 0);
+  const seg = FS.map((f, j) => `<i class="${j < k ? 'done' : j === k ? 'cur' : ''}" title="${esc(f)}"></i>`).join('');
+  const dn = nh ? diffD(nh.fecha, H) : 0;
+  return `<article tabindex="0" role="button" class="icard ic2 ${sel ? 'sel' : ''}" draggable="true" data-id="${i.id}" data-act="sel" data-t="ini">
+      <div class="ic-t"><span class="mono">${i.id}</span>${!['En curso', 'Vigente'].includes(i.estado) ? estPill(i.estado) : ''}${ragPill(i.rag)}<span class="sp"></span>${prioPill(i.prioridad)}</div><h3>${esc(i.titulo)}</h3>
+      <div class="ic2-f"><span class="ic2-ph">${fasePill(i.fase)}<small class="mut">fase ${k + 1} de ${FS.length}</small></span><div class="ic2-seg">${seg}</div></div>
+      <div class="ic2-av"><div class="ic2-l"><b>Avance ${av} %</b><span class="mut">plan ${plan} %</span></div><div class="ic2-bar" title="Avance ${av} % · plan ${plan} %"><i style="width:${Math.max(0, Math.min(100, av))}%"></i><u style="left:${Math.max(0, Math.min(100, plan))}%"></u></div></div>
+      ${nh ? `<div class="ic2-nx">${icon('flag', 14)}<span><b>${esc(nh.nombre)}</b> · ${fmtD(nh.fecha)}</span><em class="${dn < 0 ? 'bad' : ''}">${dn < 0 ? 'vencido ' + (-dn) + ' d' : dn === 0 ? 'hoy' : 'en ' + dn + ' d'}</em></div>` : `<div class="ic2-nx mut">${icon('flag', 14)}<span>Sin hitos pendientes</span></div>`}
+      <div class="ic2-ft"><span class="pp">${avatar(i.lider, 22)}<small>${esc(String(i.lider || '').split(' ').slice(0, 2).join(' '))}</small></span><span class="sp"></span>${dv > 0 ? `<span class="chip-bad">+${dv} d</span>` : ''}${ven ? `<span class="chip-bad">${ven} ${ven === 1 ? 'vencido' : 'vencidos'}</span>` : ''}</div></article>`;
+}
 export function faseTag(i, f) {
   f = f || i.fase; const v = ventanaDe(i, f), s = f === i.fase ? subActual(i) : null;
   return `${fasePill(f)}${v && v.ini ? ` <small class="mut fz-rng" title="Inicio y fin de la fase ${esc(f)}">${rangoTx(v.ini, v.fin)}</small>` : ''}${descIco(faseDescDe(i, f))}${s ? ` <small class="fz-subt" title="Subfase en curso · ${rangoTx(s.inicio, s.fin)}">› ${esc(s.nombre)}</small>` : ''}`;
