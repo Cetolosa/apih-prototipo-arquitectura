@@ -526,29 +526,12 @@ const pasoAj = p => { const v = +(semOf().aj || {})[p.k] || 0; return SEM_AJ.som
 const pasoPts = p => Math.max(0, Math.min(100, pasoBase(p) + pasoAj(p)));
 /* Pendientes personales: viven aparte del portafolio (sin tenedores, sin reportes, sin presentaciones) */
 function tareasPasos() { const H = hoy(); return (semOf().t || []).filter(t => !t.hecha).map(t => ({ k: 'T:' + t.id, u: t.f ? (t.f <= H ? 0 : diffD(t.f, H) <= 7 ? 1 : 2) : 2, tipo: t.cat, t: t.t, por: t.f ? (t.f < H ? 'Venció el ' : 'Fecha: ') + fzd(t.f) + '.' : 'Sin fecha.', prot: 'Tu lista personal', btn: 'Marcar hecho', act: 'tareahecha', d: { id: t.id }, f: t.f || '9999-12-31', ini: null, tarea: t, nota: '' })); }
-/* Pasos sugeridos de una iniciativa. u: 0 hoy · 1 esta semana · 2 próximo. prot: tenedor o compuerta que protege */
+/* Pasos sugeridos de una iniciativa. u: 0 hoy · 1 esta semana · 2 próximo. prot: tenedor o compuerta que protege.
+   Qué pasos hay y su urgencia los calcula el servidor (apih_cielo().pasos); aquí solo se aplican las preferencias personales (ocultar) y las descripciones. */
 export function pasosDe(i) {
   if (!i || isDone(i)) return [];
-  const H = hoy(), out = [], add = (k, u, tipo, t, por, prot, btn, act, d, f, nota) => out.push({ k: i.id + ':' + k, u, tipo, t, por, prot, btn, act, d, f: f || H, ini: i, nota: nota || '' });
-  const hs = hitosDe(i.id).filter(h => !h.completado).sort(by('fecha'));
-  hs.filter(h => h.fecha < H).forEach(h => add('hv' + h.id, 0, 'Hito vencido', 'Cierra o reprograma «' + h.nombre + '»', 'Venció hace ' + diffD(H, h.fecha) + ' d. Mientras siga abierto, el indicador de Hitos queda en rojo.', 'Hitos', 'Editar hito', 'edit', { t: 'hito', id: h.id }, h.fecha, hitoDescDe(i, h)));
-  hs.filter(h => h.fecha === H).forEach(h => add('hh' + h.id, 0, 'Hito', 'Marca «' + h.nombre + '» como cumplido', 'Vence hoy.', 'Hitos', 'Marcar cumplido', 'hitotoggle', { id: h.id }, h.fecha, hitoDescDe(i, h)));
-  hs.filter(h => h.fecha > H && diffD(h.fecha, H) <= 7).slice(0, 3).forEach(h => add('hs' + h.id, 1, 'Hito', 'Prepara «' + h.nombre + '» (' + fzd(h.fecha) + ')', 'Vence en ' + diffD(h.fecha, H) + ' d' + (h.resp ? ' · ' + h.resp : '') + '.', 'Hitos', 'Ver hito', 'sel', { t: 'hito', id: h.id }, h.fecha, hitoDescDe(i, h)));
-  if (FASES_ACT.includes(i.fase) && isLive(i)) { const st = (0, ENLACES.starsOf)(i, (0, ENLACES.hoyW)()), dia = st.find(x => x.k === 'dia'); if (dia && dia.s === 'off') add('dia', pD(H).getDay() >= 5 || pD(H).getDay() === 0 ? 0 : 1, 'Tenedor «Al día»', 'Registra la actualización semanal', dia.tip || 'Sin actualización esta semana: el tenedor «Al día» está apagado.', 'Al día', 'Actualizar', 'wk', { id: i.id }); }
-  riesgosDe(i.id).filter(riesgoAbierto).forEach(r => {
-    const n = nivelRiesgo(r), crit = riesgoCritico(r);
-    if (crit && !String(r.mit || '').trim()) add('rm' + r.id, 0, 'Riesgo crítico', 'Define la mitigación de «' + r.desc + '»', 'Crítico (' + expo(r) + ') sin plan de mitigación: el indicador de Riesgos queda en rojo y se bloquean compuertas.', 'Riesgos', 'Editar riesgo', 'edit', { t: 'risk', id: r.id });
-    else if (r.fRev && r.fRev < H) add('rv' + r.id, 0, 'Riesgo', 'Revisa el riesgo «' + r.desc + '»', 'La revisión venció el ' + fzd(r.fRev) + '. Mientras no se revise, el indicador de Riesgos queda en rojo.', 'Riesgos', 'Editar riesgo', 'edit', { t: 'risk', id: r.id }, r.fRev);
-    else if (r.fRev && diffD(r.fRev, H) <= 7) add('rs' + r.id, r.fRev === H ? 0 : 1, 'Riesgo ' + n.n.toLowerCase(), 'Prepara la revisión de «' + r.desc + '» (' + fzd(r.fRev) + ')', n.n + ' (' + expo(r) + ')' + (r.mit ? '. Mitigación: ' + (0, ENLACES.cut)(r.mit, 90) : '.'), 'Riesgos', 'Abrir riesgo', 'sel', { t: 'risk', id: r.id }, r.fRev);
-  });
-  ACUERDOS().filter(c => c.ini === i.id && !['Cumplido', 'Cancelado'].includes(c.estado) && c.limite && diffD(c.limite, H) <= 7).forEach(c => add('c' + c.id, c.limite <= H ? 0 : 1, 'Compromiso', (c.limite < H ? 'Cumple el compromiso vencido «' : 'Cumple «') + (0, ENLACES.cut)(c.texto || c.titulo || 'compromiso', 70) + '»', (c.limite < H ? 'Venció el ' : 'Vence el ') + fzd(c.limite) + (c.resp ? ' · ' + c.resp : '') + '.', 'Compromisos', 'Ver compromisos', 'go', { v: 'compromisos' }, c.limite));
-  const FS = fasesDe(i), nx = FS[FS.indexOf(i.fase) + 1];
-  if (nx) {
-    const g = compuertas(i), falta = g.filter(x => !x.ok), V = fasesVentana(i), v = V.find(x => x.actual), cerca = v && v.fin && diffD(v.fin, H) <= 7;
-    if (!falta.length) add('adv', 0, 'Compuerta', 'Avanza a ' + nx, 'Se cumplen todas las condiciones de la compuerta.', 'Compuerta', 'Avanzar', 'advance', { id: i.id }, H, faseDescDe(i, i.fase));
-    else falta.filter(x => !/^Hitos de la fase/.test(x.t)).forEach((x, k) => add('g' + k, cerca ? 1 : 2, 'Compuerta', 'Para pasar a ' + nx + ': ' + x.t.charAt(0).toLowerCase() + x.t.slice(1), 'Condición pendiente de la compuerta' + (v && v.fin ? '; la fase ' + i.fase + ' cierra el ' + fzd(v.fin) : '') + '.', 'Compuerta', esProp(i) ? 'Editar propuesta' : 'Editar proyecto', 'edit', { t: 'ini', id: i.id }, H, faseDescDe(i, i.fase)));
-  }
-  return out.filter(p => !pospOn(p.k)).sort(by(p => p.u + '|' + p.f));
+  const P = ((CALC.cielo || {}).pasos || {})[i.id] || [], hs = hitosDe(i.id);
+  return P.map(p => Object.assign({}, p, { ini: i, nota: p.nr ? (p.nr.h ? hitoDescDe(i, hs.find(h => h.id === p.nr.h)) : faseDescDe(i, p.nr.fase)) : '' })).filter(p => !pospOn(p.k)).sort(by(p => p.u + '|' + p.f));
 }
 function pasoHTML(p, conIni) {
   const U = PASO_U[p.u], aj = pasoAj(p);
