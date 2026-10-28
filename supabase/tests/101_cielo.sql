@@ -26,6 +26,7 @@ select pg_temp.ok((select j->'proy'->'PRJ-C2'->'st'->>'rsk' from res) = 'off', '
 select pg_temp.ok((select j->'proy'->'PRJ-C2'->'st'->>'dia' from res) = 'on', 'la fecha de actualización de la ficha cuenta como «Al día»');
 select pg_temp.ok((select j->'proy'->'PRJ-C2'->>'lleno' from res) = 'false', 'la mesa no está llena con tenedores apagados');
 select pg_temp.ok(not (select j->'proy' from res) ? 'PRJ-C3', 'un proyecto completado no entra a la cocina de esta semana');
+select pg_temp.ok((select j->'impecables'->>'PRJ-C3' from res) = 'true', 'cierre impecable: completado al 100 %, sin hitos pendientes ni riesgos abiertos');
 select pg_temp.ok(jsonb_array_length((select j->'hist'->'PRJ-C1' from res)) = 8, 'serie de 8 semanas para el cielo colectivo');
 select pg_temp.ok((select j->'personas'->'Christian Tolosa'->>'nivel' from res) in ('Pinche','Cocinero','Chef de partida','Chef ejecutivo'), 'nivel de la persona calculado por el servidor');
 select pg_temp.ok((select j->'yo'->'insignias'->'eq'->>'of' from res) = '1' and (select j->'yo'->>'meta' from res) = '80', 'meta del equipo por defecto 80 %');

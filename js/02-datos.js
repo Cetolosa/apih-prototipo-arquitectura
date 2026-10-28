@@ -321,8 +321,8 @@ export const DataService = {
   async recalcular() {
     if (!this.svc) return;
     try {
-      const c = await this.svc.calculos(), antes = JSON.stringify(CALC);
-      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {} }, c);
+      const c = await this.svc.calculos(), antes = JSON.stringify(CALC), cielo = await this.svc.rpc('apih_cielo', {}).catch(() => null);
+      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, cielo: null }, c, { cielo });
       this.aplicarDerivados();
       if (JSON.stringify(CALC) !== antes) { ENLACES._alertCache = null; if (typeof ENLACES.render === 'function') (0, ENLACES.render)(); }
     } catch (e) { console.warn('APIH: no se pudieron leer los valores calculados', e); }

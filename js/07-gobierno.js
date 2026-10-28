@@ -24,70 +24,26 @@ const STAR_SVG = (s, sz = 16) => s === 'na'
   ? `<svg class="fk fk-na" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/></svg>`
   : `<svg class="fk fk-${s}" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.2 2h1.6v7.4H6.2zM11.2 2h1.6v7.4h-1.6zM16.2 2h1.6v7.4h-1.6zM6.2 8h11.6v1.8c0 1.8-1.7 3-4.6 3.2V22h-2.4V13c-2.9-.2-4.6-1.4-4.6-3.2z"/></svg>`;
 
-/* --- ¿qué hizo el proyecto en la semana W (lunes)? --- */
-export function actSemana(i, W) {
-  const E = addD(W, 6); let real = false, nc = false;
-  St.bitacora.forEach(b => { if (b.ini !== i.id || b.tipo !== 'Actualización') return; const d = String(b.ts).slice(0, 10); if (d < W || d > E) return; if (/sin novedades/i.test(b.texto || '')) nc = true; else real = true; });
-  if (!real && !nc && i.actualizada && i.actualizada >= W && i.actualizada <= E) real = true;
-  return real ? 'real' : nc ? 'nc' : null;
-}
-export const hoyW = () => wkIni(hoy());
-/* Tope anti-vanidad: el tenedor «Al día» no puede ganarse si el proyecto lleva TOPE_SIN_AVANCE semanas seguidas actualizándose sin avance real
-   (ni % de avance ni hitos cerrados). Es una señal de gestión desconectada del progreso, no un castigo: se levanta con cualquier avance. */
-const TOPE_SIN_AVANCE = 3;
-const avanceEn = (i, d) => { let v = 0; (i.hist || []).forEach(h => { if (h[0] <= d) v = +h[1]; }); return v; };
-function avanzoSemana(i, W) {
-  const E = addD(W, 6);
-  return avanceEn(i, E) > avanceEn(i, addD(W, -1)) || hitosDe(i.id).some(h => h.completado && h.fechaReal && h.fechaReal >= W && h.fechaReal <= E);
-}
-function sinAvanceSostenido(i, W) {
-  if (+i.avance >= 100 && !hitosDe(i.id).some(h => !h.completado)) return false;   // nada pendiente que avanzar
-  for (let k = 0; k < TOPE_SIN_AVANCE; k++) { const w = addD(W, -7 * k); if (avanzoSemana(i, w) || !actSemana(i, w)) return false; }
-  return true;
-}
+/* --- «Mi cocina»: los tenedores, la racha, el nivel y las insignias los calcula el servidor (apih_cielo); aquí solo se leen y se suman --- */
+const CIELO = () => CALC.cielo || { W: '', proy: {}, hist: {}, personas: {}, impecables: {}, yo: null };
+export const hoyW = () => CIELO().W || wkIni(hoy());
+export const actSemana = i => { const p = CIELO().proy[i && i.id]; return p ? p.act || null : null; };   // 'real' | 'nc' | null
 export function vencidosA(arr, f, E, doneF) { return arr.filter(x => x[f] && x[f] < E && !doneF(x, E)); }
-export function starsOf(i, W) {
-  const cur = W === hoyW(), E = cur ? hoy() : addD(W, 6), out = {};
-  /* Al día */
-  const a = actSemana(i, W); let dia = a === 'real';
-  if (a === 'nc') dia = !(actSemana(i, addD(W, -7)) === 'nc' && actSemana(i, addD(W, -14)) === 'nc');
-  const tope = dia && sinAvanceSostenido(i, W); if (tope) dia = false;
-  out.dia = dia ? 'on' : 'off';
-  /* Hitos */
-  const hs = hitosDe(i.id), expl = CAMBIOS().some(c => c.ini === i.id && c.estado !== 'Rechazado' && c.tipo === 'Fecha' && (c.creada || '') <= E);
-  const hv = vencidosA(hs, 'fecha', E, (h, e) => h.completado && (h.fechaReal || '') <= e);
-  out.hit = !hs.length ? 'na' : (!hv.length || expl) ? 'on' : 'off';
-  /* Compromisos */
-  const cs = ACUERDOS().filter(c => c.ini === i.id && c.estado !== 'Cancelado' && (c.creada || '') <= addD(W, 6));
-  const cv = vencidosA(cs, 'limite', E, (c, e) => c.estado === 'Cumplido' && (c.fechaReal || '') <= e);
-  out.cmp = !cs.length ? 'na' : !cv.length ? 'on' : 'off';
-  /* Riesgos y Gobierno: solo se evalúan en la semana en curso (no hay historial de revisiones) */
-  if (cur) {
-    const rs = riesgosDe(i.id).filter(riesgoAbierto);
-    out.rsk = !rs.length ? 'na' : rs.some(r => (r.fRev && r.fRev < hoy()) || (riesgoCritico(r) && !String(r.mit || '').trim())) ? 'off' : 'on';
-    const f = forecast(i), fuera = f && i.finPlan && desv(i) > cfgI(i,'tolDesv');
-    out.gob = fuera && !CAMBIOS().some(c => c.ini === i.id && c.estado !== 'Rechazado') ? 'off' : 'on';
-  } else { out.rsk = 'na'; out.gob = 'na'; }
-  return STAR_DEF.map(d => ({ ...d, s: out[d.k], ...(d.k === 'dia' && tope ? { tip: 'Llevas ' + TOPE_SIN_AVANCE + ' semanas actualizando sin avance real: sube el % de avance o cierra un hito y se enciende.' } : {}) }));
+export function starsOf(i) {
+  const p = CIELO().proy[i && i.id], r = STAR_DEF.map(d => ({ ...d, s: p ? p.st[d.k] || 'na' : 'na', ...(d.k === 'dia' && p && p.tope ? { tip: 'Llevas 3 semanas actualizando sin avance real: sube el % de avance o cierra un hito y se enciende.' } : {}) }));
+  r.lleno = !!(p && p.lleno); return r;
 }
-const cieloLleno = st => !st.some(x => x.s === 'off') && st.some(x => x.s === 'on');
-const starsHist = st => st.filter(x => ['dia', 'hit', 'cmp'].includes(x.k));        // criterio histórico (calculable hacia atrás)
-export const proyActivos = (me, W) => St.ini.filter(i => !esProp(i) && isLive(i) && FASES_ACT.includes(i.fase) && (!me || i.lider === me) && (i.creada || '0') <= addD(W, 6));
+const cieloLleno = st => !!st.lleno;
+export const proyActivos = me => St.ini.filter(i => CIELO().proy[i.id] && (!me || i.lider === me));
+const NIV_COLOR = { 'Pinche': '#8A8886', 'Cocinero': '#C98A00', 'Chef de partida': '#0B5394', 'Chef ejecutivo': '#7A5AF8' };
 export function cieloPersona(me) {
-  const W0 = hoyW(), mine = proyActivos(me, W0), cur = mine.map(i => ({ i, st: starsOf(i, W0) }));
-  let racha = 0, total = 0;
-  if (mine.length) {
-    const wk = W => { const ps = proyActivos(me, W); return ps.length && ps.every(i => { const h = starsHist(starsOf(i, W)); return !h.some(x => x.s === 'off'); }); };
-    for (let k = 1, run = true; k <= 26; k++) { const ok = wk(addD(W0, -7 * k)); if (ok) total++; if (run) { if (ok) racha++; else run = false; } }
-    if (cur.every(x => cieloLleno(x.st))) { racha++; total++; }
-  }
-  const lv = total >= 12 ? ['Chef ejecutivo', 12, '#7A5AF8'] : total >= 4 ? ['Chef de partida', 12, '#0B5394'] : total >= 1 ? ['Cocinero', 4, '#C98A00'] : ['Pinche', 1, '#8A8886'];
-  return { cur, racha, total, nivel: lv[0], sig: lv[1], color: lv[2], on: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0) };
+  const W0 = hoyW(), mine = proyActivos(me), cur = mine.map(i => ({ i, st: starsOf(i, W0) })), p = CIELO().personas[me] || { racha: 0, total: 0, nivel: 'Pinche', sig: 1 };
+  return { cur, racha: p.racha, total: p.total, nivel: p.nivel, sig: p.sig, color: NIV_COLOR[p.nivel], on: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0) };
 }
 function cieloColectivo() {
-  const W0 = hoyW(), ps = proyActivos(null, W0).filter(i => inArea(i)), cur = ps.map(i => ({ i, st: starsOf(i, W0) }));
+  const W0 = hoyW(), ps = proyActivos(null).filter(i => inArea(i)), cur = ps.map(i => ({ i, st: starsOf(i, W0) }));
   const on = cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off = cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0);
-  const serie = []; for (let k = 7; k >= 0; k--) { const W = addD(W0, -7 * k); let a = 0, b = 0; proyActivos(null, W).filter(i => inArea(i)).forEach(i => starsHist(starsOf(i, W)).forEach(x => { if (x.s === 'on') a++; else if (x.s === 'off') b++; })); serie.push(a + b ? Math.round(a / (a + b) * 100) : 0); }
+  const serie = []; for (let k = 0; k < 8; k++) { let a = 0, b = 0; ps.forEach(i => { const h = (CIELO().hist[i.id] || [])[k]; if (h) { a += h[0]; b += h[1]; } }); serie.push(a + b ? Math.round(a / (a + b) * 100) : 0); }
   const prjs = scope();
   return { n: ps.length, prom: ps.length ? on / ps.length : 0, msTot: prjs.reduce((a, i) => a + msN(i), 0), ms3: prjs.filter(i => msN(i) === 3).length, llenas: cur.filter(x => cieloLleno(x.st)).length, pct: on + off ? Math.round(on / (on + off) * 100) : 0, serie, ayuda: cur.filter(x => x.st.some(y => y.s === 'off')).sort(by(x => -x.st.filter(y => y.s === 'off').length)) };
 }
@@ -107,34 +63,23 @@ function anillo(pct, meta, sz = 120) {
 }
 /* ---------- Insignias (se calculan con datos existentes; no se guardan) ---------- */
 const hashN = t => { let h = 2166136261; for (const c of String(t)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-function impecable(i) {
-  if (esProp(i) || i.estado !== 'Completado' || !(i.avance >= 100)) return false;
-  if (hitosDe(i.id).some(h => !h.completado)) return false;
-  if (riesgosDe(i.id).some(riesgoAbierto)) return false;
-  if (i.finReal && i.finPlan && i.finReal > i.finPlan && !CAMBIOS().some(c => c.ini === i.id && c.estado === 'Aprobado' && c.tipo === 'Fecha')) return false;
-  return true;
-}
-export function insignias(me) {
-  const P = cieloPersona(me), C = cieloColectivo(), meta = cfgMi('cieloMeta') || 80, W0 = hoyW();
-  let cs = 0; for (let k = 0; k < 26; k++) { const W = addD(W0, -7 * k), ps = proyActivos(me, W); if (!ps.length) break; if (ps.every(i => starsOf(i, W)[1].s !== 'off')) cs++; else break; }
-  const aviso = CAMBIOS().filter(c => c.solicita === me && c.fAnt && c.creada && c.creada <= c.fAnt).length;
-  const cump = ACUERDOS().filter(a => a.resp === me && a.estado === 'Cumplido' && a.fechaReal && a.limite && a.fechaReal <= a.limite).length;
-  const cierres = St.ini.filter(i => !esSB(i) && i.lider === me && impecable(i)).length;
-  const sem = new Set(St.bitacora.filter(b => b.autor === me && b.tipo === 'Actualización' && /^Actualización semanal/.test(b.texto || '')).map(b => wkIni(String(b.ts).slice(0, 10)))).size;
-  const mk = (k, n, d, ic, c, v, of) => ({ k, n, d, ic, c, v: Math.min(v, of), of, ok: v >= of });
-  const misPrj = St.ini.filter(i => !esProp(i) && !esSB(i) && i.lider === me), msLed = misPrj.filter(i => msN(i) >= 1).length, ms3Led = misPrj.filter(i => msN(i) === 3).length;
-  return [
-    mk('p1', 'Mesa perfecta', 'Completa los 5 tenedores de todos tus proyectos en una semana.', 'fork', '#0B5394', P.total, 1),
-    mk('r4', 'Racha de 4', 'Cuatro semanas seguidas con los 5 tenedores.', 'spark', '#7A5AF8', P.racha, 4),
-    mk('cs', 'Cero sorpresas', 'Cuatro semanas seguidas sin hitos vencidos sin explicar.', 'shield', '#107C10', cs, 4),
-    mk('av', 'Primero en avisar', 'Registra un cambio de fecha o presupuesto antes de que venza el plazo.', 'bell', '#CA5010', aviso, 1),
-    mk('cu', 'Cumplidor', 'Cumple a tiempo 10 compromisos.', 'check', '#038387', cump, 10),
-    mk('ci', 'Cierre impecable', 'Cierra un proyecto con todos sus hitos, sin riesgos abiertos y con su plan al día.', 'flag', '#C98A00', cierres, 1),
-    mk('bv', 'Bitácora viva', 'Actualiza tus proyectos en 8 semanas distintas.', 'book', '#B146C2', sem, 8),
-    mk('m1', 'Estrella Michelin', 'Un proyecto tuyo gana su primera estrella Michelin.', 'flag', '#C8102E', msLed, 1),
-    mk('m3', 'Tres estrellas', 'Cierra un proyecto con las tres estrellas Michelin.', 'target', '#C8102E', ms3Led, 1),
-    mk('eq', 'Meta del equipo', 'Los tenedores del portafolio alcanzan la meta del mes. Se comparte entre todos.', 'users', '#D13438', C.pct >= meta ? 1 : 0, 1)
-  ];
+const impecable = i => !!(i && CIELO().impecables[i.id]);   // lo decide el servidor
+const INS_DEF = [
+  ['p1', 'Mesa perfecta', 'Completa los 5 tenedores de todos tus proyectos en una semana.', 'fork', '#0B5394'],
+  ['r4', 'Racha de 4', 'Cuatro semanas seguidas con los 5 tenedores.', 'spark', '#7A5AF8'],
+  ['cs', 'Cero sorpresas', 'Cuatro semanas seguidas sin hitos vencidos sin explicar.', 'shield', '#107C10'],
+  ['av', 'Primero en avisar', 'Registra un cambio de fecha o presupuesto antes de que venza el plazo.', 'bell', '#CA5010'],
+  ['cu', 'Cumplidor', 'Cumple a tiempo 10 compromisos.', 'check', '#038387'],
+  ['ci', 'Cierre impecable', 'Cierra un proyecto con todos sus hitos, sin riesgos abiertos y con su plan al día.', 'flag', '#C98A00'],
+  ['bv', 'Bitácora viva', 'Actualiza tus proyectos en 8 semanas distintas.', 'book', '#B146C2'],
+  ['m1', 'Estrella Michelin', 'Un proyecto tuyo gana su primera estrella Michelin.', 'flag', '#C8102E'],
+  ['m3', 'Tres estrellas', 'Cierra un proyecto con las tres estrellas Michelin.', 'target', '#C8102E'],
+  ['eq', 'Meta del equipo', 'Los tenedores del portafolio alcanzan la meta del mes. Se comparte entre todos.', 'users', '#D13438']
+];
+/* Insignias: el servidor entrega el avance y la meta de cada una (apih_cielo); aquí solo se les pone nombre e ícono */
+export function insignias() {
+  const yo = (CIELO().yo || {}).insignias || {};
+  return INS_DEF.map(([k, n, d, ic, c]) => { const x = yo[k] || { v: 0, of: 1, ok: false }; return { k, n, d, ic, c, v: x.v, of: x.of, ok: !!x.ok }; });
 }
 const insigniasSet = me => new Set(insignias(me).filter(x => x.ok).map(x => x.k));
 function chkInsignias() {   // aviso al ganar una insignia nueva (la primera lectura es silenciosa)
@@ -322,7 +267,7 @@ function hisHTML(me) {
 const CIELO_TABS = [['sem', 'Esta semana'], ['his', 'Mi historial'], ['ins', 'Insignias'], ['gal', 'Galería Michelin']];
 Views.cielo = {
   render() {
-    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = cfgMi('cieloMeta') || 80, adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
+    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = ((CIELO().yo || {}).meta) || cfgMi('cieloMeta') || 80, adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
     const tabs = `<div class="seg" style="margin-bottom:12px">${CIELO_TABS.map(([k, l]) => `<button class="${f.tab === k ? 'on' : ''}" data-act="cielotab" data-k="${k}">${l}</button>`).join('')}</div>`;
     const head = pageHead('Mi cocina', 'Tenedores por gestionar bien el día a día (se mueven cada semana) y estrellas Michelin por cumplir hitos (una vez ganadas, no se pierden). Un proyecto en rojo que se reporta a tiempo también enciende sus tenedores.', `<span class="edit-only">${btn('Ronda de actualización' + (rondaIds().length ? ' (' + rondaIds().length + ')' : ''), 'ronda', { ic: 'refresh', cls: 'pri' })}</span>`) + tabs;
     if (f.tab === 'his') return head + hisHTML(me);

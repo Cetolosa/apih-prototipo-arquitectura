@@ -23,7 +23,9 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     if (!St.ini.some(i => i.id === 'PRJ-802')) St.ini.push(Object.assign({}, base, { id: 'PRJ-802', titulo: 'Base viva terminada', avance: 100, hist: [[d(-25), 50], [d(-2), 100]] }));
     St.hitos.push({ id: 'HIT-801', ini: 'PRJ-801', nombre: 'Hito base', fase: 'Ejecución', fecha: d(20), completado: false, resp: me });
     St.riesgos.push({ id: 'RSK-801', ini: 'PRJ-801', desc: 'Riesgo base', prob: 3, imp: 3, estado: 'Abierto', dueno: me, fIdent: d(-3) });
+    save();
   });
+  await p.evaluate(async () => { await DataService.flush(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(400);
   const foto = () => p.evaluate(() => {
     const out = { kpis: JSON.stringify(kpis()), badges: {}, textos: {} };
     ['propuestas', 'riesgos', 'hitos', 'compromisos', 'cambios', 'decisiones', 'analisis'].forEach(k => { out.badges[k] = navBadge(k); });

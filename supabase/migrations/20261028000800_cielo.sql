@@ -2,7 +2,7 @@
 -- APIH Prototipo · Iter 4c · «Mi cocina» (tenedores, racha, nivel, insignias y cielo colectivo) en el servidor
 --   Antes la SPA evaluaba los 5 tenedores de cada proyecto por semana, la racha de 26 semanas, el nivel, las insignias y el
 --   cielo colectivo. Ahora los evalúa la base (una sola regla) y la SPA solo muestra:
---     · apih_cielo() → { W, proy: {id → {st, lleno, tope, act}}, hist: {id → [[on,off] × 8 semanas]}, personas: {líder → {racha,total,nivel,sig}},
+--     · apih_cielo() → { W, impecables, proy: {id → {st, lleno, tope, act}}, hist: {id → [[on,off] × 8 semanas]}, personas: {líder → {racha,total,nivel,sig}},
 --                        yo: {nombre, meta, pct, insignias: {clave → {v, of, ok}}} }
 -- =====================================================================================
 
@@ -85,12 +85,20 @@ $$ select not (o ->> 'dia' = 'off' or o ->> 'hit' = 'off' or o ->> 'cmp' = 'off'
 create or replace function public.apih_cielo_hist_ok(o jsonb) returns boolean language sql immutable as
 $$ select not (o ->> 'dia' = 'off' or o ->> 'hit' = 'off' or o ->> 'cmp' = 'off') $$;
 
+-- Cierre impecable: completado al 100 %, todos los hitos hechos, sin riesgos abiertos y dentro del plazo (o con un cambio de fecha aprobado)
+create or replace function public.apih_cielo_impecable(ctx jsonb, j jsonb, p_id text) returns boolean language sql immutable as
+$$ select coalesce(j ->> 'tipo', '') <> 'Propuesta' and j ->> 'estado' = 'Completado' and public.apih_num(j, 'avance') >= 100
+      and not exists (select 1 from jsonb_array_elements(coalesce(ctx -> 'hit' -> p_id, '[]'::jsonb)) h where h ->> 'completado' is distinct from 'true')
+      and jsonb_array_length(coalesce(ctx -> 'rsk' -> p_id, '[]'::jsonb)) = 0
+      and (public.apih_vacio(j, 'finReal') or public.apih_vacio(j, 'finPlan') or (j ->> 'finReal') <= (j ->> 'finPlan')
+           or exists (select 1 from jsonb_array_elements(coalesce(ctx -> 'cam' -> p_id, '[]'::jsonb)) c where c ->> 'estado' = 'Aprobado' and c ->> 'tipo' = 'Fecha')) $$;
+
 create or replace function public.apih_cielo() returns jsonb language plpgsql stable security definer set search_path = public as
 $$
 declare
   hoy date := public.apih_hoy(); w0 date := date_trunc('week', public.apih_hoy())::date; cfg jsonb := public.apih_cfg();
   calc jsonb := public.apih_calculos_base(); ctx jsonb; r record; j jsonb; k text; ids text[] := '{}'; M jsonb := '{}'::jsonb;
-  proy jsonb := '{}'::jsonb; hist jsonb := '{}'::jsonb; st jsonb; sx jsonb := '{}'::jsonb;   -- sx: id -> [estado semana 0..26]
+  imp jsonb := '{}'::jsonb; proy jsonb := '{}'::jsonb; hist jsonb := '{}'::jsonb; st jsonb; sx jsonb := '{}'::jsonb;   -- sx: id -> [estado semana 0..26]
   wk int; w date; o jsonb; arr jsonb; per jsonb := '{}'::jsonb; lid text; lids text[];
   total int; racha int; run boolean; ok boolean; n int; nivel text; sig int; me text; mail text := public.apih_email(); meta numeric; on_ int; off_ int; pct int;
   ins jsonb := '{}'::jsonb; cs int; aviso int; cump int; cierres int; sem int; ms1 int; ms3 int; nm int; ucfg jsonb;
@@ -110,6 +118,7 @@ begin
   -- proyectos con tenedores esta semana: vivos, en fases activas y creados a la fecha
   for r in select id, substr(datos, 4)::jsonb j from public.registros_v where lista = 'APIH_Proyectos' and left(substr(datos, 4), 1) = '{' order by id loop
     j := r.j; M := M || jsonb_build_object(r.id, j);
+    if public.apih_cielo_impecable(ctx, j, r.id) then imp := imp || jsonb_build_object(r.id, true); end if;
     continue when coalesce(j ->> 'tipo', '') = 'Propuesta' or j ->> 'estado' in ('Completado', 'Cancelado', 'Stand By') or (j ->> 'fase') <> all (array['Planificación', 'Ejecución', 'Transición']);
     ids := ids || r.id;
     arr := '[]'::jsonb;
@@ -169,12 +178,7 @@ begin
     cierres := 0; ms1 := 0; ms3 := 0;
     for k in select key from jsonb_each(M) loop
       j := M -> k; continue when j ->> 'estado' = 'Stand By' or j ->> 'lider' is distinct from me;
-      -- cierre impecable: completado al 100 %, todos los hitos hechos, sin riesgos abiertos y dentro del plazo (o con cambio de fecha aprobado)
-      if j ->> 'estado' = 'Completado' and public.apih_num(j, 'avance') >= 100
-         and not exists (select 1 from jsonb_array_elements(coalesce(ctx -> 'hit' -> k, '[]'::jsonb)) h where h ->> 'completado' is distinct from 'true')
-         and jsonb_array_length(coalesce(ctx -> 'rsk' -> k, '[]'::jsonb)) = 0
-         and (public.apih_vacio(j, 'finReal') or public.apih_vacio(j, 'finPlan') or (j ->> 'finReal') <= (j ->> 'finPlan')
-              or exists (select 1 from jsonb_array_elements(coalesce(ctx -> 'cam' -> k, '[]'::jsonb)) c where c ->> 'estado' = 'Aprobado' and c ->> 'tipo' = 'Fecha')) then cierres := cierres + 1; end if;
+      if public.apih_cielo_impecable(ctx, j, k) then cierres := cierres + 1; end if;
       nm := case when jsonb_typeof(j -> 'michelin') = 'array' then jsonb_array_length(j -> 'michelin') else 0 end;
       if nm >= 1 then ms1 := ms1 + 1; end if; if nm = 3 then ms3 := ms3 + 1; end if;
     end loop;
@@ -189,7 +193,7 @@ begin
       'bv', jsonb_build_object('v', least(sem, 8), 'of', 8, 'ok', sem >= 8), 'm1', jsonb_build_object('v', least(ms1, 1), 'of', 1, 'ok', ms1 >= 1),
       'm3', jsonb_build_object('v', least(ms3, 1), 'of', 1, 'ok', ms3 >= 1), 'eq', jsonb_build_object('v', case when pct >= meta then 1 else 0 end, 'of', 1, 'ok', pct >= meta));
   end if;
-  return jsonb_build_object('W', w0, 'proy', proy, 'hist', hist, 'personas', per, 'yo', jsonb_build_object('nombre', me, 'meta', meta, 'pct', pct, 'insignias', ins));
+  return jsonb_build_object('W', w0, 'proy', proy, 'hist', hist, 'personas', per, 'impecables', imp, 'yo', jsonb_build_object('nombre', me, 'meta', meta, 'pct', pct, 'insignias', ins));
 end $$;
 revoke all on function public.apih_cielo() from public, anon;
 grant execute on function public.apih_cielo() to authenticated;
