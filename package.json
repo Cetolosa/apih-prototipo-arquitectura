@@ -3,11 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "description": "APIH Prototipo Arquitectura: SPA + Supabase (proyecto de pruebas, datos sintéticos)",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "seed": "node tools/generar-seed.js",
     "serve": "node tools/servir-demo.js",
     "test:e2e": "node tools/correr-e2e.js"
   },
-  "devDependencies": { "playwright": "1.63.0" }
+  "devDependencies": {
+    "pg": "^8.23.1",
+    "playwright": "1.63.0"
+  }
 }
