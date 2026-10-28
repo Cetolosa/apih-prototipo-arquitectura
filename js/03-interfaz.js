@@ -245,7 +245,7 @@ function sanRow(r) { if (!r || typeof r !== 'object' || Array.isArray(r)) return
     else if (k === 'subfases' && Array.isArray(v)) v.forEach(sanRow); });
   return r; }
 export function sanSt(S) { ['ini', 'hitos', 'riesgos', 'decisiones', 'comites', 'compromisos', 'cambios', 'bitacora', 'notas', 'eventos'].forEach(k => { if (Array.isArray(S[k])) S[k].forEach(sanRow); }); return S; }
-export function refresh() { sanSt(St); (0, ENLACES.reconciliarAvance)(); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
+export function refresh() { sanSt(St); save(); render(); try { if (typeof ENLACES.chkInsignias === 'function') (0, ENLACES.chkInsignias)(); } catch (e) { } }
 
 /* ---------- panel contextual ---------- */
 export function selectEntity(t, id, tab) { UI.sel = { t, id }; if (tab) UI.tab = tab; else if (t === 'ini') UI.tab = UI.tab || 'resumen'; UI.panel = true; render(); if (t === 'ini') requestAnimationFrame(() => { const c = document.querySelector('.icard.sel'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'center', inline: 'nearest' }); }); }
@@ -452,9 +452,9 @@ Acts.spretry = async () => {
 export function BK() { return 'Supabase'; }
 /* Avance de la fase activa (V23): calculado con sus subfases e hitos; sin unidades en la fase, el avance general. Ya no hay valor manual por fase. */
 export function avFase(i) {
-  const p = (0, ENLACES.avanceFaseCalc)(i, i.fase);
-  if (p != null) return { v: Math.round(p * 100), src: 'hitos' };
-  return { v: Math.round(i.avance || 0), src: 'general' };
+  const w = (0, ENLACES.fasesVentana)(i).find(x => x.actual);
+  if (w && w.unidades) return { v: w.avance, src: 'hitos' };
+  return { v: Math.round((0, ENLACES.avanceEf)(i)), src: 'general' };
 }
 export const avFaseTip = i => avFase(i).src === 'hitos' ? 'Fase ' + i.fase + ': calculado con sus subfases e hitos' : 'Fase ' + i.fase + ': sin hitos en la fase, se usa el avance general';
 Acts.spseed = () => confirmBox('Se crearán en ' + BK() + ' ~' + (seedState().ini.length + seedState().hitos.length + seedState().riesgos.length + seedState().bitacora.length) + ' elementos (datos del archivo original) en las listas APIH_*. ¿Continuar?', async () => {
@@ -712,10 +712,9 @@ Chg.cxfile = async el => {
 Acts.cxapply = () => {
   const R = CX.res; if (!R || (!R.plan.length && !R.hitos.length)) return;
   const go = () => {
-    R.plan.forEach(p => { Object.assign(p.i, p.ch); p.i.actualizada = hoy(); if (p.ch.avance !== undefined && !esProp(p.i)) p.i.avanceManual = p.ch.avance; if ((p.ch.inicioPlan !== undefined || p.ch.finPlan !== undefined) && !esProp(p.i)) (0, ENLACES.setRangoPlan)(p.i, p.i.inicioPlan, p.i.finPlan); });   /* V23: el rango plan reparte/reescala las fases; el avance cargado queda como ajuste manual */
+    R.plan.forEach(p => { Object.assign(p.i, p.ch); p.i.actualizada = hoy(); if (p.ch.avance !== undefined && !esProp(p.i)) p.i.avanceManual = p.ch.avance; });   /* el servidor reparte/reescala las fases según el rango plan; el avance cargado queda como ajuste manual */
     const tocadas = new Set(R.plan.map(p => p.i.id));
     R.hitos.forEach(h => { if (h.nuevo) St.hitos.push({ id: nextId('HIT', St.hitos), ...h.nuevo }); else Object.assign(h.cur, h.ch); const i = byId(h.id); if (i) { i.actualizada = hoy(); tocadas.add(i.id); } });
-    tocadas.forEach(id => { const i = byId(id); if (i) (0, ENLACES.sincAvance)(i); });
     const nN = R.hitos.filter(h => h.nuevo).length;
     log('Cambio', null, `Carga desde Excel (${CX.name}): ${R.plan.length} planificaciones actualizadas, ${nN} hitos nuevos, ${R.hitos.length - nN} hitos actualizados`);
     if (St.bitacora[0]) St.bitacora[0].inPres = false;
@@ -795,12 +794,12 @@ function iniForm(i, isPropArg) {
       if (!PR) { patch.avanceManual = o.avanceManual === '' || o.avanceManual == null ? null : Math.round(+o.avanceManual); delete patch.avance; }   /* V23: el avance se calcula; aquí solo el ajuste manual */
       if (nw) {
         const pre = PR ? 'PROP' : 'PRJ', ids = St.ini.filter(x => x.id.startsWith(pre + '-'));
-        const n = Object.assign({ id: nextId(pre, ids), tipo: T, legacy: '', creada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [[hoy(), patch.avance || 0]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, estado: PR ? 'Vigente' : 'En curso', propuestaOrigen: null, estadoMotivo: '', estadoRev: null, rag: 'Verde', avance: 0, gastado: 0, proyecto: null }, patch, { actualizada: hoy() });
-        St.ini.push(n); if (!PR && n.inicioPlan && n.finPlan) (0, ENLACES.setRangoPlan)(n, n.inicioPlan, n.finPlan); const nh = n.tipoIni ? aplicarPlantilla(n, n.tipoIni, PR ? FASES_PROP : FASES_PRJ, PR ? hoy() : (n.inicioPlan || hoy())) : 0; if (!PR) (0, ENLACES.sincAvance)(n); log('Cambio', n.id, (nh ? '[' + nh + ' hitos precargados del tipo «' + n.tipoIni + '»] ' : '') + (PR ? 'Propuesta creada: ' : 'Proyecto creado directamente: ') + n.titulo + (n.motivoAlta ? ' — ' + n.motivoAlta : '')); toast(T + ' ' + n.id + (PR ? ' creada' : ' creado')); UI.sel = { t: 'ini', id: n.id };
+        const n = Object.assign({ id: nextId(pre, ids), tipo: T, legacy: '', creada: hoy(), faseDesde: hoy(), origen: 'usuario', est: [], hist: [], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, estado: PR ? 'Vigente' : 'En curso', propuestaOrigen: null, estadoMotivo: '', estadoRev: null, rag: 'Verde', avance: 0, gastado: 0, proyecto: null }, patch, { actualizada: hoy() });
+        St.ini.push(n); const nh = n.tipoIni ? aplicarPlantilla(n, n.tipoIni, PR ? FASES_PROP : FASES_PRJ, PR ? hoy() : (n.inicioPlan || hoy())) : 0; log('Cambio', n.id, (nh ? '[' + nh + ' hitos precargados del tipo «' + n.tipoIni + '»] ' : '') + (PR ? 'Propuesta creada: ' : 'Proyecto creado directamente: ') + n.titulo + (n.motivoAlta ? ' — ' + n.motivoAlta : '')); toast(T + ' ' + n.id + (PR ? ' creada' : ' creado')); UI.sel = { t: 'ini', id: n.id };
       } else {
         const diffs = []; [['rag', 'RAG'], ['prioridad', 'Prioridad'], ['lider', 'Líder'], ['finPlan', PR ? 'Fecha objetivo' : 'Fin plan'], ['finEst', 'Fin estimado'], ['presupuesto', PR ? 'Costo estimado' : 'Presupuesto']].forEach(([k, l]) => { if (k in patch && String(i[k]) !== String(patch[k])) diffs.push(`${l}: ${i[k] ?? '—'} → ${patch[k] ?? '—'}`); });
         if (patch.tipoIni && patch.tipoIni !== i.tipoIni && !hitosDe(i.id).length) { const nh = aplicarPlantilla(i, patch.tipoIni, fasesDe(i), (PR ? hoy() : i.inicioPlan) || hoy()); if (nh) toast(nh + ' hitos precargados del tipo «' + patch.tipoIni + '»'); }
-        const av0 = i.avance; Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i); if (!PR) { (0, ENLACES.sincAvance)(i); if (i.avance !== av0) diffs.push(`Avance: ${av0} → ${i.avance}`); }
+        Object.assign(i, patch, { actualizada: hoy(), est: (i.est || []).filter(k => k !== 'all' && String(i[k]) === String(patch[k])) }); (0, ENLACES.snapFases)(i);
         log(diffs.some(d => d.startsWith('Avance')) ? 'Actualización' : 'Cambio', i.id, diffs.length ? 'Actualizada: ' + diffs.join('; ') : 'Ficha actualizada', null); toast('Cambios guardados');
       }
       refresh();
@@ -839,7 +838,7 @@ export function hitoForm(h, ini) {
       if (!nw && !o.subfase) delete h.subfase;
       if ((o.desc || '').length > ENLACES.DESC_MAX) { toast('La descripción no puede superar ' + ENLACES.DESC_MAX + ' caracteres', 'err'); return false; } if (String(o.desc || '').trim()) o.desc = (0, ENLACES.cutDesc)(o.desc.trim()); else delete o.desc;
       if (nw) { const n = { id: nextId('HIT', St.hitos), ...o }; St.hitos.push(n); log('Cambio', o.ini, 'Hito creado: ' + o.nombre + ' (' + fmtD(o.fecha) + ')'); toast('Hito creado'); } else { const viaRpc = !!h.completado !== !!o.completado, comp = o.completado; if (viaRpc) { delete o.completado; delete o.fechaReal; } Object.assign(h, o); log('Cambio', h.ini, 'Hito actualizado: ' + h.nombre); toast('Hito guardado'); if (viaRpc) (0, ENLACES.hitoEnServidor)(h.id, !!comp); }   /* con servidor, completar/reabrir pasa por el comando (avance y cierre automático en la base) */
-      const i = byId(o.ini); if (i) { i.actualizada = hoy(); (0, ENLACES.sincAvance)(i); } refresh(); }
+      const i = byId(o.ini); if (i) { i.actualizada = hoy(); } refresh(); }
   });
   /* N-U-04/05: al cambiar Iniciativa o Fase se recalculan las opciones de Fase y Subfase */
   const fi = $('#f_ini'), ff = $('#f_fase'), fs = $('#f_subfase');

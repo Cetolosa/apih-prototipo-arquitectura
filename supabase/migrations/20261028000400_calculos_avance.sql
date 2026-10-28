@@ -68,6 +68,7 @@ begin
     m2 := case when not es_prop and jsonb_typeof(j -> 'avanceManual') = 'number' then greatest(0, least(100, round((j ->> 'avanceManual')::numeric)))::int end;
     ef2 := case when es_prop then public.apih_num(j, 'avance') when j ->> 'estado' = 'Completado' then 100 else coalesce(m2, cc2) end;
     ini := ini || jsonb_build_object(i.id, jsonb_build_object('sig', sig, 'avance', ef2, 'avanceCalc', cc2, 'avanceManual', m2,
+      'fasesFechas', j -> 'fasesFechas', 'inicioPlan', j -> 'inicioPlan', 'finPlan', j -> 'finPlan',
       'ventanas', case when es_prop then public.apih_ventanas(j, i.id, true) else public.apih_ventanas(j, i.id, false) end,
       'forecast', fc, 'desv', ds, 'atrasado', (vivo and (j ->> 'fase') = any (fases) and ds > tol), 'esperado', esp,
       'roi', case when public.apih_num(j, 'presupuesto') > 0 then ((public.apih_num(j, 'beneficio') - public.apih_num(j, 'presupuesto')) / public.apih_num(j, 'presupuesto')) * 100 end,

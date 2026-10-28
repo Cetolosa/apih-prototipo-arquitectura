@@ -323,8 +323,24 @@ export const DataService = {
     try {
       const c = await this.svc.calculos(), antes = JSON.stringify(CALC);
       Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {} }, c);
+      this.aplicarDerivados();
       if (JSON.stringify(CALC) !== antes) { ENLACES._alertCache = null; if (typeof ENLACES.render === 'function') (0, ENLACES.render)(); }
     } catch (e) { console.warn('APIH: no se pudieron leer los valores calculados', e); }
+  },
+  /* El servidor guarda el avance de cada proyecto (valor derivado, no una edición): se copia a la copia local sin marcarla como cambio propio.
+     Un proyecto con cambios locales pendientes no se toca. */
+  aplicarDerivados() {
+    if (!this.snap || !this.snap.projects) return;
+    (St.ini || []).forEach(o => {
+      if (esProp(o)) return; const c = CALC.ini[o.id]; if (!c || c.avance == null) return;
+      if (this.snap.projects.get(o.id) !== JSON.stringify(MapaDatos.fieldsOf('projects', o))) return;
+      let ch = false;
+      if (o.avance !== c.avance) { o.avance = c.avance; ch = true; }
+      if (o.avanceCalc !== c.avanceCalc) { o.avanceCalc = c.avanceCalc; ch = true; }
+      if ((o.avanceManual == null ? null : o.avanceManual) !== (c.avanceManual == null ? null : c.avanceManual)) { o.avanceManual = c.avanceManual; ch = true; }
+      ['fasesFechas', 'inicioPlan', 'finPlan'].forEach(k => { if (c[k] !== undefined && JSON.stringify(o[k] === undefined ? null : o[k]) !== JSON.stringify(c[k])) { if (c[k] === null) delete o[k]; else o[k] = c[k]; ch = true; } });
+      if (ch) this.snap.projects.set(o.id, JSON.stringify(MapaDatos.fieldsOf('projects', o)));
+    });
   },
   /* relectura desde Supabase (manual o periódica). force = descarta cambios locales */
   async refresh(silent, force) {

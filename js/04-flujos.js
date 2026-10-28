@@ -93,38 +93,16 @@ const ETIQ_ESTADO = { 'Pausado': 'Pausar', 'En espera': 'Poner en espera', 'Stan
 /* Movimientos posibles: los define el servidor (apih_etapas), con sus compuertas. Se guardan mientras el diálogo está abierto. */
 let ETAPAS = [];
 const etapaPorId = id => ETAPAS.find(x => x.id === id);
-/* Al avanzar de fase, el plan se reprograma desde hoy: la fase destino empieza hoy y las siguientes se mueven conservando su duración;
-   la fase que se deja (y las que se saltan) terminan ayer; las subfases se ajustan a sus nuevas ventanas. Devuelve null si no corresponde. */
-export function planCambioFase(i, to) {
-  if (!i || esProp(i) || isDone(i)) return null;
-  const FS = fasesDe(i), c = FS.indexOf(i.fase), x = FS.indexOf(to); if (c < 0 || x <= c) return null;
-  const V = (0, ENLACES.fasesVentana)(i), old = {}; FS.forEach((f, k) => { old[f] = { ini: V[k].ini, fin: V[k].fin }; });
-  if (FS.some(f => !old[f].ini || !old[f].fin)) return null;
-  const H = hoy(), dur = f => diffD(old[f].fin, old[f].ini), delta = diffD(H, old[to].ini), nu = {};
-  FS.forEach((f, k) => { if (k < c) nu[f] = { ini: old[f].ini, fin: old[f].fin }; });
-  let end = addD(H, -1);
-  for (let k = x - 1; k >= c; k--) { const f = FS[k]; if (k === c) nu[f] = { ini: old[f].ini, fin: end }; else { nu[f] = { ini: end, fin: end }; end = addD(end, -1); } }
-  let cur = H; for (let k = x; k < FS.length; k++) { const f = FS[k]; nu[f] = { ini: cur, fin: addD(cur, dur(f)) }; cur = addD(nu[f].fin, 1); }
-  const subs = [], movidas = []; (0, ENLACES.subfasesDe)(i).forEach(sf => {
-    const k = FS.indexOf(sf.fase), w = nu[sf.fase]; if (k < c || !w) return;
-    let a = sf.inicio, b = sf.fin; if (k >= x) { a = addD(a, delta); b = addD(b, delta); }
-    if (a < w.ini) a = w.ini; if (a > w.fin) a = w.fin; if (b > w.fin) b = w.fin; if (b < a) b = a;
-    if (a !== sf.inicio || b !== sf.fin) subs.push({ id: sf.id, inicio: a, fin: b, nombre: sf.nombre }); });
-  const t = clone(i); (0, ENLACES.subfasesDe)(t).forEach(sf => { const m = subs.find(y => y.id === sf.id); if (m) { sf.inicio = m.inicio; sf.fin = m.fin; } });
-  const error = (0, ENLACES.validarFasesFechas)(t, nu);
-  const r0 = { ini: old[FS[0]].ini, fin: old[FS[FS.length - 1]].fin }, r1 = { ini: nu[FS[0]].ini, fin: nu[FS[FS.length - 1]].fin };
-  const lineas = [`<b>${esc(to)}</b> empieza hoy (${fmtD(H)}); según el plan era el ${fmtD(old[to].ini)}${delta ? ` (${delta > 0 ? '+' : ''}${delta} d)` : ''}.`];
-  if (c < x) lineas.push(`<b>${esc(i.fase)}</b>${x - c > 1 ? ' y las fases que se saltan' : ''} termina${x - c > 1 ? 'n' : ''} el ${fmtD(addD(H, -1))}.`);
-  if (delta && x < FS.length - 1) lineas.push(`Las fases que siguen se mueven ${Math.abs(delta)} d ${delta > 0 ? 'más tarde' : 'antes'} y conservan su duración.`);
-  if (r0.fin !== r1.fin) lineas.push(`Fin del proyecto: ${fmtD(r0.fin)} → <b>${fmtD(r1.fin)}</b>.`);
-  if (subs.length) lineas.push(`${subs.length} subfase${subs.length === 1 ? '' : 's'} se ajusta${subs.length === 1 ? '' : 'n'} a las nuevas fechas.`);
-  return { FF: nu, subs, error, lineas, delta, resumen: `${to} empieza ${fmtD(H)}${delta ? ' (' + (delta > 0 ? '+' : '') + delta + ' d)' : ''}; fin ${fmtD(r0.fin)} → ${fmtD(r1.fin)}` };
-}
-export function aplicarCambioFase(i, pl) {
-  if (!i || !pl || pl.error) return pl ? pl.error : '';
-  (0, ENLACES.subfasesDe)(i).forEach(sf => { const m = pl.subs.find(y => y.id === sf.id); if (m) { sf.inicio = m.inicio; sf.fin = m.fin; } });
-  const e = (0, ENLACES.aplicarFasesFechas)(i, pl.FF); if (!e) log('Cambio', i.id, 'Plan reprogramado al cambiar de fase: ' + pl.resumen); return e;
-}
+/* Al avanzar de fase el servidor propone reprogramar el plan desde hoy (apih_plan_cambio_fase) y lo aplica dentro del mismo cambio (p_reprogramar).
+   Aquí solo se redacta lo que el servidor devuelve. */
+const lineasPlan = pl => {
+  const L = [`<b>${esc(pl.destino)}</b> empieza hoy (${fmtD(pl.hoy)}); según el plan era el ${fmtD(pl.inicioDestinoPlan)}${pl.delta ? ` (${pl.delta > 0 ? '+' : ''}${pl.delta} d)` : ''}.`];
+  L.push(`<b>${esc(pl.faseActual)}</b>${pl.saltadas ? ' y las fases que se saltan' : ''} termina${pl.saltadas ? 'n' : ''} el ${fmtD(pl.ayer)}.`);
+  if (pl.delta && pl.sigueFase) L.push(`Las fases que siguen se mueven ${Math.abs(pl.delta)} d ${pl.delta > 0 ? 'más tarde' : 'antes'} y conservan su duración.`);
+  if (pl.rango0.fin !== pl.rango1.fin) L.push(`Fin del proyecto: ${fmtD(pl.rango0.fin)} → <b>${fmtD(pl.rango1.fin)}</b>.`);
+  if (pl.subs.length) L.push(`${pl.subs.length} subfase${pl.subs.length === 1 ? '' : 's'} se ajusta${pl.subs.length === 1 ? '' : 'n'} a las nuevas fechas.`);
+  return L;
+};
 Acts.etapa = async d => {
   if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar');
   const i = byId(d.id); if (!i) return; if (isDone(i)) return toast(tipoLbl(i) + ' en estado final (' + i.estado + ')', 'err');
@@ -140,15 +118,15 @@ Acts.etapa = async d => {
   });
   Chg.etapaacc($('#et_acc'));
 };
-Chg.etapaacc = el => {
+Chg.etapaacc = async el => {
   const i = byId(el.dataset.id), a = etapaPorId(el.value); if (!a) return;
+  let pl = null; if (a.kind === 'fase') { try { pl = await DataService.svc.rpc('apih_plan_cambio_fase', { p_id: i.id, p_to: a.to }); } catch (e) { pl = null; } if (el.value !== a.id) return; }
   const miss = a.gates.filter(x => !x.ok), adm = (0, ENLACES.esAdministra)();
   const g = a.gates.length ? `<div class="gates">${a.gates.map(x => `<div class="${x.ok ? 'ok' : 'no'}">${icon(x.ok ? 'check' : 'x', 14)}<span>${esc(x.t)}</span>${x.ok ? '' : ` <a class="lnk" data-act="gfix" data-id="${i.id}">Corregir</a>`}</div>`).join('')}</div>` : (a.kind === 'fase' ? '<p class="mut">Sin compuertas para esta fase.</p>' : '');
   const campos = a.kind === 'estado' && (a.motivo || a.rev) ? `<div class="fgrid">${a.motivo ? `<div class="fld w3"><label for="et_mot">Motivo (obligatorio)</label><textarea id="et_mot" rows="2" maxlength="500">${esc(i.estadoMotivo || '')}</textarea></div>` : ''}${a.rev ? `<div class="fld w2"><label for="et_rev">Fecha de revisión (obligatoria)</label><input id="et_rev" type="date" value="${esc(i.estadoRev || '')}"></div>` : ''}</div>` : '';
   const nota = a.kind === 'estado' && a.estado === 'Stand By' ? `<p class="mut" style="font-size:12px">Stand By saca la ${tipoLbl(i).toLowerCase()} de indicadores, alertas y presentación (solo se cuenta). Para reactivarla vuelve a este diálogo.</p>` : a.kind === 'aprobar' ? '<p class="mut" style="font-size:12px">Se abrirá la aprobación: crea el proyecto y traspasa hitos y riesgos.</p>' : '';
   const forzar = miss.length && adm ? `<label class="chk" style="margin-top:8px"><input type="checkbox" id="et_force"> <span>Forzar pese a ${miss.length} compuerta(s) incumplida(s) (queda registrado en bitácora)</span></label><div class="fld" id="et_fw" style="display:none;margin-top:8px"><label for="et_fmot">Motivo del cambio forzado (obligatorio)</label><input id="et_fmot" type="text" maxlength="200"></div>` : (miss.length ? '<p class="mut" style="font-size:12px">Completa las condiciones pendientes: solo el rol Administra puede forzarlas.</p>' : '');
-  const pl = a.kind === 'fase' ? planCambioFase(i, a.to) : null;
-  const repro = pl ? `<div class="et-plan"><label class="chk"><input type="checkbox" id="et_repro" ${pl.error ? 'disabled' : 'checked'}> <span><b>Reprogramar el plan desde hoy</b></span></label>${pl.error ? `<p class="mut" style="font-size:12px;margin:4px 0 0">No se puede reprogramar solo: ${esc(pl.error)}. Cambia la fase y ajusta las fechas en la ficha.</p>` : `<ul>${pl.lineas.map(x => `<li>${x}</li>`).join('')}</ul>`}</div>` : '';
+  const repro = pl ? `<div class="et-plan"><label class="chk"><input type="checkbox" id="et_repro" ${pl.error ? 'disabled' : 'checked'}> <span><b>Reprogramar el plan desde hoy</b></span></label>${pl.error ? `<p class="mut" style="font-size:12px;margin:4px 0 0">No se puede reprogramar solo: ${esc(pl.error)}. Cambia la fase y ajusta las fechas en la ficha.</p>` : `<ul>${lineasPlan(pl).map(x => `<li>${x}</li>`).join('')}</ul>`}</div>` : '';
   $('#et_d').innerHTML = g + repro + campos + nota + forzar;
   const fc = $('#et_force'); if (fc) fc.addEventListener('change', () => { $('#et_fw').style.display = fc.checked ? '' : 'none'; });
 };
@@ -162,10 +140,10 @@ Acts.etapago = async d => {
   const motivo = a.motivo ? String(($('#et_mot') || {}).value || '').trim() : '', rev = a.rev ? String(($('#et_rev') || {}).value || '') : '';
   if (a.motivo && !motivo) return toast('Indica el motivo del estado ' + a.estado, 'err');
   if (a.rev && !rev) return toast('Indica la fecha de revisión', 'err');
-  const pl = a.kind === 'fase' && $('#et_repro') && $('#et_repro').checked ? planCambioFase(i, a.to) : null;
+  const repro = a.kind === 'fase' && !!($('#et_repro') && $('#et_repro').checked);
   const ir = async () => {
-    const r = await cmdServidor('apih_transicion', { p_id: i.id, p_fase: a.kind === 'fase' ? a.to : null, p_estado: a.kind === 'estado' ? a.estado : null, p_motivo: motivo, p_rev: rev || null, p_forzar: !!(miss.length && force), p_nota: fmot }, null, false);
-    if (r === null) return; Modal.close(); const i2 = byId(i.id); const er = pl && i2 ? aplicarCambioFase(i2, pl) : ''; toast(er ? 'Fase actualizada; no se pudo reprogramar el plan: ' + er : a.kind === 'fase' ? 'Fase actualizada a ' + a.to + (pl ? ' y plan reprogramado' : '') : 'Estado actualizado a ' + a.estado, er ? 'err' : undefined); refresh();
+    const r = await cmdServidor('apih_transicion', { p_id: i.id, p_fase: a.kind === 'fase' ? a.to : null, p_estado: a.kind === 'estado' ? a.estado : null, p_motivo: motivo, p_rev: rev || null, p_forzar: !!(miss.length && force), p_nota: fmot, p_reprogramar: repro }, null, false);
+    if (r === null) return; Modal.close(); toast(a.kind === 'fase' ? 'Fase actualizada a ' + a.to + (repro ? ' y plan reprogramado' : '') : 'Estado actualizado a ' + a.estado); refresh();
   };
   if (a.kind === 'estado' && a.estado === 'Cancelado') { Modal.close(); return confirmBox('¿Cancelar «' + esc(i.titulo) + '»? Dejará de contar en KPIs y alertas. Puedes reabrirlo después.', ir, 'Cancelar proyecto', true); }
   return ir();

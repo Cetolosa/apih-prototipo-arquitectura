@@ -390,6 +390,12 @@ export const riesgosCriticos = () => RIESGOS().filter(r => riesgoCritico(r) && (
 export const diasSinUpd = i => { const c = _ci(i); return c ? c.dsu : 999; };
 export const ragSugerido = i => { const c = _ci(i); return c ? c.rag : { rag: i.rag, why: [] }; };
 export const critScore = i => { const c = _ci(i); return c ? c.crit : 0; };
+/* Avance: el servidor lo calcula (hitos y subfases ponderados por días de cada fase) y lo guarda; aquí solo se leen sus valores */
+export const avanceEf = i => { const c = _ci(i); return c && c.avance != null ? c.avance : Math.round(+(i && i.avance) || 0); };
+export const avanceCalc = i => { const c = _ci(i); return c && c.avanceCalc != null ? c.avanceCalc : 0; };
+export const avanceManualDe = i => { const c = _ci(i); return c ? c.avanceManual : null; };
+/* Ventana de cada fase (inicio, fin, avance, hitos cerrados) tal como la entrega el servidor */
+export const ventanasSrv = i => { const c = _ci(i); return c && Array.isArray(c.ventanas) ? c.ventanas : []; };
 export function kpis() {
   const L = scope(), live = L.filter(isLive), act = L.filter(isActive), P = scopeP(), pl = P.filter(isLive);
   const M = { pres: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.presupuesto), gas: sumM(L.filter(i => i.estado !== 'Cancelado'), i => i.gastado), presPipe: sumM(pl, i => i.presupuesto), valorPipe: sumM(pl, i => i.beneficio), beneficio: sumM(live, i => i.beneficio) };

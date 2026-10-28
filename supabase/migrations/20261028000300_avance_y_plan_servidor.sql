@@ -53,7 +53,7 @@ begin
     if expl then ini := ff -> f ->> 'ini'; fin := ff -> f ->> 'fin'; end if;
     if fin is not null then prev := fin; end if;
     pr := public.apih_avance_fase(p, p_id, f);
-    sal := sal || jsonb_build_array(jsonb_build_object('fase', f, 'ini', ini, 'fin', fin, 'explicita', expl, 'hitos', nh, 'done', dn,
+    sal := sal || jsonb_build_array(jsonb_build_object('fase', f, 'ini', ini, 'fin', fin, 'explicita', expl, 'hitos', nh, 'done', dn, 'unidades', pr is not null,
              'avance', round(coalesce(pr, case when idx is not null and k < idx then 1 else 0 end) * 100)::int));
   end loop;
   return sal;
@@ -127,7 +127,7 @@ begin
          left join lateral (select s from jsonb_array_elements(subs) s where s ->> 'id' = s0 ->> 'id' limit 1) m on true));
   err := public.apih_fases_error(t, nu);
   r0i := old -> fs[1] ->> 'ini'; r0f := old -> fs[n] ->> 'fin'; r1i := nu -> fs[1] ->> 'ini'; r1f := nu -> fs[n] ->> 'fin';
-  return jsonb_build_object('fases', nu, 'subs', subs, 'error', nullif(err, ''), 'hoy', h::text, 'delta', delta, 'faseActual', p ->> 'fase', 'destino', p_to,
+  return jsonb_build_object('fases', nu, 'subs', subs, 'error', nullif(err, ''), 'hoy', h::text, 'ayer', (h - 1)::text, 'delta', delta, 'faseActual', p ->> 'fase', 'destino', p_to,
     'inicioDestinoPlan', old -> p_to ->> 'ini', 'saltadas', (x - c) > 1, 'sigueFase', x < n,
     'rango0', jsonb_build_object('ini', r0i, 'fin', r0f), 'rango1', jsonb_build_object('ini', r1i, 'fin', r1f),
     'resumen', p_to || ' empieza ' || to_char(h, 'DD-MM-YYYY') || case when delta <> 0 then ' (' || case when delta > 0 then '+' else '' end || delta || ' d)' else '' end
@@ -319,7 +319,10 @@ begin
   if not ver and tocó then tocó := false; end if;       -- se revirtió: no cuenta como cambio
   -- Plan y avance de un proyecto: los deriva el servidor, nadie los escribe por separado
   if new.lista = 'APIH_Proyectos' then
-    fsn := public.apih_fases(false); ffn := jn -> 'fasesFechas'; ffo := jo -> 'fasesFechas'; expl := jsonb_typeof(ffn) = 'object';
+    fsn := public.apih_fases(false); ffn := jn -> 'fasesFechas'; ffo := jo -> 'fasesFechas';
+    -- las fechas de fase ya fijadas no se pierden porque quien guarda no las traiga (la copia de la app puede ir un paso atrás)
+    if tg_op = 'UPDATE' and jsonb_typeof(ffo) = 'object' and coalesce(jsonb_typeof(ffn), 'null') <> 'object' then jn := jn || jsonb_build_object('fasesFechas', ffo); ffn := ffo; end if;
+    expl := jsonb_typeof(ffn) = 'object';
     if expl then foreach f_ in array fsn loop if not public.apih_fecha_fase_ok(ffn -> f_) then expl := false; end if; end loop; end if;
     if expl and ffn is distinct from ffo then
       -- fechas de fase explícitas: el rango del proyecto es el de sus fases

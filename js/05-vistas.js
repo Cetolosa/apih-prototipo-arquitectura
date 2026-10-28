@@ -1,7 +1,8 @@
 import { ENLACES } from './00-registro.js';
 import { $, $$, ACUERDOS, BIT_C, BIT_TIPOS, DECS, DEC_C, DEC_ICON, DEC_TIPOS, DIAS, ESTADOS, ESTADOS_PRJ, ESTADOS_PROP, FASES, FASES_ACT, FASES_PIPE, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, MES3, MESES, PLAN_TIPOS, PRIOS, RAGS, RAG_C, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _nrm, addD, atrasado, avatar, avg, by, byId, clone, critScore, desv, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtBig, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, iniHead, isActive, isDone, isLive, kpis, log, miUsuario, monKeys, monMain, monOf, nameOf, nivelRiesgo, pD, pad, pct, pctMon, personProjects, planSeg, planTipo, porTipo, quarter, rel, respItem, respSel, restTxt, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, roiTxt, save, scope, scopeAll, scopeP, scopeTT, sum, sumM, tipoLbl, tipoPF, toISO, uid, uniq } from './01-nucleo.js';
 import { Acts, Chg, F, Modal, UI, Views, avFase, avFaseTip, btn, kv, confirmBox, copyText, decForm, download, empty, estPill, estTag, fasePill, go, hbars, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prioPill, prog, ragPill, refresh, render, selOpts, selectEntity, stackBar, syncPop, tipoPill, toCSV, toast } from './03-interfaz.js';
-import { diasEnFase, myWork, nextHito, priorScore, semFase } from './04-flujos.js';
+import { cmdServidor, diasEnFase, myWork, nextHito, priorScore, semFase } from './04-flujos.js';
+import { avanceCalc, avanceEf, avanceManualDe, ventanasSrv } from './01-nucleo.js';
 /* ======================= DASHBOARD ======================= */
 Views.dashboard = {
   render() {
@@ -286,15 +287,11 @@ const fzOn = c => c === '#F2A100' ? '#201F1E' : '#fff';                  // text
 export const fasesFechasDe = i => (i && i.fasesFechas && typeof i.fasesFechas === 'object' && !Array.isArray(i.fasesFechas) ? i.fasesFechas : {});
 const fechaFase = x => !!(x && typeof x.ini === 'string' && typeof x.fin === 'string' && x.ini && x.fin && x.fin >= x.ini);
 export function fasesVentana(i) {
-  const FS = fasesDe(i), hs = hitosDe(i.id), FF = fasesFechasDe(i); let prev = null;
+  const FS = fasesDe(i), hs = hitosDe(i.id), FF = fasesFechasDe(i), SV = ventanasSrv(i);
   return FS.map((f, k) => {
-    const h = hs.filter(x => x.fase === f).sort(by('fecha'));
-    let ini = k === 0 ? (i.inicioPlan || (esProp(i) && i.creada) || (h[0] && h[0].fecha) || null) : (prev ? addD(prev, 1) : ((h[0] && h[0].fecha) || null));
-    let fin = h.length ? h[h.length - 1].fecha : (k === FS.length - 1 ? (i.finPlan || ini) : ini);
-    if (ini && fin && fin < ini) fin = ini; if (!ini) ini = fin;
-    if (fechaFase(FF[f])) { ini = FF[f].ini; fin = FF[f].fin; }   /* V23: la fecha explícita de la fase manda sobre la derivada de los hitos */
-    if (fin) prev = fin;
-    return { fase: f, k, ini, fin, explicita: fechaFase(FF[f]), hitos: h, subs: subfasesDe(i).filter(s => s.fase === f).sort(by('inicio')), done: h.filter(x => x.completado).length, color: FASE_COLOR[f] || '#605E5C', actual: i.fase === f, pasada: FS.indexOf(i.fase) > k };
+    const h = hs.filter(x => x.fase === f).sort(by('fecha')), s = SV.find(x => x.fase === f), e = fechaFase(FF[f]);   /* las fechas de cada fase las calcula el servidor; sin respuesta aún se muestran las guardadas */
+    return { fase: f, k, ini: s ? s.ini : (e ? FF[f].ini : null), fin: s ? s.fin : (e ? FF[f].fin : null), explicita: s ? !!s.explicita : e, hitos: h, subs: subfasesDe(i).filter(x => x.fase === f).sort(by('inicio')), done: h.filter(x => x.completado).length,
+      avance: s ? s.avance : (FS.indexOf(i.fase) > k ? 100 : 0), unidades: s ? !!s.unidades : false, color: FASE_COLOR[f] || '#605E5C', actual: i.fase === f, pasada: FS.indexOf(i.fase) > k };
   });
 }
 const fzRiesgosFase = (i, v) => riesgosDe(i.id).filter(r => riesgoAbierto(r) && r.fRev && v.ini && v.fin && r.fRev >= v.ini && r.fRev <= v.fin);
@@ -315,98 +312,11 @@ export const subfasesDe = i => (i && Array.isArray(i.subfases) ? i.subfases : []
 export const ventanaDe = (i, f) => fasesVentana(i).find(v => v.fase === f) || null;
 export const rangoTx = (a, b) => fzd(a) + ' → ' + fzd(b);
 
-/* ======================= V23 · Avance calculado (una sola fuente) =======================
-   Avance de una fase = promedio de sus unidades: cada subfase (hitos cerrados / hitos de la subfase) y cada hito suelto (0 ó 1).
-   Una fase sin unidades vale 100 % si ya quedó atrás y 0 % si es la actual o una futura.
-   Avance total = promedio de las fases ponderado por sus días (si TODAS tienen fechas explícitas; si no, peso igual).
-   i.avanceManual (0-100) es un ajuste explícito: manda sobre el calculado, pero las compuertas SIEMPRE leen el calculado. */
-export function avanceFaseCalc(i, f) {
-  const hs = hitosDe(i.id).filter(h => h.fase === f), subs = subfasesDe(i).filter(s => s.fase === f), ids = new Set(subs.map(s => s.id)), u = [];
-  subs.forEach(s => { const x = hs.filter(h => h.subfase === s.id); u.push(x.length ? x.filter(h => h.completado).length / x.length : 0); });
-  hs.filter(h => !ids.has(h.subfase)).forEach(h => u.push(h.completado ? 1 : 0));
-  return u.length ? u.reduce((a, b) => a + b, 0) / u.length : null;
-}
-export function avanceCalc(i) {
-  if (!i || esProp(i)) return 0;
-  const FS = fasesDe(i), idx = FS.indexOf(i.fase), FF = fasesFechasDe(i), pesar = FS.every(f => fechaFase(FF[f]));
-  let w = 0, s = 0;
-  FS.forEach((f, k) => { const peso = pesar ? Math.max(1, diffD(FF[f].fin, FF[f].ini) + 1) : 1; let p = avanceFaseCalc(i, f); if (p == null) p = k < idx ? 1 : 0; w += peso; s += peso * p; });
-  return w ? Math.round(s / w * 100) : 0;
-}
-export const avanceManualDe = i => { const m = i && i.avanceManual; return m === null || m === undefined || m === '' || !isFinite(+m) ? null : Math.max(0, Math.min(100, Math.round(+m))); };
-export const avanceEf = i => { const m = avanceManualDe(i); return m != null ? m : avanceCalc(i); };
-/* Deja i.avance (lo que ven listas, KPIs y reportes) igual al avance efectivo. Un proyecto anterior a V23 conserva su número como ajuste manual (no se pisa). */
-export function sincAvance(i) {
-  if (!i || esProp(i)) return;
-  const c = avanceCalc(i);
-  if (i.avanceCalc === undefined && avanceManualDe(i) == null && Math.round(+i.avance || 0) > 0 && Math.round(+i.avance) !== c) i.avanceManual = Math.round(+i.avance);
-  if (i.estado === 'Completado') { i.avance = 100; i.avanceCalc = c; return; }
-  const ef = avanceManualDe(i) != null ? avanceManualDe(i) : c;
-  if (Math.round(+i.avance || 0) !== ef || !(i.hist || []).length) { i.hist = i.hist || []; const h = i.hist[i.hist.length - 1]; if (h && h[0] === hoy()) h[1] = ef; else i.hist.push([hoy(), ef]); }
-  i.avance = ef; i.avanceCalc = c;
-}
-
+/* ======================= Avance (V23) =======================
+   El servidor calcula el avance (hitos y subfases por fase, ponderado por días) y lo guarda en cada escritura; la app solo lo lee (js/01-nucleo.js). */
 /* ======================= V23 · Fechas de fase explícitas =======================
    El proyecto guarda inicio y fin de CADA fase (i.fasesFechas). inicioPlan y finPlan del proyecto son el rango de esas fases:
    nadie los escribe por separado. Los hitos y las subfases viven dentro de su fase (los que quedan fuera se marcan como alerta). */
-const PESO_FASES = [15, 55, 15, 15];   // porcentajes enteros: así el redondeo es idéntico en la base de datos   // reparto inicial de un rango entre las 4 fases del proyecto (editable después)
-const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
-export function distribuirFases(i, ini, fin) {
-  const FS = fasesDe(i); if (!FECHA_ISO.test(ini || '') || !FECHA_ISO.test(fin || '') || fin < ini) return null;
-  const T = diffD(fin, ini) + 1, est4 = FS.length === PESO_FASES.length, out = {}; let c = ini;
-  FS.forEach((f, k) => { const last = k === FS.length - 1, d = last ? T - diffD(c, ini) : Math.max(1, Math.round(est4 ? T * PESO_FASES[k] / 100 : T / FS.length)), e = last ? fin : addD(c, d - 1); out[f] = { ini: c, fin: e < c ? c : e }; c = addD(out[f].fin, 1); });
-  return out;
-}
-export const rangoFases = FF => { const v = Object.values(FF || {}).filter(fechaFase); return v.length ? { ini: v.reduce((a, x) => x.ini < a ? x.ini : a, v[0].ini), fin: v.reduce((a, x) => x.fin > a ? x.fin : a, v[0].fin) } : null; };
-/* Valida el conjunto de fechas por fase. Devuelve '' si es válido o el motivo. */
-export function validarFasesFechas(i, FF) {
-  const FS = fasesDe(i); let prev = null;
-  for (const f of FS) {
-    const x = FF[f]; if (!x || !FECHA_ISO.test(x.ini || '') || !FECHA_ISO.test(x.fin || '')) return 'La fase ' + f + ' necesita inicio y fin';
-    if (x.fin < x.ini) return 'En ' + f + ' el fin no puede ser anterior al inicio';
-    if (prev && x.ini <= prev.fin) return 'La fase ' + f + ' debe empezar después de que termine ' + prev.f + ' (' + fzd(prev.fin) + ')';
-    prev = { f, fin: x.fin };
-  }
-  for (const s of subfasesDe(i)) { const w = FF[s.fase]; if (w && (s.inicio < w.ini || s.fin > w.fin)) return 'La subfase «' + s.nombre + '» quedaría fuera de ' + s.fase + ' (' + rangoTx(w.ini, w.fin) + '): ajústala primero'; }
-  return '';
-}
-/* Fija las fechas de fase, deriva inicioPlan/finPlan y recalcula el avance. Devuelve el motivo si no se puede. */
-export function aplicarFasesFechas(i, FF) {
-  const e = validarFasesFechas(i, FF); if (e) return e;
-  const limpio = {}; fasesDe(i).forEach(f => { limpio[f] = { ini: FF[f].ini, fin: FF[f].fin }; });
-  i.fasesFechas = limpio; const r = rangoFases(limpio); i.inicioPlan = r.ini; i.finPlan = r.fin; sincAvance(i); return '';
-}
-/* Convierte en explícitas las fechas que hoy se derivan de los hitos (proyectos anteriores a V23). null si no hay de dónde sacarlas. */
-export function fasesMaterializadas(i) {
-  const V = fasesVentana(i), FF = {}; let ok = true; V.forEach(v => { if (v.ini && v.fin) FF[v.fase] = { ini: v.ini, fin: v.fin }; else ok = false; });
-  if (!ok) { const d = distribuirFases(i, i.inicioPlan, i.finPlan); return d; }
-  let prev = null; V.forEach(v => { if (prev && FF[v.fase].ini <= prev) FF[v.fase].ini = addD(prev, 1); if (FF[v.fase].fin < FF[v.fase].ini) FF[v.fase].fin = FF[v.fase].ini; prev = FF[v.fase].fin; });
-  return FF;
-}
-/* Único camino para cambiar el rango plan (alta, importaciones, cambio aprobado): reparte o reescala las fases y deriva inicioPlan/finPlan. */
-export function setRangoPlan(i, ini, fin) {
-  if (esProp(i)) { i.inicioPlan = ini || null; i.finPlan = fin || null; return ''; }
-  if (!FECHA_ISO.test(ini || '') || !FECHA_ISO.test(fin || '') || fin < ini) { i.inicioPlan = ini || null; i.finPlan = fin || null; return ''; }
-  const FS = fasesDe(i), cur = FS.every(f => fechaFase(fasesFechasDe(i)[f])) ? fasesFechasDe(i) : null, r0 = cur && rangoFases(cur);
-  let FF;
-  if (cur && r0 && diffD(r0.fin, r0.ini) > 0) {
-    const span0 = diffD(r0.fin, r0.ini), span1 = diffD(fin, ini), m = d => addD(ini, Math.round(diffD(d, r0.ini) * span1 / span0)); FF = {}; let prev = null;
-    FS.forEach(f => { let a = m(cur[f].ini), b = m(cur[f].fin); if (prev && a <= prev) a = addD(prev, 1); if (b < a) b = a; FF[f] = { ini: a, fin: b }; prev = b; });
-    FF[FS[0]].ini = ini; FF[FS[FS.length - 1]].fin = fin < FF[FS[FS.length - 1]].ini ? FF[FS[FS.length - 1]].ini : fin;
-  } else FF = distribuirFases(i, ini, fin);
-  if (!FF) return 'No se pudo repartir el rango entre las fases';
-  subfasesDe(i).forEach(s => { const w = FF[s.fase]; if (!w) return; if (s.inicio < w.ini || s.fin > w.fin) { s.inicio = s.inicio < w.ini ? w.ini : s.inicio > w.fin ? w.ini : s.inicio; s.fin = s.fin > w.fin ? w.fin : s.fin < s.inicio ? s.inicio : s.fin; if (s.fin < s.inicio) { s.inicio = w.ini; s.fin = w.fin; } } });
-  i.fasesFechas = FF; const r = rangoFases(FF); i.inicioPlan = r.ini; i.finPlan = r.fin; sincAvance(i); return '';
-}
-/* Un cambio aprobado de fecha fin mueve el fin de la ÚLTIMA fase (las anteriores no se tocan); si queda antes de su inicio, se reescala todo. */
-export function moverFinPlan(i, fin) {
-  if (esProp(i)) { i.finPlan = fin; return ''; }
-  const FS = fasesDe(i), FF = fasesFechasDe(i), l = FS[FS.length - 1];
-  if (FS.every(f => fechaFase(FF[f])) && fin >= FF[l].ini) { const n = {}; FS.forEach(f => { n[f] = { ini: FF[f].ini, fin: FF[f].fin }; }); n[l].fin = fin; return aplicarFasesFechas(i, n); }
-  return setRangoPlan(i, i.inicioPlan, fin);
-}
-/* Tras cualquier cambio: los proyectos que ya usan el avance calculado y que el usuario puede editar se mantienen al día (hitos, subfases, fechas). */
-export function reconciliarAvance() { St.ini.forEach(i => { if (!esProp(i) && !isDone(i) && (0, ENLACES.puedeEditarIni)(i) && (i.avanceCalc === undefined || avanceCalc(i) !== i.avanceCalc)) sincAvance(i);   /* incluye proyectos anteriores a V23: su % pasa a ajuste manual y todas las vistas coinciden */ }); }
 /* hitos de la fase cuya fecha cae fuera de ella (alerta, no bloqueo) */
 export const hitosFuera = (i, v) => (v && v.ini && v.fin ? v.hitos.filter(h => h.fecha && (h.fecha < v.ini || h.fecha > v.fin)) : []);
 const subFuera = (s, v) => !v || !v.ini || !v.fin || s.inicio < v.ini || s.fin > v.fin;
@@ -675,10 +585,10 @@ Acts.tareaedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PE
 Acts.tareahecha = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const L = (semOf().t || []).map(x => x.id === d.id ? Object.assign({}, x, { hecha: hoy() }) : x); if (semSet({ t: L })) { toast('Pendiente hecho'); refresh(); } };
 /* Pestaña «Planificación» de la ficha: fases, cronograma, próximos 14 días y siguientes pasos */
 /* avance de una fase para mostrar: la calculada; una fase ya superada sin unidades vale 100 % */
-const pctFase = (i, v) => { const p = avanceFaseCalc(i, v.fase); return Math.round((p == null ? (v.pasada ? 1 : 0) : p) * 100); };
+const pctFase = (i, v) => v.avance;
 /* Tarjeta «Ciclo de vida»: lo que antes estaba repartido entre Fase, Estado, Avance y fechas, en un solo lugar */
 function cicloCard(i, V) {
-  const PR = esProp(i), fin = isDone(i), c = avanceCalc(i), m = avanceManualDe(i), ef = m != null ? m : c, fx = V.reduce((n, v) => n + hitosFuera(i, v).length, 0), expl = V.every(v => v.explicita);
+  const PR = esProp(i), fin = isDone(i), c = avanceCalc(i), m = avanceManualDe(i), ef = avanceEf(i), fx = V.reduce((n, v) => n + hitosFuera(i, v).length, 0), expl = V.every(v => v.explicita);
   const F_ = fasesDe(i), idx = F_.indexOf(i.fase), nx = F_[idx + 1], g = fin ? [] : compuertas(i), okN = g.filter(x => x.ok).length;
   const kvs = [
     kv('Fase', faseTag(i)), kv('Estado', estPill(i.estado) + (i.estadoMotivo ? ` <small class="mut">${esc(i.estadoMotivo)}${i.estadoRev ? ' · revisión ' + fmtD(i.estadoRev) : ''}</small>` : '')),
@@ -702,8 +612,8 @@ export function planFichaHTML(i) {
       <div class="fz-card" style="padding:12px 14px"><h3 style="margin:0 0 6px">Próximos 14 días</h3>${prox.length ? prox.map(p => `<div class="fz-li" style="padding:7px 0"><b style="width:44px">${fzd(p.f)}</b><span class="fz-pill" style="color:${p.c};border:1px solid ${p.c}">${p.k}</span><span>${esc(p.t)}</span></div>`).join('') : '<p class="mut">Nada programado en los próximos 14 días.</p>'}</div></div>
     <div class="fz-card" style="flex:1 1 340px;min-width:0;padding:12px 14px"><div class="fz-ch" style="padding:0 0 4px;border:0"><h3>Siguientes pasos</h3><small class="mut">${P.length} sugerido${P.length === 1 ? '' : 's'}</small></div><p class="mut" style="font-size:12px;margin:0 0 10px">Calculados con las reglas de APIH: hitos, compuerta de fase, riesgos, compromisos y tenedores.</p>${P.length ? P.map(p => pasoHTML(p)).join('') : '<p class="mut">Sin pasos pendientes. ¡Todo al día!</p>'}</div></div>`;
 }
-Acts.avauto = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); i.avanceManual = null; sincAvance(i); i.actualizada = hoy(); log('Actualización', i.id, 'Avance: se usa el calculado (' + i.avance + '%)'); toast('Avance calculado: ' + i.avance + '%'); refresh(); };
-Acts.fasefix = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); const FF = fasesMaterializadas(i); if (!FF) return toast('Define el inicio y el fin plan (o al menos un hito) para fijar las fases', 'err'); const e = aplicarFasesFechas(i, FF); if (e) return toast(e, 'err'); i.actualizada = hoy(); log('Cambio', i.id, 'Fechas de las fases fijadas: ' + fasesDe(i).map(f => f + ' ' + rangoTx(i.fasesFechas[f].ini, i.fasesFechas[f].fin)).join(' · ')); toast('Fechas de las fases fijadas'); refresh(); };
+Acts.avauto = d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); i.avanceManual = null; i.actualizada = hoy(); log('Actualización', i.id, 'Avance: se usa el calculado'); toast('Avance: se usa el calculado'); refresh(); };
+Acts.fasefix = async d => { const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto'); const r = await cmdServidor('apih_fases_fechas', { p_id: i.id, p_ff: null }, 'Fechas de las fases fijadas'); if (r !== null) refresh(); };
 Acts.fasefechas = d => {
   const i = byId(d.id); if (!i || esProp(i)) return; if (!(0, ENLACES.puedeEditarIni)(i) || (0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Sin permiso para editar este proyecto');
   const V = fasesVentana(i), v = {}, fields = [];
@@ -712,8 +622,7 @@ Acts.fasefechas = d => {
     extra: '<p class="mut" style="font-size:12px;margin:10px 0 0">Cada fase empieza después de que termina la anterior. El inicio plan y el fin plan del proyecto son el inicio de la primera y el fin de la última. Las subfases deben quedar dentro de su fase; los hitos fuera de su fase se marcan como alerta.</p>',
     onSave(o) {
       const FF = {}; V.forEach(x => { FF[x.fase] = { ini: o['i' + x.k], fin: o['f' + x.k] }; });
-      const e = aplicarFasesFechas(i, FF); if (e) { toast(e, 'err'); return false; }
-      i.actualizada = hoy(); log('Cambio', i.id, 'Fechas de las fases: ' + V.map(x => x.fase + ' ' + rangoTx(FF[x.fase].ini, FF[x.fase].fin)).join(' · ') + ' (plan ' + fmtD(i.inicioPlan) + ' → ' + fmtD(i.finPlan) + ')'); toast('Fechas guardadas'); refresh();
+      return cmdServidor('apih_fases_fechas', { p_id: i.id, p_ff: FF }, 'Fechas guardadas', true).then(r => { if (r === null) return false; refresh(); return true; });
     } });
 };
 Acts.fzir = d => { const f = F('fases', {}); f.tab = 'linea'; f.id = d.id; UI.view = 'fases'; render(); };
@@ -1059,18 +968,10 @@ Object.defineProperties(ENLACES, {
   DESC_MAX: { get: () => DESC_MAX, enumerable: true, configurable: true },
   avanceCalc: { get: () => avanceCalc, enumerable: true, configurable: true },
   avanceEf: { get: () => avanceEf, enumerable: true, configurable: true },
-  avanceFaseCalc: { get: () => avanceFaseCalc, enumerable: true, configurable: true },
   avanceManualDe: { get: () => avanceManualDe, enumerable: true, configurable: true },
   fasesFechasDe: { get: () => fasesFechasDe, enumerable: true, configurable: true },
   fasesVentana: { get: () => fasesVentana, enumerable: true, configurable: true },
-  sincAvance: { get: () => sincAvance, enumerable: true, configurable: true },
-  fasesMaterializadas: { get: () => fasesMaterializadas, enumerable: true, configurable: true },
   hitosFuera: { get: () => hitosFuera, enumerable: true, configurable: true },
-  validarFasesFechas: { get: () => validarFasesFechas, enumerable: true, configurable: true },
-  reconciliarAvance: { get: () => reconciliarAvance, enumerable: true, configurable: true },
-  moverFinPlan: { get: () => moverFinPlan, enumerable: true, configurable: true },
-  setRangoPlan: { get: () => setRangoPlan, enumerable: true, configurable: true },
-  aplicarFasesFechas: { get: () => aplicarFasesFechas, enumerable: true, configurable: true },
   cutDesc: { get: () => cutDesc, enumerable: true, configurable: true },
   faseTag: { get: () => faseTag, enumerable: true, configurable: true },
   pcols: { get: () => pcols, enumerable: true, configurable: true },
