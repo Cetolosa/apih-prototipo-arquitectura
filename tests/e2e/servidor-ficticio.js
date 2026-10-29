@@ -47,29 +47,16 @@ const HOST = 'https://bjkuupynrylgfmzhyxgz.supabase.co';
   // base vacía → la app guarda usuarios/parámetros iniciales
   await p.waitForTimeout(1500);
   r.ajustes = [...db.keys()].filter(k => k.startsWith('APIH_Config|') || k.startsWith('APIH_Roles|')).sort();
-  // alta
+  // la SPA ya no escribe dominio de forma genérica (solo por comandos del servidor): un cambio en St no llega a la base
   await p.evaluate(() => { const o = Object.assign(ESQUEMA.risks.tpl(), { id: 'RSK-900', titulo: 'Riesgo de prueba' }); St.riesgos.push(o); save(); });
-  await p.waitForTimeout(1500);
-  const fila = db.get('APIH_Riesgos|RSK-900'); r.alta = fila ? fila.datos.slice(0, 3) + '|' + JSON.parse(fila.datos.slice(3)).titulo : null;
-  // edición
-  await p.evaluate(() => { St.riesgos.find(x => x.id === 'RSK-900').titulo = 'Riesgo editado'; save(); }); await p.waitForTimeout(1500);
-  r.edicion = JSON.parse(db.get('APIH_Riesgos|RSK-900').datos.slice(3)).titulo;
+  await p.waitForTimeout(1500); r.sinGenerica = !db.has('APIH_Riesgos|RSK-900');
   // cambio ajeno → la lectura lo trae
   db.set('APIH_Riesgos|RSK-901', { lista: 'APIH_Riesgos', id: 'RSK-901', datos: 'p1.' + JSON.stringify(Object.assign({ id: 'RSK-901', titulo: 'Ajeno' })), actualizado: ts() });
   await p.evaluate(() => DataService.refresh(false, true)); r.ajeno = await p.evaluate(() => !!St.riesgos.find(x => x.id === 'RSK-901'));
-  // conflicto: otra persona modifica RSK-900; mi edición no debe pisarla
-  const ajena = JSON.parse(db.get('APIH_Riesgos|RSK-900').datos.slice(3)); ajena.titulo = 'Cambio de otra persona';
-  db.get('APIH_Riesgos|RSK-900').datos = 'p1.' + JSON.stringify(ajena); db.get('APIH_Riesgos|RSK-900').actualizado = ts();
-  await p.evaluate(() => { St.riesgos.find(x => x.id === 'RSK-900').titulo = 'Mi cambio tardío'; save(); }); await p.waitForTimeout(2000);
-  r.conflicto = { servidor: JSON.parse(db.get('APIH_Riesgos|RSK-900').datos.slice(3)).titulo, aviso: dlg.length > 0 };
-  // baja
-  await p.evaluate(() => DataService.refresh(false, true));
-  await p.evaluate(() => { St.riesgos = St.riesgos.filter(x => x.id !== 'RSK-901'); save(); }); await p.waitForTimeout(1500);
-  r.baja = !db.has('APIH_Riesgos|RSK-901');
   // prueba de conexión
   r.prueba = await p.evaluate(() => DataService.testConnection());
   console.log(JSON.stringify(r), err, [...new Set(log)].join(', '));
-  const ok = !err.length && r.conectado.modo === 'supabase' && r.conectado.svc && r.conectado.estado === 'ok' && r.ajustes.includes('APIH_Config|cfg') && r.alta === 'p1.|Riesgo de prueba' && r.edicion === 'Riesgo editado' && r.ajeno
-    && r.conflicto.servidor === 'Cambio de otra persona' && r.conflicto.aviso && r.baja && r.prueba.every(x => x.startsWith('✔')) && r.prueba.length === 13;
+  const ok = !err.length && r.conectado.modo === 'supabase' && r.conectado.svc && r.conectado.estado === 'ok' && r.ajustes.includes('APIH_Config|cfg') && r.sinGenerica && r.ajeno
+    && r.prueba.every(x => x.startsWith('✔')) && r.prueba.length === 13;
   console.log(ok ? 'OK servidor-ficticio' : 'FALLA servidor-ficticio'); await b.close(); process.exit(ok ? 0 : 1);
 })();
