@@ -70,3 +70,5 @@ Para que Supabase deje crear cuentas sin dominio fijo: Authentication → Provid
 ## Subfases, nota de fase, consumo de presupuesto y documentos
 
 `apih_guardar_subfase` / `apih_eliminar_subfase` (ventana de la fase, largo de campos, duplicados, id `PRJ-001-SF1` y hitos que siguen a su subfase), `apih_nota_fase`, `apih_registrar_consumo` / `apih_confirmar_consumo` (solo quien ve montos; deja la marca de la misión del mes en la bitácora) y `apih_guardar_documento` / `apih_quitar_documento` (vínculos solo de OneDrive/SharePoint por https; edita quien lo agregó o el PMO). Eliminar una solicitud de cambio usa `apih_eliminar` (solo si sigue «Solicitado»). El navegador ya no calcula la auditoría de «Edición»: la dejan los comandos en la bitácora y la tabla `auditoria`.
+
+Corrección de alcance: si a una persona (que no es Administra) se le asignan proyectos, **solo** ve y edita esos; sus áreas y «ve todas las áreas» dejan de contar (`apih_restringido`). Todo proyecto lleva su código interno en `registros.area`, tenga área o no; `apih_ve_area` y `apih_edita_area` ignoran los códigos para el alcance por áreas. El contexto trae `restringido`.
