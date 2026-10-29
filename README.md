@@ -7,7 +7,7 @@ Aplicación de portafolio (SPA estática) con servidor en Postgres/Supabase. Pro
 - `supabase/migrations/`: reglas del servidor (autorización, validación, comandos de negocio). `supabase/tests/`: pruebas SQL.
 - `tests/e2e/`: pruebas de navegador (Playwright). `tests/contract/`: contratos compartidos entre la SPA y el servidor.
 - `pruebas-ti/`: repite la revisión técnica de Arquitectura y deja un informe por hallazgo (ver su README).
-- `docs/ti/`: guía de UAT, anexo de arquitectura, mapa de portabilidad, comprar vs construir.
+- `docs/ti/`: guía de UAT, anexo de arquitectura y mapa de portabilidad.
 
 ## Cómo probar
 ```
