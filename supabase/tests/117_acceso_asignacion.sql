@@ -37,7 +37,8 @@ select pg_temp.falla($$select public.apih_guardar_usuario('adm@test.cl', '{"appR
 select public.apih_guardar_usuario('nuevo@test.cl', '{"appRol":"Colaborador","areas":["B"],"proyectos":["PRJ-001"],"nombre":"Nora Nueva","cargo":"Analista"}'::jsonb);
 select pg_temp.como('nuevo@test.cl');
 select pg_temp.ok((public.apih_contexto() ->> 'appRol') = 'Colaborador' and (public.apih_contexto() -> 'proyectos') = '["PRJ-001"]'::jsonb, 'ya tiene contexto: rol y proyectos asignados');
-select pg_temp.ok((select count(*) from public.registros_v where lista = 'APIH_Proyectos') = 2, 've el proyecto de su área y el asignado');
+select pg_temp.ok((select count(*) from public.registros_v where lista = 'APIH_Proyectos') = 1 and (select count(*) from public.registros_v where id = 'PRJ-002') = 0, 'con proyectos asignados ve SOLO esos: su área B ya no amplía el alcance');
+select pg_temp.ok((public.apih_contexto() ->> 'restringido')::boolean and public.apih_contexto() -> 'areasVisibles' = '[]'::jsonb and public.apih_contexto() -> 'areasEditables' = '[]'::jsonb, 'el contexto informa que está acotado a proyectos');
 select pg_temp.ok((select count(*) from public.registros_v where lista = 'APIH_Hitos') = 1, 've los hitos del proyecto asignado');
 select public.apih_comentar('PRJ-001', 'Desde proyecto asignado');
 select pg_temp.ok((select count(*) from public.registros_v where lista='APIH_Bitacora' and datos like '%Desde proyecto asignado%') = 1, 'comenta y edita el proyecto asignado aunque sea de otra área');
@@ -47,7 +48,7 @@ select pg_temp.ok(true, 'ejecuta comandos de edición sobre el proyecto asignado
 select pg_temp.como('adm@test.cl');
 select public.apih_guardar_usuario('nuevo@test.cl', '{"appRol":"Colaborador","areas":["B"],"proyectos":[]}'::jsonb);
 select pg_temp.como('nuevo@test.cl');
-select pg_temp.ok((select count(*) from public.registros_v where lista = 'APIH_Proyectos') = 1, 'sin asignación ya no ve el proyecto de otra área');
+select pg_temp.ok((select count(*) from public.registros_v where lista = 'APIH_Proyectos') = 1 and (select count(*) from public.registros_v where id = 'PRJ-002') = 1, 'sin proyectos asignados vuelve al alcance por áreas (ve el de su área B, no el de A)');
 select pg_temp.falla($$select public.apih_avance_auto('PRJ-001')$$, 'ni lo edita', '%');
 -- 4. Invitado con proyecto asignado: ve, no edita
 select pg_temp.como('adm@test.cl');

@@ -275,7 +275,7 @@ function usrServidor() {
   const estado = u => u.pendiente ? '<span class="pill" style="background:#FFF4CE;color:#7A5200">Pendiente</span>' : u.activo ? '<span class="pill soft">Activo</span>' : '<span class="pill" style="background:#F3D6D6;color:#8A1F1F">Inactivo</span>';
   const fila = u => `<tr><td><span class="pp">${avatar(u.nombre || u.email, 24)}<span><b>${esc(u.nombre || u.email)}</b><br><small class="mut">${esc(u.email)}</small></span></span></td><td>${u.pendiente ? '<span class="mut">Sin rol</span>' : `<span class="pill soft">${esc(u.appRol)}</span>`}</td><td>${esc((u.areas || []).join(', ') || '—')}</td><td>${(u.proyectos || []).length ? esc(u.proyectos.join(', ')) : '—'}</td><td>${estado(u)}</td><td class="n">${btn(u.pendiente ? 'Asignar rol' : 'Editar', 'usredit', { d: { id: u.email }, cls: 'sm' })}${u.pendiente || u.activo ? btn(u.pendiente ? 'Rechazar' : 'Desactivar', 'usroff', { d: { id: u.email }, cls: 'sm danger' }) : ''}</td></tr>`;
   return `<div class="card"><header><h2>Usuarios y roles</h2><small>${L.length} cuentas${pend ? ' · <b>' + pend + ' pendiente(s) de rol</b>' : ''}</small></header>
-    <div class="note">${icon('info', 14)}<span>Cualquiera puede crear su cuenta; queda <b>pendiente</b> y no ve nada hasta que le asignes un rol. Además del rol y las áreas, puedes asignarle <b>proyectos en particular</b>: los verá (y, si es Colaborador o Responsable, los podrá editar) aunque no sean de su área.</span></div>
+    <div class="note">${icon('info', 14)}<span>Cualquiera puede crear su cuenta; queda <b>pendiente</b> y no ve nada hasta que le asignes un rol. Si le asignas <b>proyectos en particular</b>, esos son <b>lo único que verá</b> (y, si es Colaborador o Responsable, podrá editarlos); sus áreas dejan de contar. Sin proyectos asignados, rige por áreas.</span></div>
     ${UI.usrsErr ? `<p class="mut" style="color:var(--red)">${esc(UI.usrsErr)}</p>` : ''}
     <div class="tbl-w"><table class="tbl"><thead><tr><th>Persona</th><th>Rol</th><th>Áreas</th><th>Proyectos asignados</th><th>Estado</th><th></th></tr></thead><tbody>${L.map(fila).join('') || '<tr><td colspan="6" class="mut">Sin cuentas</td></tr>'}</tbody></table></div></div>`;
 }
@@ -288,7 +288,7 @@ Acts.usredit = d => {
       { k: 'nombre', l: 'Nombre', w: 2 }, { k: 'cargo', l: 'Cargo', w: 1 },
       { k: 'appRol', l: 'Rol', t: 'select', opts: USR_ROLES, req: true, w: 1, hint: 'Administra: todo · Responsable: ve todo y gobierna · Colaborador: edita su área · Invitado: solo lectura' },
       { k: 'areas', l: 'Áreas que ve y edita', t: 'multi', opts: St.cfg.areas.map(a => ({ v: a, t: a })), w: 3 },
-      { k: 'proyectos', l: 'Proyectos asignados (además de su área)', t: 'multi', opts: iniOpts(), w: 3 },
+      { k: 'proyectos', l: 'Proyectos asignados', t: 'multi', opts: iniOpts(), w: 3, hint: 'Si eliges proyectos, la persona ve y edita SOLO esos: sus áreas y «ve todas las áreas» dejan de ampliar el alcance. Déjalo vacío para que rija por áreas.' },
       { k: 'veTodo', l: 'Alcance', t: 'check', lbl: 'Ve todas las áreas (solo lectura fuera de las suyas)', w: 3 },
       { k: 'veMontos', l: 'Montos', t: 'check', lbl: 'Ve presupuestos y montos', w: 3 },
       { k: 'gobierna', l: 'Gobierno', t: 'check', lbl: 'Gestiona comités y decisiones', w: 3 }
