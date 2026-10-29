@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.goto(URL); await p.waitForTimeout(1800);
   const r = await p.evaluate(async () => {
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-909', titulo: 'Usuarios e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: miUsuario(), actualizada: hoy(), inicioPlan: addD(hoy(), -30), finPlan: addD(hoy(), 90), finEst: addD(hoy(), 90) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     const o = {}; F('adm', {}).tab = 'usr'; go('admin'); UI.usrs = null;
     for (let k = 0; k < 40 && !Array.isArray(UI.usrs); k++) await new Promise(r => setTimeout(r, 250));
     o.lista = Array.isArray(UI.usrs) && UI.usrs.length > 0; o.yo = UI.usrs.find(u => u.appRol === 'Administra');

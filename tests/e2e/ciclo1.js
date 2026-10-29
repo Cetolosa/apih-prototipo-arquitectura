@@ -16,7 +16,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     mk('V23-E', { avance: 30, fase: 'Ejecución' }); hit('V23-E', 'Planificación', true); hit('V23-E', 'Ejecución', false);
     mk('V23-F', { fase: 'Cierre' }); hit('V23-F', 'Planificación', true); hit('V23-F', 'Ejecución', true); hit('V23-F', 'Transición', true); hit('V23-F', 'Cierre', false, { id: 'V23-F-ULT' });
     save(); render(); });
-  await p.evaluate(async () => { await DataService.flush(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
+  await p.evaluate(async () => { await sembrarSt(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
   const r = {}, ev = (f, a) => p.evaluate(f, a);
   // 1) diálogo único: ofrece fases y estados; aplica la fase
   await ev(() => Acts.etapa({ id: 'V23-A' })); await p.waitForTimeout(250);
@@ -24,7 +24,8 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.opcFase = await p.$$eval('#et_acc option', a => a.map(x => x.value).join(','));
   await p.selectOption('#et_acc', 'f:Ejecución'); await p.waitForTimeout(100);
   r.gatesVisibles = await p.$$eval('#et_d .gates > div', a => a.length);
-  await p.uncheck('#et_repro'); await p.click('[data-act="etapago"]'); await p.waitForTimeout(300);   // el reparto de fechas se prueba aparte (etapa-plan)
+  await p.uncheck('#et_repro'); await p.click('[data-act="etapago"]');   // el reparto de fechas se prueba aparte (etapa-plan)
+  await p.waitForFunction(() => byId('V23-A').fase === 'Ejecución', null, { timeout: 5000 }).catch(() => { });
   r.fase = await ev(() => byId('V23-A').fase);
   // sin botones sueltos de Fase/Estado en el panel
   await ev(() => { render(); Acts.sel({ t: 'ini', id: 'V23-A' }); }); await p.waitForTimeout(300);
@@ -45,7 +46,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.editManual = await p.$$eval('#f_avanceManual', a => a.length) === 1;
   await p.click('[data-act="mclose"]'); await p.waitForTimeout(150);
   // 3) avance: lo calcula y lo guarda el servidor; el ajuste manual manda y las compuertas leen el calculado
-  const sync = async () => { await ev(async () => { await DataService.flush(); await DataService.refresh(false, true); }); await p.waitForTimeout(200); };
+  const sync = async () => { await ev(async () => { await sembrarSt(); await DataService.refresh(false, true); }); await p.waitForTimeout(200); };
   await sync();
   r.calcA = await ev(() => byId('V23-A').avance);
   r.calcAfase = await ev(() => fasesVentana(byId('V23-A')).find(v => v.fase === 'Planificación').avance);
@@ -58,7 +59,8 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.legacyAuto = await ev(() => { const i = byId('V23-E'); return [i.avance, i.avanceManual, avanceEf(i)].join('|'); });
   // 4c) el formulario de hito también cierra el proyecto al completar el último hito de Cierre
   await ev(() => Acts.edit({ t: 'hito', id: 'V23-F-ULT' })); await p.waitForTimeout(250);
-  await p.check('#f_completado'); await p.click('[data-act="msave"]'); await p.waitForTimeout(300);
+  await p.check('#f_completado'); await p.click('[data-act="msave"]');
+  await p.waitForFunction(() => byId('V23-F').estado === 'Completado', null, { timeout: 5000 }).catch(() => { });   // espera la respuesta del servidor (no un tiempo fijo)
   r.formCierra = await ev(() => { const i = byId('V23-F'); return [i.estado, i.avance].join('|'); });
   // 5) subfase aporta: S1 (1/2) y 1 hito suelto (1/1) → fase 75 %
   r.subfase = await ev(() => fasesVentana(byId('V23-D')).find(v => v.fase === 'Ejecución').avance);
@@ -76,7 +78,8 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.sbCampo = await p.$$eval('#et_mot', a => a.length);
   await p.click('[data-act="etapago"]'); await p.waitForTimeout(200);
   r.sbSinMotivo = await ev(() => byId('V23-B').estado);
-  await p.fill('#et_mot', 'congelado por presupuesto'); await p.click('[data-act="etapago"]'); await p.waitForTimeout(300);
+  await p.fill('#et_mot', 'congelado por presupuesto'); await p.click('[data-act="etapago"]');
+  await p.waitForFunction(() => byId('V23-B').estado === 'Stand By', null, { timeout: 5000 }).catch(() => { });
   r.sbOk = await ev(() => byId('V23-B').estado);
   // 9) arrastrar en el tablero ya no salta compuertas: abre el mismo diálogo
   const mal = [];

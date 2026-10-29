@@ -10,7 +10,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     const me = miUsuario(), H = hoy();
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-906', titulo: 'Carga e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: me, actualizada: H, inicioPlan: addD(H, -30), finPlan: addD(H, 120) }));
     St.hitos.push({ id: 'HIT-906', ini: 'PRJ-906', nombre: 'Existente', fase: 'Ejecución', fecha: addD(H, 10), completado: false, resp: me });
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     const i = byId('PRJ-906'), cur = St.hitos.find(h => h.id === 'HIT-906');
     CX.name = 'prueba.xlsx';
     CX.res = { plan: [{ i, ch: { finPlan: addD(H, 150), avance: 35 } }], hitos: [{ cur, ch: { fecha: addD(H, 20) }, id: i.id, nm: cur.nombre }, { nuevo: { ini: 'PRJ-906', nombre: 'Desde Excel', fase: '', fecha: addD(H, 30), completado: false, fechaReal: null, resp: me }, id: i.id, nm: 'Desde Excel' }], errs: [], warns: [], vacio: false };

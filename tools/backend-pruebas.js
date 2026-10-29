@@ -177,6 +177,16 @@ async function levantar(opc = {}) {
   async function pruebas(req, res, u) {
     if (u.pathname === '/__pruebas/reiniciar') { await reiniciar(); return json(res, 200, { ok: true }); }
     if (u.pathname === '/__pruebas/sql') { const { sql, params } = JSON.parse((await leerCuerpo(req)) || '{}'); try { const r = await pool.query(sql, params || []); return json(res, 200, { rows: r.rows }); } catch (e) { return json(res, 400, { error: e.message }); } }
+    if (u.pathname === '/__pruebas/sembrar') {   // siembra de datos de las pruebas e2e: filas escritas como servicio (la SPA ya no escribe dominio de forma genérica)
+      const { items = [], borrar = [] } = JSON.parse((await leerCuerpo(req)) || '{}'), c = await pool.connect(), lote = [];
+      try {
+        await c.query('begin'); await c.query("select set_config('apih.interno', 'on', true)");
+        for (const x of items) { try { await c.query('savepoint s'); const u = await c.query('update public.registros set datos = $3 where lista = $1 and id = $2', [x.lista, x.id, x.datos]); if (!u.rowCount) await c.query('insert into public.registros(lista, id, datos) values ($1, $2, $3)', [x.lista, x.id, x.datos]);   /* como una edición (UPDATE), no un alta */ await c.query('release savepoint s'); lote.push({ ok: true }); } catch (e) { await c.query('rollback to savepoint s'); lote.push({ ok: false, id: x.id, error: e.message }); } }
+        for (const b of borrar) await c.query('delete from public.registros where lista = $1 and id = any($2)', [b.lista, b.ids]);
+        await c.query('commit');
+      } catch (e) { await c.query('rollback'); return json(res, 500, { error: e.message }); } finally { c.release(); }
+      return json(res, 200, { lote });
+    }
     if (u.pathname === '/__pruebas/sesion') return json(res, 200, Object.assign(sesion(String(u.searchParams.get('email') || '').toLowerCase()), { exp: Math.floor(Date.now() / 1000) + 3600 }));
     return json(res, 404, { error: 'ruta de pruebas desconocida' });
   }

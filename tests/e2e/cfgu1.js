@@ -7,7 +7,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1'));
   await p.goto(URL); await p.waitForTimeout(1500);
   const r = await p.evaluate(async () => {
-    const out = {}; const svc = new SupabaseService(APIH_CONFIG); const dbs = {}, escritos = [];
+    const out = {}; const svc = BACKEND.nuevo(APIH_CONFIG); const dbs = {}, escritos = [];
     svc.listItems = async ent => ent === 'settings' ? [
       { spid: 'cfg', f: { Title: 'cfg', DatosJSON: '{"a":1}' } },
       { spid: 'cfgU:ana@x.cl', f: { Title: 'cfgU:ana@x.cl', DatosJSON: JSON.stringify({ n: 'Ana', v: { tema: 'claro' } }) } },

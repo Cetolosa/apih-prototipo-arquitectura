@@ -4,13 +4,13 @@ import { ENLACES } from './00-registro.js';
    ---------------------------------------------------------------------
    ARQUITECTURA (capas, de abajo hacia arriba)
      Dominio .................. 01-nucleo.js     (modelo, reglas, cálculos)
-     Servicio de datos ........ 02-datos.js      (SupabaseService: REST + comandos RPC; DataService: carga, diff, sincronización)
+     Servicio de datos ........ 02-datos.js      (DataService: carga, diff, sincronización) + 01t-transporte.js (servidor y acceso del ambiente)
      SPA ...................... 03 … 11          (interfaz, vistas, administración, gobierno, presentaciones)
 
-   PERSISTENCIA: Postgres (Supabase) con autorización en el servidor. No se usa localStorage para datos.
+   PERSISTENCIA: el servidor del ambiente (01t-transporte.js), con autorización en el servidor. No se usa localStorage para datos.
    Sin configuración del servidor la app queda en solo lectura y vacía: todas las reglas y datos viven en el servidor.
 
-   CONFIGURACIÓN: apih-config.js define window.APIH_OVERRIDE = { auth, supabase } (sin recompilar).
+   CONFIGURACIÓN: apih-config.js define window.APIH_OVERRIDE = { auth, api | supabase } (sin recompilar).
    ===================================================================== */
 export const APIH_CONFIG = {
   /* Nombres de las listas lógicas (valor de la columna `lista` en la tabla registros) */
@@ -28,10 +28,11 @@ export const APIH_CONFIG = {
   rolesList: 'APIH_Roles',            // roles y usuarios (solo Administra puede escribirla)
   settingsList: 'APIH_Config',        // extensión V4: parámetros, usuarios, calendario, presentaciones
 
-  /* Autenticación: provider = 'supabase' (correo corporativo + contraseña propia) o 'none' (modo demo) */
-  auth: { provider: 'none' },
+  /* Autenticación: el proveedor lo interpreta 01t-transporte.js ('entra', 'dev', 'supabase'…); 'none' = modo demo */
+  auth: { provider: 'none', tenantId: '', clientId: '', scope: '', devToken: '' },
 
-  /* Proyecto Supabase: URL y clave pública (publishable/anon). Ambas son públicas por diseño. */
+  /* Servidor del ambiente: API de APIH (URL base; vacío = mismo origen) o proyecto Supabase (URL y clave pública). */
+  api: { url: '' },
   supabase: { url: '', anonKey: '' },
   analisis: true,                     // false = oculta toda la sección Análisis (reglas automáticas)
 
@@ -44,7 +45,6 @@ export const APIH_CONFIG = {
 /* Logotipos corporativos (PNG embebidos; archivos entregados por el usuario) */
 export const LOGO = {"arBR": "img/ar-br.png", "arC": "img/ar-c.png", "bwdw": "img/bwdw.png"};
 
-const SEED = {"iniciativas":[],"hitos":[],"riesgos":[],"decisiones":[],"comites":[],"bitacora":[],"presentaciones":[],"usuarios":[{"n":"Christian Tolosa","rol":"Administra","cargo":"","area":"BISE","correo":"","capacidad":9,"veTodo":true}]};
 
 /* ============================================================
    APIH · Core: utilidades, fechas, estado, cálculos de dominio
@@ -72,10 +72,17 @@ export const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
     });
     return t.innerHTML;
   };
+  /* V11 · CSP sin 'unsafe-inline' en atributos: el HTML generado no lleva style="…"; cada estilo viaja como data-css y se
+     aplica por CSSOM (el.style.cssText), que la CSP no bloquea. Solo pasa por aquí HTML ya filtrado por limpiarHTML. */
+  const ATTR = /(<[a-zA-Z][^<>]*?\s)style\s*=\s*"/g, sinEstilo = h => (h.includes('style') ? h.replace(ATTR, '$1data-css="') : h);
+  const aplicar = r => { if (r && r.querySelectorAll) r.querySelectorAll('[data-css]').forEach(el => { el.style.cssText = el.getAttribute('data-css'); el.removeAttribute('data-css'); }); };
+  window.aplicarEstilos = aplicar;
+  // nodos que llegan al documento por otra vía (contenido de <template>, appendChild de fragmentos): se aplican al insertarse
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType !== 1) return; if (n.hasAttribute('data-css')) { n.style.cssText = n.getAttribute('data-css'); n.removeAttribute('data-css'); } aplicar(n); }))).observe(document.documentElement, { childList: true, subtree: true });
   const dI = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML'), dO = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML'), insHTML = Element.prototype.insertAdjacentHTML;
-  Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, enumerable: dI.enumerable, get: dI.get, set(v) { dI.set.call(this, window.limpiarHTML(v)); } });
-  Object.defineProperty(Element.prototype, 'outerHTML', { configurable: true, enumerable: dO.enumerable, get: dO.get, set(v) { dO.set.call(this, window.limpiarHTML(v)); } });
-  Element.prototype.insertAdjacentHTML = function (pos, html) { return insHTML.call(this, pos, window.limpiarHTML(html)); };
+  Object.defineProperty(Element.prototype, 'innerHTML', { configurable: true, enumerable: dI.enumerable, get: dI.get, set(v) { dI.set.call(this, window.limpiarHTML(sinEstilo(v))); if (!this.content) aplicar(this); } });   // en <template> el estilo queda en data-css hasta que el nodo entra al documento
+  Object.defineProperty(Element.prototype, 'outerHTML', { configurable: true, enumerable: dO.enumerable, get: dO.get, set(v) { const pa = this.parentNode; dO.set.call(this, window.limpiarHTML(sinEstilo(v))); aplicar(pa); } });
+  Element.prototype.insertAdjacentHTML = function (pos, html) { const r = insHTML.call(this, pos, window.limpiarHTML(sinEstilo(html))); aplicar(/^(beforebegin|afterend)$/i.test(pos) ? this.parentNode : this); return r; };
 })();
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = p => p + '-' + Math.random().toString(36).slice(2, 8);
@@ -98,7 +105,7 @@ export const fmtD = s => { if (!s) return '—'; const d = pD(s); return pad(d.g
 export const fmtDL = s => { if (!s) return '—'; const d = pD(s); return d.getDate() + ' de ' + MESES[d.getMonth()].toLowerCase() + ' de ' + d.getFullYear(); };
 export const fmtTS = s => { if (!s) return ''; return fmtD(s.slice(0, 10)) + (s.length > 10 ? ' · ' + s.slice(11, 16) : ''); };
 export const quarter = s => Math.floor(pD(s).getMonth() / 3) + 1;
-export const hoy = () => (St && St.cfg.hoyFija) || toISO(new Date());
+export const hoy = () => (St && St.cfg.hoyFija) || (typeof CALC !== 'undefined' && CALC.hoy) || toISO(new Date());   // la fecha de hoy la fija el servidor (zona horaria de Chile)
 export const rel = s => { if (!s) return ''; const d = diffD(s, hoy()); return d === 0 ? 'hoy' : d === 1 ? 'mañana' : d === -1 ? 'ayer' : d > 0 ? 'en ' + d + ' d' : 'hace ' + (-d) + ' d'; };
 
 /* ---------- formato ---------- */
@@ -231,16 +238,16 @@ export function syncFases() {
 }
 const tipoDe = n => ((St.cfg.metodo || {}).tipos || []).find(t => t.nombre === n);
 export const defaultCfg = () => ({
-  metodo: METODO_DEF(), cieloOn: true, cieloMeta: 80,
-  unidad: 'MM CLP', diasSinUpdate: 14, tolDesv: 7, umbralCritico: 15, hoyFija: '', readOnly: false, anio: 2026,
-  areas: [...AREAS_DEF], categorias: [...CATS_DEF], usuario: 'Christian Tolosa', cargo: 'IT Business Partner RP · Aramark Chile',
-  reglas: { pmo: true, riesgos: true, ejecutivo: true, roadmap: true }, capacidadMax: 5, propDiasAmb: 30, propDiasRojo: 60, areaGlobal: 'Todas'
+  metodo: METODO_DEF(), cieloOn: true,
+  unidad: 'MM CLP', hoyFija: '', readOnly: false, anio: new Date().getFullYear(),
+  areas: [...AREAS_DEF], categorias: [...CATS_DEF], usuario: '', cargo: '',
+  reglas: { pmo: true, riesgos: true, ejecutivo: true, roadmap: true }, areaGlobal: 'Todas'   // los parámetros de negocio (umbrales, plazos) vienen del servidor: apih_defaults
 });
+/* Estado inicial vacío: solo para pintar el armazón mientras el servidor responde. Ningún dato ni usuario vive en el navegador. */
 export function seedState() {
-  const s = clone(SEED);
-  return (0, ENLACES.migrateV5)({ v: 3, cfg: Object.assign(defaultCfg(), { comiteParts: s.comiteParts || [] }), ini: s.iniciativas, compromisos: s.compromisos || [], cambios: s.cambios || [], notas: [], documentos: [], hitos: s.hitos, riesgos: s.riesgos, decisiones: s.decisiones, comites: s.comites, bitacora: s.bitacora, ptpl: [], psnap: {}, pres: s.presentaciones, usuarios: s.usuarios, eventos: [], seq: {} });
+  return { v: 3, cfg: defaultCfg(), ini: [], compromisos: [], cambios: [], notas: [], documentos: [], hitos: [], riesgos: [], decisiones: [], comites: [], bitacora: [], ptpl: [], psnap: {}, pres: [], usuarios: [], eventos: [], seq: {} };
 }
-/* V4: sin localStorage. El estado inicial lo entrega DataService.init() (Supabase o demo en memoria). */
+/* V4: sin localStorage. El estado inicial lo entrega DataService.init() (servidor o demo en memoria). */
 export function save() { _ixGen++; ppInval(); try { audit(); } catch (e) { } ENLACES.DataService.commit(); }
 export function nextId(prefix, list) {   // F-12: contador monótono; un id eliminado no se reutiliza en esta sesión
   St.seq = St.seq || {};
@@ -250,9 +257,7 @@ export function nextId(prefix, list) {   // F-12: contador monótono; un id elim
 }
 export const byId = id => St.ini.find(i => i.id === id);
 export const nameOf = id => { const i = byId(id); return i ? i.titulo : '—'; };
-export function log(tipo, ini, texto, meta) {
-  St.bitacora.unshift({ id: 'BIT-' + String(St.bitacora.length + 1).padStart(4, '0') + Math.random().toString(36).slice(2, 4), ts: hoy() + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes()), tipo, ini: ini || null, autor: St.cfg.usuario, texto, meta: meta || null });
-}
+/* La bitácora la escribe solo el servidor (cada comando deja su anotación); el navegador no registra nada. */
 
 /* ---------- V22.43: Historial por registro (auditoría por diferencias) ----------
    Al guardar se compara cada registro con su foto anterior y se escribe UNA entrada «Edición» por registro con los campos que cambiaron.
@@ -344,7 +349,7 @@ export const hitosDe = id => _porIni('hitos', id);
 export const riesgosDe = id => _porIni('riesgos', id);
 /* Valores calculados: los entrega el SERVIDOR (apih_calculos). Aquí solo se leen; si aún no llegó el dato (registro recién creado, sin sincronizar)
    se devuelve un valor neutro y la pantalla se completa en cuanto el servidor responde. No hay fórmulas en el navegador. */
-export const CALC = { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } };
+export const CALC = { hoy: '', senales: {}, trabajo: [], ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } };
 const _ci = i => (i && CALC.ini[i.id]) || null;
 const HITO_NEUTRO = { k: 'ok', t: 'En plazo', c: '#0D446A' }, NIVEL_NEUTRO = { n: 'Bajo', c: '#107C10' };
 export const hitoEstado = h => (h && CALC.hitos[h.id]) || HITO_NEUTRO;

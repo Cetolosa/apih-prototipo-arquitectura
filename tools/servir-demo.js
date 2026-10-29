@@ -19,6 +19,15 @@ function puente() {
 for (const ns of [${mods.map((f, i) => 'm' + i).join(', ')}]) for (const k of Object.keys(ns)) {
   try { Object.defineProperty(window, k, { configurable: true, get: () => ns[k], set: v => { if (!(k in ENLACES)) throw new Error('sin accesor de escritura para ' + k); ENLACES[k] = v; } }); } catch (e) { }
 }
+window.sembrarSt = async () => {   // solo pruebas: envía a /__pruebas/sembrar lo que el test agregó o cambió en St (igual que en el Corporativo)
+  const D = window.DataService, items = [], borrar = [], now = D.snapshot(window.St);
+  for (const ent of Object.keys(window.ESQUEMA)) { const S = window.ESQUEMA[ent], lista = window.APIH_CONFIG[S.cfg], a = now[ent], b = D.snap[ent], objs = new Map(((window.St[S.coll]) || []).filter(S.filter || (() => true)).map(o => [o.id, o]));
+    for (const [id, sig] of a) if (b.get(id) !== sig) items.push({ lista, id, datos: 'p1.' + JSON.stringify(objs.get(id)) });
+    const del = [...b.keys()].filter(id => !a.has(id)); if (del.length) borrar.push({ lista, ids: del }); }
+  const r = await fetch('/__pruebas/sembrar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, borrar }) });
+  const j = await r.json(); const mal = (j.lote || []).filter(x => !x.ok); if (mal.length) throw new Error('siembra: ' + JSON.stringify(mal[0]));
+  await D.flush(); await D.refresh(false, true);
+};
 window.__puenteListo = true;
 ${process.env.CAPTURA_CLAVES ? captura : ''}`;
 }

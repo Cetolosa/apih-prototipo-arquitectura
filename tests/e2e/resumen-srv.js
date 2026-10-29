@@ -9,7 +9,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   const r = await p.evaluate(async () => {
     const o = {};
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-903', titulo: 'On track e2e', area: 'Área de prueba', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: miUsuario(), actualizada: hoy(), inicioPlan: addD(hoy(), -30), finPlan: addD(hoy(), 120) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     o.srv = CALC.resumen.ontrack['PRJ-903']; o.tonos = CALC.resumen.tonos.length; o.vent = CALC.resumen.ventanas.cierreDias;
     const K = kpis(); o.ontrack = K.ontrack; o.activos = K.activos;
     const t = tonoOnTrack(K.ontrackPct); o.tono = t.txt; o.titular = execSummary('con')[0].p[0];

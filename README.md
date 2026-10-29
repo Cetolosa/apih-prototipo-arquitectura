@@ -2,6 +2,10 @@
 
 Aplicación de portafolio (SPA estática) con servidor en Postgres/Supabase. Proyecto de pruebas con datos sintéticos.
 
+## Paridad con el Corporativo
+
+Este repositorio y [`apih-corporativo-arquitectura`](https://github.com/Cetolosa/apih-corporativo-arquitectura) son funcionalmente equivalentes. **Todo cambio parte en el Prototipo y se traspasa al Corporativo en la misma entrega**; el CI lo verifica con `node tools/paridad.mjs`. Detalle en [docs/paridad.md](docs/paridad.md).
+
 ## Estructura
 - `index.html`, `js/`, `css/`: la SPA (módulos ES, sin paso de compilación).
 - `supabase/migrations/`: reglas del servidor (autorización, validación, comandos de negocio). `supabase/tests/`: pruebas SQL.

@@ -10,7 +10,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     celebrar = () => {}; UI.uiOv = 'pro'; const me = miUsuario(), H = hoy();
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-905', titulo: 'Misión e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: me, actualizada: addD(H, -40), inicioPlan: addD(H, -60), finPlan: addD(H, 100) }));
     St.hitos.push({ id: nextId('HIT', St.hitos), ini: 'PRJ-905', nombre: 'Hito de la misión', fase: 'Ejecución', fecha: addD(H, -5), completado: false, resp: me });
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     const o = { srv: ((CALC.mision['PRJ-905'] || {}).hit || []).map(h => h.nombre) };
     UI.view = 'cielo'; F('cielo', {}).tab = 'sem'; render(); await new Promise(r => setTimeout(r, 500));
     o.html = (document.getElementById('v22-mis') || {}).textContent || '';

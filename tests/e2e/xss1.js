@@ -17,7 +17,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     selectEntity('ini', 'PRJ-901', 'hitos'); await new Promise(r => setTimeout(r, 150)); selectEntity('ini', 'PROP-901', 'resumen'); await new Promise(r => setTimeout(r, 150));
     Acts.sfedit({ id: 'PRJ-901', s: 'PRJ-901-SF1' }); await new Promise(r => setTimeout(r, 150)); Modal.close && Modal.close();
     Acts.edit({ t: 'hito', id: 'HIT-901' }); await new Promise(r => setTimeout(r, 150)); Modal.close && Modal.close();
-    const ex = archExport(byId('PRJ-901')); Chg.proyarchf({ files: [new File([JSON.stringify({ formato: 'apih-proyecto-archivo', v: 1, proyecto_id: 'PRJ-901', subfases: [{ nombre: X, fase: 'Ejecución' }, { nombre: { a: 1 }, fase: 'Ejecución' }], hitos: [{ id: 'HIT-901', cat: X }] })], 'r.json')], value: '', dataset: { id: 'PRJ-901' } }); await new Promise(r => setTimeout(r, 300));
+    const ex = archExport(byId('PRJ-901')); Chg.proyarchf({ files: [new File([JSON.stringify({ formato: 'apih-proyecto-archivo', v: 1, proyecto_id: 'PRJ-901', subfases: [{ nombre: X, fase: 'Ejecución' }, { nombre: { a: 1 }, fase: 'Ejecución' }], hitos: [{ id: 'HIT-901', cat: X }] })], 'r.json')], value: '', dataset: { id: 'PRJ-901' } }); await new Promise(r => setTimeout(r, 1500));
     out.ejecutado = !!window.__x; out.imgs = document.querySelectorAll('img[src="x"]').length; return out; });
   r.errores = errs; console.log(JSON.stringify(r));
   const ok = r.tipo === 'all' && !r.ejecutado && r.imgs === 0 && !errs.length; console.log(ok ? 'OK xss1' : 'FALLA xss1'); await b.close(); process.exit(ok ? 0 : 1);

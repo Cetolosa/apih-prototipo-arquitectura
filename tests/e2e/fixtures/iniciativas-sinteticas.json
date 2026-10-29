@@ -1,0 +1,307 @@
+{
+  "formato": "apih-iniciativas",
+  "v": 1,
+  "iniciativas": [
+    {
+      "tipo": "Proyecto",
+      "titulo": "Iniciativa de prueba B",
+      "desc": "Iniciativa sintética para pruebas automatizadas. No es un proyecto real.",
+      "area": "AREA-B",
+      "lider": "Usuario Prueba B",
+      "sponsor": "Sponsor Prueba",
+      "fase": "Planificación",
+      "estado": "En curso",
+      "rag": "Ámbar",
+      "prioridad": "Media",
+      "avance": 15,
+      "inicioPlan": "2026-10-01",
+      "finPlan": "2027-03-18",
+      "presupuesto": 2500,
+      "logros": "Logro sintético.",
+      "proximos": "Próximo paso sintético.",
+      "hitos": [
+        {
+          "nombre": "Hito sintético B.1",
+          "fase": "Planificación",
+          "fecha": "2026-10-08",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético B.2",
+          "fase": "Planificación",
+          "fecha": "2026-10-15",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético B.3",
+          "fase": "Planificación",
+          "fecha": "2026-10-22",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.4",
+          "fase": "Planificación",
+          "fecha": "2026-10-29",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.5",
+          "fase": "Planificación",
+          "fecha": "2026-11-05",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.6",
+          "fase": "Ejecución",
+          "fecha": "2026-11-12",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.7",
+          "fase": "Ejecución",
+          "fecha": "2026-11-19",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.8",
+          "fase": "Ejecución",
+          "fecha": "2026-11-26",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.9",
+          "fase": "Ejecución",
+          "fecha": "2026-12-03",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.10",
+          "fase": "Ejecución",
+          "fecha": "2026-12-10",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.11",
+          "fase": "Ejecución",
+          "fecha": "2026-12-17",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.12",
+          "fase": "Ejecución",
+          "fecha": "2026-12-24",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.13",
+          "fase": "Ejecución",
+          "fecha": "2026-12-31",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.14",
+          "fase": "Ejecución",
+          "fecha": "2027-01-07",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.15",
+          "fase": "Transición",
+          "fecha": "2027-01-14",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.16",
+          "fase": "Transición",
+          "fecha": "2027-01-21",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.17",
+          "fase": "Transición",
+          "fecha": "2027-01-28",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.18",
+          "fase": "Transición",
+          "fecha": "2027-02-04",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.19",
+          "fase": "Cierre",
+          "fecha": "2027-02-11",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.20",
+          "fase": "Cierre",
+          "fecha": "2027-02-18",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético B.21",
+          "fase": "Cierre",
+          "fecha": "2027-02-25",
+          "completado": false
+        }
+      ],
+      "riesgos": [
+        {
+          "desc": "Riesgo sintético B.1",
+          "cat": "Técnico",
+          "prob": 4,
+          "imp": 4,
+          "mit": "Mitigación de prueba 1"
+        },
+        {
+          "desc": "Riesgo sintético B.2",
+          "cat": "Técnico",
+          "prob": 2,
+          "imp": 4,
+          "mit": "Mitigación de prueba 2"
+        },
+        {
+          "desc": "Riesgo sintético B.3",
+          "cat": "Técnico",
+          "prob": 3,
+          "imp": 3,
+          "mit": "Mitigación de prueba 3"
+        },
+        {
+          "desc": "Riesgo sintético B.4",
+          "cat": "Regulatorio",
+          "prob": 3,
+          "imp": 3,
+          "mit": "Mitigación de prueba 4"
+        },
+        {
+          "desc": "Riesgo sintético B.5",
+          "cat": "Operacional",
+          "prob": 3,
+          "imp": 1,
+          "mit": "Mitigación de prueba 5"
+        },
+        {
+          "desc": "Riesgo sintético B.6",
+          "cat": "Técnico",
+          "prob": 2,
+          "imp": 2,
+          "mit": "Mitigación de prueba 6"
+        },
+        {
+          "desc": "Riesgo sintético B.7",
+          "cat": "Regulatorio",
+          "prob": 5,
+          "imp": 3,
+          "mit": "Mitigación de prueba 7"
+        },
+        {
+          "desc": "Riesgo sintético B.8",
+          "cat": "Financiero",
+          "prob": 1,
+          "imp": 4,
+          "mit": "Mitigación de prueba 8"
+        },
+        {
+          "desc": "Riesgo sintético B.9",
+          "cat": "Técnico",
+          "prob": 4,
+          "imp": 3,
+          "mit": "Mitigación de prueba 9"
+        }
+      ]
+    },
+    {
+      "tipo": "Proyecto",
+      "titulo": "Iniciativa de prueba A",
+      "desc": "Iniciativa sintética para pruebas automatizadas. No es un proyecto real.",
+      "area": "AREA-A",
+      "lider": "Usuario Prueba A",
+      "sponsor": "Sponsor Prueba",
+      "fase": "Transición",
+      "estado": "En curso",
+      "rag": "Verde",
+      "prioridad": "Alta",
+      "avance": 70,
+      "inicioPlan": "2026-09-01",
+      "finPlan": "2027-01-26",
+      "presupuesto": 1000,
+      "logros": "Logro sintético.",
+      "proximos": "Próximo paso sintético.",
+      "hitos": [
+        {
+          "nombre": "Hito sintético A.1",
+          "fase": "Planificación",
+          "fecha": "2026-09-08",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.2",
+          "fase": "Planificación",
+          "fecha": "2026-09-22",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.3",
+          "fase": "Planificación",
+          "fecha": "2026-10-06",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.4",
+          "fase": "Ejecución",
+          "fecha": "2026-10-20",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.5",
+          "fase": "Ejecución",
+          "fecha": "2026-11-03",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.6",
+          "fase": "Ejecución",
+          "fecha": "2026-11-17",
+          "completado": true
+        },
+        {
+          "nombre": "Hito sintético A.7",
+          "fase": "Transición",
+          "fecha": "2026-12-01",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético A.8",
+          "fase": "Transición",
+          "fecha": "2026-12-15",
+          "completado": false
+        },
+        {
+          "nombre": "Hito sintético A.9",
+          "fase": "Cierre",
+          "fecha": "2026-12-29",
+          "completado": false
+        }
+      ],
+      "riesgos": [
+        {
+          "desc": "Riesgo sintético A.1",
+          "cat": "Técnico",
+          "prob": 3,
+          "imp": 2,
+          "mit": "Mitigación de prueba 1"
+        },
+        {
+          "desc": "Riesgo sintético A.2",
+          "cat": "Regulatorio",
+          "prob": 2,
+          "imp": 2,
+          "mit": "Mitigación de prueba 2"
+        }
+      ]
+    }
+  ]
+}

@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.goto(URL); await p.waitForTimeout(1800);
   await p.evaluate(async () => { const me = miUsuario(), H = hoy();
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-910', titulo: 'Residuales e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: me, presupuesto: 1000, actualizada: H, inicioPlan: addD(H, -30), finPlan: addD(H, 150), finEst: addD(H, 150) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true); });
+    await sembrarSt(); await DataService.refresh(false, true); });
   const llenar = async (campos, boton) => p.evaluate(({ campos, boton }) => { Object.entries(campos).forEach(([k, v]) => { const el = document.getElementById('f_' + k); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
     [...document.querySelectorAll('.modal button')].find(x => new RegExp('^' + boton).test(x.textContent.trim())).click(); }, { campos, boton });
   const espera = async which => p.evaluate(async which => { const t = {

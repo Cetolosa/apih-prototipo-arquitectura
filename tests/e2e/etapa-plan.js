@@ -11,7 +11,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     ['EP-1', 'EP-2'].forEach(id => { mk(id, { fasesFechas: F(-40, -26, -25, 30, 31, 45, 46, 60), inicioPlan: d(-40), finPlan: d(60), subfases: [{ id: id + '-SF1', nombre: 'S1', fase: 'Ejecución', inicio: d(-25), fin: d(-5) }] }); });
     ['EP-1', 'EP-2'].forEach(id => { for (let k = 0; k < 2; k++) St.hitos.push({ id: id + '-H' + k, ini: id, nombre: 'h', fase: 'Planificación', fecha: d(-30), completado: true, fechaReal: d(-30) }); });
     save(); render(); });
-  await p.evaluate(async () => { await DataService.flush(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
+  await p.evaluate(async () => { await sembrarSt(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
   const r = {}, ev = (f, a) => p.evaluate(f, a);
   const rango = id => ev(i => { const x = byId(i), f = x.fasesFechas, H = hoy(), n = s => diffD(s, H); return fasesDe(x).map(k => n(f[k].ini) + '>' + n(f[k].fin)).join(' ') + ' | ' + n(x.inicioPlan) + '>' + n(x.finPlan) + ' | ' + subfasesDe(x).map(s => n(s.inicio) + '>' + n(s.fin)).join(','); }, id);
   // 1) con «Reprogramar» (marcado por defecto)

@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.goto(URL); await p.waitForTimeout(1800);
   await p.evaluate(async () => { celebrar = () => {}; const me = miUsuario(), H = hoy();
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-907', titulo: 'Semanal e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: me, actualizada: addD(H, -20), inicioPlan: addD(H, -30), finPlan: addD(H, 120), finEst: addD(H, 120) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true); Acts.wk({ id: 'PRJ-907' }); });
+    await sembrarSt(); await DataService.refresh(false, true); Acts.wk({ id: 'PRJ-907' }); });
   await p.waitForTimeout(500);
   await p.evaluate(() => { const set = (k, v) => { const el = document.getElementById('f_' + k); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); };
     set('avance', '55'); set('rag', 'Ámbar'); set('logros', 'Logro e2e'); set('proximos', 'Paso e2e'); });

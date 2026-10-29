@@ -11,7 +11,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     for (let i = 0; i < 6; i++) St.hitos.push({ id: nextId('HIT', St.hitos), ini: 'PRJ-951', nombre: 'Hito vencido con un nombre largo número ' + i + ' para probar el recorte a dos líneas', fase: 'Ejecución', fecha: addD(H, -3 - i), completado: false, resp: me });
     save();
   });
-  await p.evaluate(async () => { await DataService.flush(); await DataService.refresh(false, true); UI.view = 'cielo'; F('cielo', {}).tab = 'sem'; F('cielo', {}).psAll = true; render(); });
+  await p.evaluate(async () => { await sembrarSt(); await DataService.refresh(false, true); UI.view = 'cielo'; F('cielo', {}).tab = 'sem'; F('cielo', {}).psAll = true; render(); });
   await p.waitForTimeout(500);
   const r = {}, cols = () => p.evaluate(() => { const g = document.querySelector('.ps-gr'); return g ? getComputedStyle(g).gridTemplateColumns.split(' ').length : 0; });
   r.n = await p.$$eval('.ps-gr .ps-it', a => a.length); r.cols1600 = await cols();

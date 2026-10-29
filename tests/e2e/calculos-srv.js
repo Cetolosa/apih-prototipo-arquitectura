@@ -12,7 +12,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     St.hitos.push(Object.assign(ESQUEMA.milestones.tpl(), { id: 'CS-H1', ini: 'CS-1', nombre: 'v', fase: FASES_PRJ[0], fecha: '2026-10-20', completado: false }));
     St.riesgos.push(Object.assign(ESQUEMA.risks.tpl(), { id: 'CS-R1', ini: 'CS-1', titulo: 'r', prob: 4, imp: 4, estado: 'Abierto' }));
     const antes = { desv: desv(i), roi: roi(i), exp: expo(St.riesgos.find(x => x.id === 'CS-R1')) };
-    save(); await DataService.flush();
+    await sembrarSt();
     const rk = St.riesgos.find(x => x.id === 'CS-R1'), h = St.hitos.find(x => x.id === 'CS-H1');
     return { antes, desv: desv(i), roi: Math.round(roi(i)), expo: expo(rk), nivel: nivelRiesgo(rk).n, hito: hitoEstado(h).t, atrasado: atrasado(i), rag: ragSugerido(i).rag, crit: riesgoCritico(rk) };
   });

@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.goto(URL); await p.waitForTimeout(1800);
   await p.evaluate(async () => { const me = miUsuario(), H = hoy();
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-908', titulo: 'Comentarios e2e', area: 'BISE', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: me, avanceManual: 40, actualizada: addD(H, -5), inicioPlan: addD(H, -30), finPlan: addD(H, 120), finEst: addD(H, 120) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true); });
+    await sembrarSt(); await DataService.refresh(false, true); });
   await p.evaluate(() => { document.body.insertAdjacentHTML('beforeend', '<textarea id="cmt"></textarea>'); document.getElementById('cmt').value = 'Comentario e2e'; Acts.comment({ id: 'PRJ-908' }); });
   const espera = async which => p.evaluate(async which => { const t = { c: () => St.bitacora.some(b => b.ini === 'PRJ-908' && b.texto === 'Comentario e2e'), a: () => byId('PRJ-908').avanceManual == null }[which]; for (let k = 0; k < 40; k++) { if (t()) return true; await new Promise(r => setTimeout(r, 250)); } return false; }, which);
   ok(await espera('c'), 'el comentario lo guarda el servidor');

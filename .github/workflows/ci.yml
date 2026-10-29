@@ -15,6 +15,15 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y postgresql libfaketime   # backend de pruebas: Postgres real con las migraciones del repositorio
       - run: npm ci
       - run: node tools/guardia-reglas.js && node tools/lint-terminos.js && node tools/verificar-modulos.js
+      - name: Paridad con el Corporativo (si hay acceso; el CI del Corporativo la exige siempre)
+        env:
+          CORP_TOKEN: ${{ secrets.CORP_TOKEN }}
+        run: |
+          # El Corporativo es privado: sin el secreto CORP_TOKEN este paso solo avisa. La paridad la exige el CI del Corporativo.
+          [ -n "$CORP_TOKEN" ] || { echo "::notice::Sin CORP_TOKEN: la paridad se verifica en el CI del Corporativo"; exit 0; }
+          R="${{ github.head_ref || github.ref_name }}"; U="https://x-access-token:$CORP_TOKEN@github.com/Cetolosa/apih-corporativo-arquitectura"
+          git clone -q --depth 1 --branch "$R" "$U" ../otro 2>/dev/null || git clone -q --depth 1 "$U" ../otro
+          node tools/paridad.mjs ../otro
       - run: node tools/empaquetar-migraciones.js && git diff --exit-code supabase/aplicar_en_supabase.sql   # el paquete para Supabase debe estar al día
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

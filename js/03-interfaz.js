@@ -1,6 +1,6 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
-import { AuthService, DataService, ESQUEMA } from './02-datos.js';
+import { $, $$, APIH_CONFIG, BIT_C, CAMBIOS, DECS, DEC_C, DEC_TIPOS, EST_C, FASES, FASES_ACT, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, LOGO, PRIOS, RAGS, RAG_C, RISK_CATS, RISK_ESTADOS, St, addD, avatar, by, byId, clone, completitud, desv, esAdmin, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtDL, fmtMon, fmtTS, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, isDone, isLive, miUsuario, monOf, nameOf, nextId, nivelRiesgo, pad, pct, ppInval, ragSugerido, riesgoAbierto, riesgosCriticos, riesgosDe, roi, save, scope, scopeP, seedState, sum, syncFases, tipoLbl, uniq } from './01-nucleo.js';
+import { AuthService, BACKEND, DataService, ESQUEMA } from './02-datos.js';
 /* ============================================================
    APIH · UI: shell, router, modal/form, toasts, panel, gráficos
    ============================================================ */
@@ -175,7 +175,7 @@ export function shell() {
           <button data-act="panel">${icon('panel', 16)} Panel contextual</button>
           ${AuthService.needsLogin ? `<button data-act="login">${icon('user', 16)} Iniciar sesión</button>` : ''}
         </div></div>
-      <div class="usr" title="${esc(St.cfg.cargo)}">${avatar(St.cfg.usuario, 30)}<span><b>${esc(St.cfg.usuario)}</b><small>${esc(AuthService.user() ? AuthService.user().email : St.cfg.cargo.split('·')[0])}</small></span>${AuthService.provider === 'supabase' && AuthService.user() ? `<button class="btn sm" data-act="sbout" title="Cerrar sesión">Salir</button>` : ''}</div>
+      <div class="usr" title="${esc(St.cfg.cargo)}">${avatar(St.cfg.usuario, 30)}<span><b>${esc(St.cfg.usuario)}</b><small>${esc(AuthService.user() ? AuthService.user().email : St.cfg.cargo.split('·')[0])}</small></span>${AuthService.provider !== 'none' && AuthService.user() ? `<button class="btn sm" data-act="sbout" title="Cerrar sesión">Salir</button>` : ''}</div>
     </div>
   </header>
   <nav class="side" id="side" aria-label="Navegación principal"></nav>
@@ -434,7 +434,7 @@ export function banner() {
   const d = DataService, s = d.st, out = [];
   if (AuthService.needsLogin && s.state === 'auth') out.push(['info', 'Inicie sesión con su correo corporativo para cargar los datos.', btn('Iniciar sesión', 'login', { cls: 'pri sm' })]);
   else if (!d.svc && d.offlineWhy && !UI.bnOff) out.push(['warn', '<b>Sin conexión a ' + BK() + ':</b> ' + esc(d.offlineWhy) + '. Sin el servidor la aplicación queda en solo lectura: no hay datos ni cambios locales.', btn('Reintentar', 'spretry', { cls: 'sm' }) + btn('Configurar', 'syncgo', { cls: 'sm' }) + btn('Ocultar', 'bnoff', { cls: 'sm' })]);
-  if (d.svc && St.empty && !UI.bnOff2) out.push(['info', '<b>Las listas de ' + BK() + ' están vacías.</b> Puede cargar los datos del archivo original o comenzar a registrar propuestas.', btn('Cargar datos del archivo', 'spseed', { cls: 'pri sm' }) + btn('Ocultar', 'bnoff2', { cls: 'sm' })]);
+  if (d.svc && St.empty && !UI.bnOff2) out.push(['info', '<b>Las listas de ' + BK() + ' están vacías.</b> Comience registrando propuestas o cargue iniciativas desde Administración.', btn('Ocultar', 'bnoff2', { cls: 'sm' })]);
   if (d.svc && s.state === 'error' && s.pending) out.push(['bad', '<b>Cambios sin sincronizar (' + s.pending + ').</b> ' + esc(s.err || ''), btn('Reintentar ahora', 'spretry', { cls: 'sm' })]);
   return out.map(([k, t, a]) => `<div class="banner ${k}">${icon(k === 'info' ? 'db' : 'warn', 16)}<span>${t}</span><div class="chips">${a || ''}</div></div>`).join('');
 }
@@ -449,7 +449,7 @@ Acts.spretry = async () => {
   if (d.svc) { await d.flush(); return d.refresh(false, false); }
   const S = await d.init(); ENLACES.St = S; UI.sel = null; shell(); render(); toast(d.svc ? 'Conectado a ' + BK() : 'Sigue sin conexión: ' + (d.offlineWhy || d.st.err), d.svc ? 'ok' : 'err');
 };
-export function BK() { return 'Supabase'; }
+export function BK() { return BACKEND.nombre; }
 /* Avance de la fase activa (V23): calculado con sus subfases e hitos; sin unidades en la fase, el avance general. Ya no hay valor manual por fase. */
 export function avFase(i) {
   const w = (0, ENLACES.fasesVentana)(i).find(x => x.actual);
@@ -457,10 +457,6 @@ export function avFase(i) {
   return { v: Math.round((0, ENLACES.avanceEf)(i)), src: 'general' };
 }
 export const avFaseTip = i => avFase(i).src === 'hitos' ? 'Fase ' + i.fase + ': calculado con sus subfases e hitos' : 'Fase ' + i.fase + ': sin hitos en la fase, se usa el avance general';
-Acts.spseed = () => confirmBox('Se crearán en ' + BK() + ' ~' + (seedState().ini.length + seedState().hitos.length + seedState().riesgos.length + seedState().bitacora.length) + ' elementos (datos del archivo original) en las listas APIH_*. ¿Continuar?', async () => {
-  try { await DataService.seedRemote(); delete St.empty; toast('Datos cargados en ' + BK()); render(); } catch (e) { toast(e.message, 'err'); }
-}, 'Cargar');
-
 /* ---------- comandos rápidos (Ctrl+K) ---------- */
 const CK = { items: [], sel: 0 };
 function ckCommands() {

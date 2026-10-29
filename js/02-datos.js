@@ -1,7 +1,9 @@
 import { ENLACES } from './00-registro.js';
+import { BACKEND, AuthService, Sesion, PantallaAcceso, usarDatos } from './01t-transporte.js';
 import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, CALC, FL, PERM, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
-   CAPA DE DATOS · DataService · SupabaseService · AuthService
+   CAPA DE DATOS · DataService (común a todos los ambientes). Lo propio de cada ambiente —servidor, acceso y
+   transporte— vive en 01t-transporte.js
    ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -177,17 +179,19 @@ const MapaDatos = {
 };
 
 /* ---------------------------------------------------------------------
-   4. DataService · carga, diff y sincronización con Supabase
+   4. DataService · carga, diff y sincronización con la API de APIH
    --------------------------------------------------------------------- */
+usarDatos({ ESQUEMA, MapaDatos, DATOS_COL });   // el transporte del ambiente usa el mismo esquema
 const COLLS = Object.keys(ESQUEMA);   // projects, risks, milestones, decisions, audit, committees
-const backendName = () => 'Supabase';
-const backendLabel = () => 'Servidor seguro · acceso individual';
-const newSvc = () => new SupabaseService(APIH_CONFIG);
+const backendName = () => BACKEND.nombre;
+const backendLabel = () => BACKEND.etiqueta;
+const newSvc = () => BACKEND.nuevo(APIH_CONFIG);
+export { BACKEND, AuthService, Sesion, PantallaAcceso };
 export const DataService = {
   mode: 'demo', svc: null, snap: null, timer: null, poll: null, busy: false, again: false, dirty: false, tries: 0,
   st: { state: 'demo', msg: 'Sin conexión', last: null, pending: 0, err: '' },
   setStatus(o) { Object.assign(this.st, o); if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); },
-  resolveMode() { const c = APIH_CONFIG; return c.auth.provider === 'supabase' && c.supabase.url && c.supabase.anonKey ? 'supabase' : 'demo'; },
+  resolveMode() { return BACKEND.modo(APIH_CONFIG); },
   /* arranque: devuelve el estado inicial de la aplicación */
   async init() {
     this.mode = this.resolveMode();
@@ -203,13 +207,12 @@ export const DataService = {
     this.svc = newSvc();
     this.setStatus({ state: 'syncing', msg: 'Conectando con ' + backendName() + '…', err: '' });
     try {
-      const t0 = performance.now(), S = await this.loadRemote(), raw = S._raw; delete S._raw;
+      const t0 = performance.now(), S = await this.loadRemote();
       this.st.msLoad = Math.round(performance.now() - t0); this.fullAt = Date.now(); if (this.svc.stamp) { try { this.stampV = await this.svc.stamp(); } catch (e) { } }
-      this.snap = this.snapshot(raw || S); this.dirty = false; this.tries = 0;
+      this.snap = this.snapshot(S); this.dirty = false; this.tries = 0;
       if (S.empty) { ['cfg'].forEach(k => this.snap.settings.delete(k)); this.dirty = true; setTimeout(() => this.commit(), 600); }   // base vacía: se guardan usuarios y parámetros iniciales
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       this.startPoll();
-      if (raw) { this.dirty = true; setTimeout(() => { this.commit(); if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)('Datos migrados al modelo V5 (Propuestas / Proyectos); sincronizando…'); }, 800); }
       return S;
     } catch (e) {
       console.error(e);
@@ -220,13 +223,14 @@ export const DataService = {
   async loadRemote() {
     const v = this.svc; v.edit = new Map();
     const [prjs, props, riesgos, hitos, decisiones, bitacora, comites, set, compromisos, cambios, notas, docs] = await Promise.all([v.getProjects(), v.getProposals(), v.getRisks(), v.getMilestones(), v.getDecisions(), v.getAudit(), v.getCommittees(), v.getSettings(), v.getCommitments().catch(e => { if (e.status === 404) return []; throw e; }), v.getChanges().catch(e => { if (e.status === 404) return []; throw e; }), v.getNotes().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; }), v.getDocs().catch(e => { if (e.status === 404 || e.status === 403) return []; throw e; })]);
-    const seed = seedState(), cfg = Object.assign(defaultCfg(), set.cfg || {});
+    const df = await v.rpc('apih_defaults', {}).catch(() => ({}));   // valores por defecto de los parámetros de negocio: del servidor
+    const cfg = Object.assign(defaultCfg(), df, set.cfg || {});
     LOCAL_CFG.forEach(k => { cfg[k] = (St && St.cfg && St.cfg[k]) || defaultCfg()[k]; });
-    const [ctx, personas, calc] = await Promise.all([v.contexto(), v.personas(), v.calculos()]);
-    Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {} }, calc);   // valores calculados: del servidor
+    const [ctx, personas, calc, cielo, tr] = await Promise.all([v.contexto(), v.personas(), v.calculos(), v.rpc('apih_cielo', {}).catch(() => null), v.rpc('apih_trabajo', {}).catch(() => null)]);
+    Object.assign(CALC, { hoy: '', senales: {}, trabajo: [], ini: {}, hitos: {}, riesgos: {}, cielo: null }, calc, { cielo }, tr || {});   // valores calculados: del servidor
     if (!ctx) {   // cuenta creada pero sin rol: queda pendiente hasta que Administra la habilite
       const a = await v.rpc('apih_solicitar_acceso', { p_nombre: null }).catch(() => null);
-      SBLogin.espera(a && a.estado === 'inactivo' ? 'inactivo' : 'pendiente', a && a.email);
+      PantallaAcceso.espera(a && a.estado === 'inactivo' ? 'inactivo' : 'pendiente', a && a.email);
       throw new Error('Tu cuenta espera que Administra te asigne un rol.');
     }
     PERM.ctx = ctx; PERM.edit = v.edit; FL.verComo = ctx.comoDe ? ctx.nombre : ''; cfg.usuario = ctx.nombre;   // identidad y permisos: del servidor
@@ -234,7 +238,6 @@ export const DataService = {
     const ini = [...prjs, ...props];
     let S = { v: 3, cfg, ini, hitos, riesgos, decisiones, comites, bitacora, compromisos: compromisos || [], cambios: cambios || [], notas: notas || [], documentos: docs || [], pres: set.pres || [], ptpl: set.ptpl || [], ptema: set.ptema || {}, psnap: Object.fromEntries(Object.keys(set).filter(k => k.startsWith('psnap:')).map(k => [k.slice(6), set[k]])), usuarios: personas, eventos: set.eventos || [], cfgU: set.cfgU || {}, seq: set.seq || {} };
     S.empty = !ini.length && !hitos.length && !riesgos.length;
-    if (ini.some(i => !i.tipo)) { const raw = JSON.parse(JSON.stringify(S)); S = (0, ENLACES.migrateV5)(S); S._raw = raw; }   // datos de versiones anteriores
     return S;
   },
   /* firma por registro = JSON de los campos resultantes (incluye columnas derivadas) */
@@ -253,13 +256,10 @@ export const DataService = {
     if (!this.svc || !this.snap) { if (typeof ENLACES.updateSyncUI === 'function') (0, ENLACES.updateSyncUI)(); return; }
     clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 500);
   },
+  /* Cambios pendientes: SOLO ajustes de usuario (preferencias, presentaciones, eventos). Todo registro de negocio se escribe con comandos del servidor (cmdServidor);
+     la API rechaza la escritura genérica de las listas de dominio. */
   diff() {
-    const ops = []; const S = St;
-    COLLS.forEach(ent => {
-      const arr = (S[ESQUEMA[ent].coll] || []).filter(ESQUEMA[ent].filter || (() => true)), prev = this.snap[ent], seen = new Set();
-      arr.forEach(o => { seen.add(o.id); const sig = JSON.stringify(MapaDatos.fieldsOf(ent, o)); if (this.bad && this.bad.has(ent + ':' + o.id + ':' + sig)) return; if (!prev.has(o.id)) ops.push({ t: 'c', ent, o, sig }); else if (prev.get(o.id) !== sig) ops.push({ t: 'u', ent, o, sig }); });
-      prev.forEach((sig, id) => { if (!seen.has(id)) ops.push({ t: 'd', ent, id }); });
-    });
+    const ops = [], S = St;
     settingKeys(S).forEach(k => { const sig = JSON.stringify(this.settingValue(S, k)); if (this.snap.settings.get(k) !== sig) ops.push({ t: 's', k, v: this.settingValue(S, k), sig }); });
     return ops;
   },
@@ -269,84 +269,23 @@ export const DataService = {
     const ops = this.diff(); this.setStatus({ pending: ops.length });
     if (!ops.length) { this.dirty = false; this.setStatus({ state: 'ok', msg: backendLabel() }); return; }
     this.busy = true; this.setStatus({ state: 'syncing', msg: 'Sincronizando ' + ops.length + ' cambio(s)…', err: '' });
-    const v = this.svc; let fail = null, done = 0;
-    const run = async op => {
-      try {
-        if (op.t === 'c') { await v._create(op.ent, op.o); this.snap[op.ent].set(op.o.id, op.sig); }
-        else if (op.t === 'u') { await v._update(op.ent, op.o); this.snap[op.ent].set(op.o.id, op.sig); }
-        else if (op.t === 'd') { await v._delete(op.ent, op.id); this.snap[op.ent].delete(op.id); }
-        else { await v.saveSetting(op.k, op.v); this.snap.settings.set(op.k, op.sig); }
-        done++; this.setStatus({ pending: ops.length - done });
-      } catch (e) { fail = fail || e; }
-    };
-    const t0 = performance.now();
-    const gr = !!v.batchOps, bat = gr ? ops.filter(o => o.t !== 's') : [], q = (gr ? ops.filter(o => o.t === 's') : ops).slice();
-    const chunks = []; for (let i = 0; i < bat.length; i += 20) chunks.push(bat.slice(i, i + 20));
-    const batchWorker = async () => {
-      while (chunks.length) {
-        const ch = chunks.shift();
-        try {
-          const rs = await v.batchOps(ch);
-          ch.forEach((op, i) => {
-            if (!rs[i].ok && rs[i].conflict) { (this.conf = this.conf || []).push({ ent: op.ent, id: op.o.id, datos: JSON.parse(JSON.stringify(op.o)) }); return; }
-            if (!rs[i].ok) { if (rs[i].perm && op.t !== 'd') { (this.bad = this.bad || new Set()).add(op.ent + ':' + op.o.id + ':' + op.sig); (this.badMsg = this.badMsg || []).push(op.ent + ' ' + op.o.id + ': ' + rs[i].err); return; } fail = fail || new Error(rs[i].err); return; }
-            if (op.t === 'd') this.snap[op.ent].delete(op.id); else this.snap[op.ent].set(op.o.id, op.sig);
-            done++;
-          });
-          this.setStatus({ pending: ops.length - done });
-        } catch (e) { fail = fail || e; }
-      }
-    };
-    const workers = [...Array.from({ length: 4 }, async () => { while (q.length) await run(q.shift()); }), ...(gr ? [batchWorker(), batchWorker()] : [])];
-    await Promise.all(workers);
-    this.setStatus({ msSave: Math.round(performance.now() - t0) });
-    this.busy = false;
-    if (this.conf && this.conf.length) {
-      const L = this.conf; this.conf = []; this.busy = false; this.dirty = !!fail;   // S-02: si además hubo fallo de red, conservar los cambios pendientes
-      const ids = L.map(x => x.id).join(', ');
-      const bajar = confirm('Otra persona modificó mientras tanto: ' + ids + '.\n\nTus cambios en esos registros NO se guardaron para no pisar los suyos. Se cargarán los datos actuales.\n\n¿Descargar tus cambios no guardados (archivo JSON) para volver a aplicarlos?');
-      if (bajar) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(L, null, 1)], { type: 'application/json' })); a.download = 'apih_cambios_no_guardados_' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '') + '.json'; document.body.appendChild(a); a.click(); a.remove(); }
-      if (fail) { this.tries++; this.setStatus({ state: 'error', msg: 'Error de sincronización', err: fail.message, pending: this.diff().length }); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), Math.min(60000, 5000 * this.tries)); return; }   // no recargar: se perderían las ediciones pendientes
-      await this.refresh(false, true); return;
+    let fail = null, done = 0;
+    for (const op of ops) {
+      try { await this.svc.saveSetting(op.k, op.v); this.snap.settings.set(op.k, op.sig); done++; this.setStatus({ pending: ops.length - done }); }
+      catch (e) { fail = fail || e; }
     }
-    if (this.badMsg && this.badMsg.length) { const n = this.badMsg.length; console.warn('APIH: registros rechazados por el servidor', this.badMsg); this.badMsg = []; if (typeof ENLACES.toast === 'function') (0, ENLACES.toast)(n + ' registro(s) fueron rechazados por el servidor y no se guardaron (revisa tus datos o recarga la página). El resto sí se guardó.', 'err'); }
+    this.busy = false;
     if (fail) {
       this.tries++; this.setStatus({ state: 'error', msg: 'Error de sincronización', err: fail.message, pending: this.diff().length });
       if (this.tries === 1 && typeof ENLACES.toast === 'function') (0, ENLACES.toast)('No se pudo guardar en ' + backendName() + ': ' + fail.message, 'err');
       clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), Math.min(60000, 5000 * this.tries));
     } else {
       this.tries = 0; this.dirty = false;
-      await this.recalcular();   // los valores calculados los entrega el servidor tras cada escritura
       this.setStatus({ state: 'ok', msg: backendLabel(), last: new Date(), pending: 0 });
       if (this.again) { this.again = false; this.commit(); }
     }
   },
-  /* pide al servidor los valores calculados y repinta solo si cambiaron */
-  async recalcular() {
-    if (!this.svc) return;
-    try {
-      const c = await this.svc.calculos(), antes = JSON.stringify(CALC), cielo = await this.svc.rpc('apih_cielo', {}).catch(() => null);
-      Object.assign(CALC, { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, cielo: null, notif: { catalogo: { tipos: [], grupos: {}, destinos: [], canales: [] }, prefs: {}, avisos: [] }, resumen: { ontrack: {}, tonos: [], ventanas: { hitosDias: 30, cierreDias: 45, proximosDias: 30 } } }, c, { cielo });
-      this.aplicarDerivados();
-      if (JSON.stringify(CALC) !== antes) { ENLACES._alertCache = null; if (typeof ENLACES.render === 'function') (0, ENLACES.render)(); }
-    } catch (e) { console.warn('APIH: no se pudieron leer los valores calculados', e); }
-  },
-  /* El servidor guarda el avance de cada proyecto (valor derivado, no una edición): se copia a la copia local sin marcarla como cambio propio.
-     Un proyecto con cambios locales pendientes no se toca. */
-  aplicarDerivados() {
-    if (!this.snap || !this.snap.projects) return;
-    (St.ini || []).forEach(o => {
-      if (esProp(o)) return; const c = CALC.ini[o.id]; if (!c || c.avance == null) return;
-      if (this.snap.projects.get(o.id) !== JSON.stringify(MapaDatos.fieldsOf('projects', o))) return;
-      let ch = false;
-      if (o.avance !== c.avance) { o.avance = c.avance; ch = true; }
-      if (o.avanceCalc !== c.avanceCalc) { o.avanceCalc = c.avanceCalc; ch = true; }
-      if ((o.avanceManual == null ? null : o.avanceManual) !== (c.avanceManual == null ? null : c.avanceManual)) { o.avanceManual = c.avanceManual; ch = true; }
-      ['fasesFechas', 'inicioPlan', 'finPlan'].forEach(k => { if (c[k] !== undefined && JSON.stringify(o[k] === undefined ? null : o[k]) !== JSON.stringify(c[k])) { if (c[k] === null) delete o[k]; else o[k] = c[k]; ch = true; } });
-      if (ch) this.snap.projects.set(o.id, JSON.stringify(MapaDatos.fieldsOf('projects', o)));
-    });
-  },
-  /* relectura desde Supabase (manual o periódica). force = descarta cambios locales */
+  /* relectura desde la API (manual o periódica). force = descarta cambios locales */
   async refresh(silent, force) {
     if (!this.svc || this.busy) return;
     if (!force && (this.dirty || (typeof ENLACES.Modal !== 'undefined' && ENLACES.Modal.cur))) return;
@@ -358,7 +297,7 @@ export const DataService = {
         this._nextStamp = st;
       }
       const t0 = performance.now(), gen0 = this.gen || 0;
-      const S = await this.loadRemote(); if (S._raw) return; const snap = this.snapshot(S);
+      const S = await this.loadRemote(); const snap = this.snapshot(S);
       /* si el usuario editó mientras se leía, no se pisa su trabajo con la lectura (salvo force) */
       if (!force && (this.dirty || this.busy || (this.gen || 0) !== gen0 || (typeof ENLACES.Modal !== 'undefined' && ENLACES.Modal.cur))) return;
       this.setStatus({ msLoad: Math.round(performance.now() - t0) }); this.fullAt = Date.now(); if (this.svc.stamp) { try { this.stampV = this._nextStamp || await this.svc.stamp(); } catch (e) { } this._nextStamp = null; }
@@ -372,13 +311,6 @@ export const DataService = {
   startPoll() {
     clearInterval(this.poll); const s = APIH_CONFIG.pollSec; if (s > 0) this.poll = setInterval(() => { if (document.visibilityState === 'visible') this.refresh(true); }, s * 1000);
   },
-  /* carga el estado de demostración en las listas vacías */
-  async seedRemote() {
-    if (!this.svc) throw new Error('Sin conexión a Supabase');
-    const keepUser = St.cfg.usuario; ENLACES.St = seedState(); St.cfg.usuario = keepUser;
-    this.snap = {}; COLLS.forEach(e => this.snap[e] = new Map()); this.snap.settings = new Map();
-    this.dirty = true; await this.flush();
-  },
   async testConnection() {
     const t = newSvc(), out = [];
     await AuthService.init();
@@ -391,262 +323,9 @@ export const DataService = {
 };
 
 
-/* ==========================================================================
-   Proveedor Supabase · acceso individual (correo corporativo + contraseña propia) y tabla `registros(lista, id, datos)`.
-   `datos` = 'p1.' + JSON en texto. La autorización se hace cumplir en el servidor (RLS, disparador y comandos RPC).
-   ========================================================================== */
-export const SB = {
-  KEY: 'APIH_SB', sess: null,
-  restore() {
-    for (const st of [sessionStorage, localStorage]) { try { const j = st.getItem(SB.KEY); if (j) { SB.sess = JSON.parse(j); SB.sess._st = st === localStorage ? 'l' : 's'; return; } } catch (e) { } }
-  },
-  persist() { if (!SB.sess) return; const { _st, ...s } = SB.sess; try { (_st === 'l' ? localStorage : sessionStorage).setItem(SB.KEY, JSON.stringify(s)); } catch (e) { } },
-  clear() { SB.sess = null; try { sessionStorage.removeItem(SB.KEY); localStorage.removeItem(SB.KEY); } catch (e) { } },
-  get cfg() { return APIH_CONFIG.supabase || {}; },
-  async _auth(grant, body) {
-    const r = await fetch(SB.cfg.url + '/auth/v1/token?grant_type=' + grant, { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { const e = new Error(j.error_description || j.msg || j.message || ('HTTP ' + r.status)); e.status = r.status; e.code = j.error_code || j.error; throw e; }
-    return j;
-  },
-  async token() {
-    if (!SB.sess) throw new Error('Sesión no iniciada');
-    if (SB.sess.exp - 60 < Date.now() / 1000) await SB.refrescar();
-    return SB.sess.access;
-  },
-  /* una sola renovación a la vez: el refresh token rota y dos llamadas simultáneas invalidarían la sesión */
-  refrescar() {
-    if (SB._rp) return SB._rp;
-    SB._rp = (async () => {
-      try { const j = await SB._auth('refresh_token', { refresh_token: SB.sess.refresh }); SB.sess.access = j.access_token; SB.sess.refresh = j.refresh_token || SB.sess.refresh; SB.sess.exp = Math.floor(Date.now() / 1000) + (j.expires_in || 3600); SB.persist(); }
-      catch (e) { if (e.status === 400 || e.status === 401 || e.status === 403) { SB.clear(); SBLogin.show('Tu sesión expiró. Ingresa nuevamente.'); throw new Error('Sesión expirada'); } throw new Error('Sin conexión para renovar la sesión'); }
-      finally { SB._rp = null; }
-    })();
-    return SB._rp;
-  },
-  logout() { SB.clear(); }
-};
-
-export const SBLogin = {};
-
-/* ---- AuthService · Supabase Auth (correo corporativo + contraseña propia) ---- */
-export const AuthService = {
-  get cfg() { return APIH_CONFIG.auth; },
-  get provider() { return this.cfg.provider || 'none'; },
-  get needsLogin() { return this.provider === 'supabase' && !SB.sess; },
-  user() {
-    if (this.provider !== 'supabase' || !SB.sess) return null;
-    const e = SB.sess.email;
-    return { name: e.split('@')[0].split(/[._-]/).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' '), email: e };
-  },
-  async init() {
-    if (this.provider !== 'supabase') return;
-    if (!(SB.cfg.url && SB.cfg.anonKey)) throw new Error('supabase.url / supabase.anonKey vacíos');
-    if (/type=signup/.test(location.hash)) {   // llegada desde el correo de confirmación de cuenta: la persona ya queda con sesión
-      try {
-        const q = new URLSearchParams(location.hash.slice(1)), tk = q.get('access_token'), rf = q.get('refresh_token'), pl = JSON.parse(atob(tk.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-        if (tk && rf && tk.split('.').length === 3 && String(pl.email || '')) { SB.sess = { email: String(pl.email).toLowerCase(), access: tk, refresh: rf, exp: Math.floor(Date.now() / 1000) + (+q.get('expires_in') || 3600), _st: 's' }; SB.persist(); }
-      } catch (e) { }
-      history.replaceState(null, '', location.pathname + location.search);
-    }
-    if (/type=recovery/.test(location.hash)) SB.clear(); else SB.restore();
-    if (!SB.sess) SBLogin.show();
-  },
-  getToken() { return this.provider === 'supabase' ? SB.token() : null; },
-  async login() { SBLogin.show(); throw new Error('Ingresa tus datos en la ventana de acceso'); },
-  async logout() { SB.logout(); }
-};
-
-/* ---- Servicio de datos ---- */
-export class SupabaseService {
-  constructor(cfg) {
-    this.cfg = cfg;
-    this.ids = {};                       // ent -> { id: id del registro }
-    Object.keys(ESQUEMA).forEach(e => this.ids[e] = {}); this.ids.settings = {}; this.ids.roles = {};
-  }
-  get mode() { return 'supabase'; }
-  get sb() { return this.cfg.supabase; }
-  listName(ent) { return ent === 'settings' ? this.cfg.settingsList : ent === 'roles' ? (this.cfg.rolesList || 'APIH_Roles') : this.cfg[ESQUEMA[ent].cfg]; }
-  /* --- API de dominio (lectura) --- */
-  async _read(ent) {
-    const items = await this.listItems(ent), idc = ESQUEMA[ent].cols.find(c => c.k === 'id');
-    this.ids[ent] = {};
-    return items.map(it => { const o = MapaDatos.objOf(ent, it.f); this.ids[ent][o.id] = it.spid; return o; })
-      .filter(o => o.id || ent === 'committees');
-  }
-  getProjects() { return this._read('projects'); }
-  async getProject(id) {
-    return (await this.getProjects()).find(p => p.id === id) || null;
-  }
-  getProposals() { return this._read('proposals'); }
-  getRisks() { return this._read('risks'); }
-  getMilestones() { return this._read('milestones'); }
-  getDecisions() { return this._read('decisions'); }
-  getCommitments() { return this._read('commitments'); }
-  getChanges() { return this._read('changes'); }
-  getNotes() { return this._read('notes'); }
-  getDocs() { return this._read('docs'); }
-  getAudit() { return this._read('audit'); }
-  getCommittees() { return this._read('committees'); }
-  async _leerAjustes() {
-    const items = await this.listItems('settings'), out = {}; this.ids.settings = {}; this.ids.roles = {};
-    const raw = {}; items.forEach(it => { const k = it.f.Title; if (!k) return; this.ids.settings[k] = it.spid; raw[k] = it.f[DATOS_COL.n]; });
-    Object.keys(raw).forEach(k => { if (/#\d+$/.test(k)) return; try { let v = JSON.parse(raw[k]); if (v && v.__chunks) { let s = ''; for (let n = 1; n <= v.__chunks; n++) s += raw[k + '#' + n] || ''; v = JSON.parse(s); } out[k] = v; } catch (e) { } });
-    return out;
-  }
-
-  /* --- API de dominio (escritura) --- */
-  async _create(ent, o) { const spid = await this.createItem(ent, MapaDatos.fieldsOf(ent, o)); this.ids[ent][o.id] = spid; return spid; }
-  async _update(ent, o) { const spid = this.ids[ent][o.id]; if (!spid) return this._create(ent, o); await this.updateItem(ent, spid, MapaDatos.fieldsOf(ent, o)); return spid; }
-  async _delete(ent, id) { const spid = this.ids[ent][id]; if (!spid) return; await this.deleteItem(ent, spid); delete this.ids[ent][id]; }
-  createProject(p) { return this._create('projects', p); }
-  updateProject(p) { return this._update('projects', p); }
-  deleteProject(id) { return this._delete('projects', id); }
-  createProposal(p) { return this._create('proposals', p); }
-  updateProposal(p) { return this._update('proposals', p); }
-  deleteProposal(id) { return this._delete('proposals', id); }
-  createRisk(r) { return this._create('risks', r); }
-  updateRisk(r) { return this._update('risks', r); }
-  deleteRisk(id) { return this._delete('risks', id); }
-  createMilestone(h) { return this._create('milestones', h); }
-  updateMilestone(h) { return this._update('milestones', h); }
-  deleteMilestone(id) { return this._delete('milestones', id); }
-  createDecision(d) { return this._create('decisions', d); }
-  updateDecision(d) { return this._update('decisions', d); }
-  deleteDecision(id) { return this._delete('decisions', id); }
-  createAudit(b) { return this._create('audit', b); }
-  updateAudit(b) { return this._update('audit', b); }
-  deleteAudit(id) { return this._delete('audit', id); }
-  async _guardarAjuste(k, v) {
-    const ent = k === 'usuarios' ? 'roles' : 'settings';   // los roles viven en su propia lista (permisos exclusivos del administrador)
-    const put = async (key, txt) => { const f = { Title: key, [DATOS_COL.n]: txt }; if (this.ids[ent][key]) await this.updateItem(ent, this.ids[ent][key], f); else this.ids[ent][key] = await this.createItem(ent, f); };
-    const js = JSON.stringify(v), MAX = 50000;
-    if (js.length <= MAX) { await put(k, js); return; }
-    const n = Math.ceil(js.length / MAX); for (let i = 1; i <= n; i++) await put(k + '#' + i, js.slice((i - 1) * MAX, i * MAX));
-    await put(k, JSON.stringify({ __chunks: n }));
-  }
-
-  _idCol(ent) { return ent === 'settings' || ent === 'roles' ? 'Title' : ESQUEMA[ent].key; }
-  async _rest(path, opt = {}, tries = 3) {
-    const mk = async () => Object.assign({ apikey: this.sb.anonKey, Authorization: 'Bearer ' + await SB.token(), 'Content-Type': 'application/json' }, opt.headers || {});
-    let h = await mk(), res, ref = false;
-    for (let n = 0; n < tries; n++) {
-      const ac = new AbortController(), to = setTimeout(() => ac.abort(), 30000);
-      try { res = await fetch(this.sb.url + '/rest/v1/' + path, { method: opt.method || 'GET', headers: h, body: opt.body, signal: ac.signal }); }
-      catch (e) { clearTimeout(to); if (n < tries - 1) { await new Promise(r => setTimeout(r, 800 * (n + 1))); continue; } throw new Error(e.name === 'AbortError' ? 'El servidor tardó demasiado en responder' : 'Sin conexión con el servidor'); }
-      clearTimeout(to);
-      if (res.status === 401 && !ref) { ref = true; try { await SB.refrescar(); h = await mk(); n--; continue; } catch (e) { throw e; } }
-      if ([429, 502, 503, 504].includes(res.status)) { await new Promise(r => setTimeout(r, 800 * (n + 1))); continue; }
-      break;
-    }
-    if (!res.ok) { let m = '', campo = ''; try { const j = await res.json(); m = j.message || j.hint || ''; campo = (j.message && j.hint) || ''; } catch (e) { } const err = new Error('HTTP ' + res.status + (m ? ' · ' + m : '')); err.status = res.status; if (/^APIH:/.test(m)) { err.detalle = m.replace(/^APIH:\s*/, ''); if (campo) err.campo = campo; } if ((res.status === 401 || res.status === 403) && !err.detalle) err.message = 'Sin permiso para esta acción en el servidor (' + res.status + ')'; throw err; }
-    if (res.status === 204) return { data: null, res };
-    const t = await res.text(); return { data: t ? JSON.parse(t) : null, res };
-  }
-  /* Permisos y directorio: los entrega el servidor (apih_contexto / apih_personas); la interfaz solo los lee */
-  async contexto() { return (await this.rpc('apih_contexto', {})) || null; }
-  async usuarios() { return (await this.rpc('apih_usuarios', {})) || []; }
-  async personas() { return (await this.rpc('apih_personas', {})) || []; }
-  async calculos() { return (await this.rpc('apih_calculos', {})) || { hoy: '', ini: {}, hitos: {}, riesgos: {}, hallazgos: [], puntajes: {}, evm: {}, sem: {}, cambios: {}, capacidad: null, personas: [], mision: {}, notif: null, resumen: null }; }
-  async verComo(correo) { return await this.rpc('apih_ver_como', { p_email: correo || null }); }
-  async listItems(ent) {
-    const l = encodeURIComponent(this.listName(ent)), idc = this._idCol(ent), out = [], PAGE = 1000;
-    for (let off = 0; ; off += PAGE) {
-      const { data } = await this._rest('registros_v?select=id,datos,actualizado,puede_editar&lista=eq.' + l + '&order=id&limit=' + PAGE + '&offset=' + off);
-      for (const r of data || []) {
-        let txt;
-        if (String(r.datos).startsWith('p1.')) txt = r.datos.slice(3);
-        else throw new Error('«' + r.id + '» tiene un formato antiguo (cifrado) y no se puede leer. Avisa al administrador.');
-        (this.ver = this.ver || {})[ent + ':' + r.id] = r.actualizado || null; (this.edit = this.edit || new Map()).set(r.id, !!r.puede_editar);
-        out.push({ spid: r.id, f: { [idc]: r.id, [DATOS_COL.n]: txt } });
-      }
-      if (!data || data.length < PAGE) break;
-    }
-    return out;
-  }
-  async _row(ent, fields) { const idc = this._idCol(ent), id = String(fields[idc] || ''); if (!id) throw new Error('Registro sin identificador (' + ent + ')'); return { lista: this.listName(ent), id, datos: 'p1.' + (fields[DATOS_COL.n] || '') }; }   // texto plano; la protección es el RLS del servidor
-  /* Alta o actualización sin ON CONFLICT DO UPDATE: ese modo exige SELECT sobre la columna `datos`, que el rol de la API no tiene (los montos se leen solo por registros_v).
-     Se insertan las filas nuevas en bloque (ignorando las existentes) y las que ya existían se actualizan una a una. */
-  async _upsert(rows) {
-    if (!rows.length) return;
-    const { data } = await this._rest('registros?on_conflict=lista,id&select=lista,id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(rows) });
-    const nuevas = new Set((data || []).map(r => r.lista + '\u0001' + r.id)), q = rows.filter(r => !nuevas.has(r.lista + '\u0001' + r.id));
-    await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const r = q.shift(); await this._rest('registros?lista=eq.' + encodeURIComponent(r.lista) + '&id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ datos: r.datos }) }); } }));
-  }
-  async createItem(ent, fields) { const r = await this._row(ent, fields); await this._upsert([r]); return r.id; }
-  async updateItem(ent, spid, fields) { const r = await this._row(ent, fields); await this._upsert([r]); }
-  async deleteItem(ent, spid) { await this._rest('registros?lista=eq.' + encodeURIComponent(this.listName(ent)) + '&id=eq.' + encodeURIComponent(spid), { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); }
-  async batchOps(ops) {
-    const out = ops.map(() => ({ ok: true, err: '' })), up = [], upI = [], del = {}, cond = [], alt = [];
-    for (let i = 0; i < ops.length; i++) {
-      const op = ops[i];
-      if (op.t === 'd') { (del[op.ent] = del[op.ent] || []).push([i, op.id]); }
-      else if (op.t === 'u' && this.ver && this.ver[op.ent + ':' + op.o.id]) { cond.push(i); }
-      else if (op.t === 'c') { alt.push(i); }
-      else { up.push(await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o))); upI.push(i); }
-    }
-    /* V22.34: detección de conflictos. Una actualización solo se aplica si el registro sigue con la versión que se leyó; un alta no pisa un id ya usado. */
-    const unoAUno = async (lst, fn) => { const q = lst.slice(); await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const i = q.shift(); try { await fn(i); } catch (e) { out[i] = e.conflict ? { ok: false, conflict: true, err: e.message } : { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) }; } } })); };
-    await unoAUno(cond, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
-      const { data } = await this._rest('registros?lista=eq.' + encodeURIComponent(row.lista) + '&id=eq.' + encodeURIComponent(row.id) + '&actualizado=eq.' + encodeURIComponent(this.ver[k]) + '&select=actualizado', { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ datos: row.datos }) });
-      if (!data || !data.length) { const e = new Error('«' + op.o.id + '» fue modificado por otra persona'); e.conflict = true; throw e; }
-      this.ver[k] = data[0].actualizado || null; this.ids[op.ent][op.o.id] = op.o.id;
-    });
-    await unoAUno(alt, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
-      try { const { data } = await this._rest('registros?select=actualizado', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify([row]) }); this.ver = this.ver || {}; this.ver[k] = (data && data[0] && data[0].actualizado) || null; this.ids[op.ent][op.o.id] = op.o.id; }
-      catch (e) { if (e.status === 409) { const c = new Error('El id «' + op.o.id + '» ya fue usado por otra persona'); c.conflict = true; throw c; } throw e; }
-    });
-    if (up.length) {
-      try { await this._upsert(up); upI.forEach(i => { this.ids[ops[i].ent][ops[i].o.id] = ops[i].o.id; }); }
-      catch (e) {
-        if (e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) && up.length > 1) {
-          /* un registro inválido no debe bloquear al resto: se reintenta fila por fila */
-          for (let k = 0; k < up.length; k++) { const i = upI[k]; try { await this._upsert([up[k]]); this.ids[ops[i].ent][ops[i].o.id] = ops[i].o.id; } catch (e2) { out[i] = { ok: false, err: e2.message, perm: e2.status >= 400 && e2.status < 500 && ![401, 403, 408, 429].includes(e2.status) }; } }
-        } else upI.forEach(i => { out[i] = { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) && up.length === 1 }; });
-      }
-    }
-    for (const ent of Object.keys(del)) {
-      const ids = del[ent].map(x => '"' + String(x[1]).replace(/"/g, '') + '"').join(',');
-      try { await this._rest('registros?lista=eq.' + encodeURIComponent(this.listName(ent)) + '&id=in.(' + encodeURIComponent(ids) + ')', { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); del[ent].forEach(x => { delete this.ids[ent][x[1]]; }); }
-      catch (e) { del[ent].forEach(x => { out[x[0]] = { ok: false, err: e.message }; }); }
-    }
-    return out;
-  }
-  async stamp() {
-    const { data, res } = await this._rest('registros_v?select=actualizado&order=actualizado.desc&limit=1', { headers: { Prefer: 'count=exact' } });
-    const cr = res.headers.get('Content-Range') || '', n = cr.split('/')[1] || '?';
-    return ((data && data[0] && data[0].actualizado) || '0') + '|' + n;
-  }
-  /* Comandos del servidor (funciones RPC): la lógica transaccional vive en la base, no en el navegador */
-  async rpc(nombre, args) { const { data } = await this._rest('rpc/' + nombre, { method: 'POST', body: JSON.stringify(args || {}) }); return data; }
-  /* Configuración por alcance: cada persona guarda sus preferencias en su propio registro «cfgU:<correo>» (el servidor solo deja escribirlo a su dueño o al admin). */
-  _emailPropio() { const u = typeof AuthService !== 'undefined' && AuthService.user && AuthService.user(); return _nrm(u && (u.email || u.username)); }
-  _cfgUKey(nombre) {
-    const u = (typeof St !== 'undefined' && St && St.usuarios || []).find(x => _nrm(x.n) === _nrm(nombre)), mio = this._emailPropio();
-    const correo = _nrm(u && u.correo) || (typeof St !== 'undefined' && St && St.cfg && _nrm(St.cfg.usuario) === _nrm(nombre) ? mio : '');
-    return 'cfgU:' + (correo || '~' + _nrm(nombre));
-  }
-  async getSettings() {
-    const out = await this._leerAjustes(), m = Object.assign({}, out.cfgU || {}); this._cfgUsig = {};
-    Object.keys(out).forEach(k => { if (!k.startsWith('cfgU:')) return; const r = out[k]; delete out[k]; if (r && r.n) { m[r.n] = r.v; this._cfgUsig[r.n] = JSON.stringify(r.v); } });
-    out.cfgU = m; return out;
-  }
-  async saveSetting(k, v) {
-    if (k !== 'cfgU') return this._guardarAjuste(k, v);
-    const mio = 'cfgU:' + this._emailPropio();
-    for (const [nombre, val] of Object.entries(v || {})) {
-      const sig = JSON.stringify(val); if ((this._cfgUsig || {})[nombre] === sig) continue;
-      const key = this._cfgUKey(nombre); if (key !== mio && !esAdminReal()) continue;   // la preferencia de otra persona solo la escribe el admin
-      await this._guardarAjuste(key, { n: nombre, v: val }); (this._cfgUsig = this._cfgUsig || {})[nombre] = sig;
-    }
-  }
-}
-
-
 // Enlaces para módulos anteriores (ver 00-registro.js)
 Object.defineProperties(ENLACES, {
   AuthService: { get: () => AuthService, enumerable: true, configurable: true },
   DataService: { get: () => DataService, enumerable: true, configurable: true },
 });
+
