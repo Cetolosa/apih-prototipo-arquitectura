@@ -17,4 +17,16 @@ for (const f of arch) {
   if (!/^08[a-g]-/.test(f) && f !== '08g-generador-ensamble.js') for (const m of t.matchAll(/from\s+'\.\/(08[a-f]-[^']+)'/g)) mal(`${f}: usa internals del generador (${m[1]}); solo GENE es público`);
 }
 { const vistos = {}; for (const f of arch) for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/^(Acts|Chg)\.([A-Za-z0-9_]+)\s*=/gm)) { const k = m[1] + '.' + m[2]; if (vistos[k] && vistos[k] !== f) mal(`${k} definido en ${vistos[k]} y en ${f}: el último pisa al primero`); vistos[k] = f; } }   /* acciones duplicadas */
+{ /* (5) un nombre exportado por un módulo anterior y usado sin importar ni definir revienta en el navegador («X is not defined»); ningún otro control lo ve */
+  const exp = {}; for (const f of arch) for (const m of fs.readFileSync(path.join(dir, f), 'utf8').matchAll(/^export\s+(?:async\s+)?(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/gm)) (exp[m[1]] = exp[m[1]] || []).push(f);
+  for (const f of arch) {
+    let t = fs.readFileSync(path.join(dir, f), 'utf8'); const sinImp = t.replace(/^import[^;]*;/gm, '');
+    const limpio = sinImp.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\'"`])\/\/[^\n]*/g, '$1').replace(/'(?:\\.|[^'\\\n])*'/g, "''").replace(/"(?:\\.|[^"\\\n])*"/g, '""');   /* sin comentarios ni cadenas '…' y "…" (las plantillas `…` sí se revisan: llevan ${código}) */
+    const imp = new Set([...t.matchAll(/^import\s+\{([^}]*)\}/gm)].flatMap(m => m[1].split(',').map(x => x.trim().split(/\s+as\s+/).pop()).filter(Boolean)));
+    for (const [n, fs2] of Object.entries(exp)) {
+      if (!/^[A-Z]/.test(n) || n.length < 2 || imp.has(n) || fs2.includes(f) || !fs2.some(o => orden.get(o) < orden.get(f))) continue;
+      if (new RegExp('(?<![\\w$.])' + n.replace(/\$/g, '\\$') + '(?![\\w$])').test(limpio) && !new RegExp('(?:const|let|var|function|class)\\s+' + n.replace(/\$/g, '\\$') + '(?![\\w$])|[,(]\\s*' + n.replace(/\$/g, '\\$') + '\\s*[,)=]|\\{[^}]*\\b' + n.replace(/\$/g, '\\$') + '\\b[^}]*\\}\\s*=').test(limpio)) mal(`${f}: usa ${n} sin importarlo (definido en ${fs2[0]})`);
+    }
+  }
+}
 console.log(fallas ? fallas + ' problemas' : `OK: ${arch.length} módulos, orden y dependencias correctos`); process.exit(fallas ? 1 : 0);
