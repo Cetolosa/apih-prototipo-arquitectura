@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { BACKEND, AuthService, Sesion, PantallaAcceso } from './01t-transporte.js';
+import { BACKEND, AuthService, Sesion, PantallaAcceso, usarDatos } from './01t-transporte.js';
 import { APIH_CONFIG, BIT_TIPOS, DEC_TIPOS, ESTADOS_PRJ, ESTADOS_PROP, CALC, FL, PERM, RAGS, RISK_ESTADOS, St, _nrm, defaultCfg, diffD, esAdminReal, esProp, hitoEstado, hoy, roi, seedState } from './01-nucleo.js';
 /* =====================================================================
    CAPA DE DATOS · DataService (común a todos los ambientes). Lo propio de cada ambiente —servidor, acceso y
@@ -181,6 +181,7 @@ const MapaDatos = {
 /* ---------------------------------------------------------------------
    4. DataService · carga, diff y sincronización con la API de APIH
    --------------------------------------------------------------------- */
+usarDatos({ ESQUEMA, MapaDatos, DATOS_COL });   // el transporte del ambiente usa el mismo esquema
 const COLLS = Object.keys(ESQUEMA);   // projects, risks, milestones, decisions, audit, committees
 const backendName = () => BACKEND.nombre;
 const backendLabel = () => BACKEND.etiqueta;

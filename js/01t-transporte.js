@@ -5,6 +5,10 @@
    ===================================================================== */
 import { APIH_CONFIG, St, _nrm, esAdminReal } from './01-nucleo.js';
 
+/* Esquema y mapeo de datos: los define 02-datos.js (común) y los entrega al cargar, con usarDatos() */
+let ESQUEMA = {}, MapaDatos = null, DATOS_COL = null;
+export function usarDatos(d) { ({ ESQUEMA, MapaDatos, DATOS_COL } = d); }
+
 export const BACKEND = {
   nombre: 'Supabase', etiqueta: 'Servidor seguro · acceso individual',
   modo: c => (c.auth.provider === 'supabase' && c.supabase && c.supabase.url && c.supabase.anonKey ? 'supabase' : 'demo'),
