@@ -532,7 +532,7 @@ function repCanvas(esc2) {
     const h = Math.ceil(wrap.getBoundingClientRect().height); const xml = new XMLSerializer().serializeToString(wrap); host.remove();
     const k = esc2 || 2, svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"><foreignObject width="100%" height="100%">' + xml + '</foreignObject></svg>';
     const img = new Image(); img.onload = () => { try { const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const x = c.getContext('2d'); x.fillStyle = '#f5f5f5'; x.fillRect(0, 0, c.width, c.height); x.scale(k, k); x.drawImage(img, 0, 0); ok({ c, w, h }); } catch (e) { ko(e); } };
-    img.onerror = () => ko(new Error('no se pudo dibujar el reporte')); img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));   // V11: blob: en vez de data: (CSP img-src sin data:)
+    img.onerror = () => ko(new Error('no se pudo dibujar el reporte')); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);   // data: y no blob: el navegador «contamina» el canvas con un SVG foreignObject desde blob: y no deja exportar
   });
 }
 function repPdfBlob(jpgB64, pw, ph, wpx, hpx) {
