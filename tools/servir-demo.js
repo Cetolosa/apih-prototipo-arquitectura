@@ -14,7 +14,7 @@ function ruta(url) {
 // Puente de pruebas: los módulos ES no dejan globales; las pruebas e2e escriben nombres sueltos (St, Acts, toast…).
 // Este módulo SOLO lo agrega el servidor de pruebas a la copia demo; la aplicación publicada no lo incluye.
 function puente() {
-  const mods = fs.readdirSync(path.join(raiz, 'js')).filter(f => /^\d\d.*\.js$/.test(f) && f !== '00-registro.js' && !/^08[a-f]-/.test(f)).sort();
+  const mods = fs.readdirSync(path.join(raiz, 'js')).filter(f => /^\d\d.*\.js$/.test(f) && f !== '00-registro.js' && !/^08[a-f]\d?-/.test(f)).sort();
   return `import { ENLACES } from './js/00-registro.js';\n` + mods.map((f, i) => `import * as m${i} from './js/${f}';`).join('\n') + `
 for (const ns of [${mods.map((f, i) => 'm' + i).join(', ')}]) for (const k of Object.keys(ns)) {
   try { Object.defineProperty(window, k, { configurable: true, get: () => ns[k], set: v => { if (!(k in ENLACES)) throw new Error('sin accesor de escritura para ' + k); ENLACES[k] = v; } }); } catch (e) { }
