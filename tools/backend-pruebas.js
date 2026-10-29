@@ -181,7 +181,7 @@ async function levantar(opc = {}) {
       const { items = [], borrar = [] } = JSON.parse((await leerCuerpo(req)) || '{}'), c = await pool.connect(), lote = [];
       try {
         await c.query('begin'); await c.query("select set_config('apih.interno', 'on', true)");
-        for (const x of items) { try { await c.query('savepoint s'); await c.query('insert into public.registros(lista, id, datos) values ($1, $2, $3) on conflict (lista, id) do update set datos = excluded.datos', [x.lista, x.id, x.datos]); await c.query('release savepoint s'); lote.push({ ok: true }); } catch (e) { await c.query('rollback to savepoint s'); lote.push({ ok: false, id: x.id, error: e.message }); } }
+        for (const x of items) { try { await c.query('savepoint s'); const u = await c.query('update public.registros set datos = $3 where lista = $1 and id = $2', [x.lista, x.id, x.datos]); if (!u.rowCount) await c.query('insert into public.registros(lista, id, datos) values ($1, $2, $3)', [x.lista, x.id, x.datos]);   /* como una edición (UPDATE), no un alta */ await c.query('release savepoint s'); lote.push({ ok: true }); } catch (e) { await c.query('rollback to savepoint s'); lote.push({ ok: false, id: x.id, error: e.message }); } }
         for (const b of borrar) await c.query('delete from public.registros where lista = $1 and id = any($2)', [b.lista, b.ids]);
         await c.query('commit');
       } catch (e) { await c.query('rollback'); return json(res, 500, { error: e.message }); } finally { c.release(); }
