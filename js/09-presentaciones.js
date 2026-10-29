@@ -512,7 +512,7 @@ function layoutBlocks(S, blocks, x, y, w, hMax) {
 function svgPng(svg, w, h, scale = 2) {   // SVG → PNG (Uint8Array) con canvas
   return new Promise(res => {
     const img = new Image(), done = v => res(v); img.onload = () => { try { const cv = document.createElement('canvas'); cv.width = Math.round(w * scale); cv.height = Math.round(h * scale); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); cv.toBlob(async b => done(b ? new Uint8Array(await b.arrayBuffer()) : null), 'image/png'); } catch (e) { done(null); } };
-    img.onerror = () => done(null); img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));   // V11: blob: en vez de data: (CSP img-src sin data:)
+    img.onerror = () => done(null); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);   // data: y no blob: el navegador «contamina» el canvas con un SVG foreignObject desde blob: y no deja exportar
   });
 }
 async function prepSlide(s) {   // rasteriza los SVG de la diapositiva (recursivo)
