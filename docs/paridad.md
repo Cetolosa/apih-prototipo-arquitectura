@@ -8,7 +8,7 @@ APIH Prototipo Arquitectura (`Cetolosa/apih-prototipo-arquitectura`, Supabase) y
 2. **Se traspasa al Corporativo en la misma entrega**, con el mismo nombre de rama en ambos repositorios.
    - SPA y pruebas e2e: se copian tal cual.
    - Servidor: la función `apih_*` del Prototipo (PL/pgSQL) se escribe como comando en `api/src/commands/` y su esquema en `api/src/http/esquemas.ts`.
-3. **Se fusionan juntos.** El CI de cada repositorio clona el otro (misma rama si existe; si no, `main`) y corre `node tools/paridad.mjs`. Si algo quedó en un solo lado, falla.
+3. **Se fusionan juntos.** El CI del Corporativo clona el Prototipo (misma rama si existe; si no, `main`) y corre `node tools/paridad.mjs`: si algo quedó en un solo lado, falla. El Corporativo es privado, así que el CI del Prototipo solo lo verifica si tiene el secreto `CORP_TOKEN`.
 
 ## Qué comprueba `tools/paridad.mjs`
 
