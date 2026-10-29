@@ -198,7 +198,7 @@ Views.proyectos = {
     <div class="toolbar">${planSeg()}<div class="search" style="flex:0 1 170px;min-width:120px"><span>${icon('search', 14)}</span><input data-key="in-q" data-chg="flt" data-v="prj" data-f="q" type="search" placeholder="Buscar…" value="${esc(f.q)}"></div>
       
       <label class="chk tb-c"><input type="checkbox" ${f.hideDone ? 'checked' : ''} data-chg="flt" data-v="prj" data-f="hideDone" data-bool="1"> <span>Ocultar cerrados</span></label>
-      <div class="seg" style="margin-left:auto"><button class="${f.mode === 'board' ? 'on' : ''}" data-act="imode" data-m="board" title="Columnas por fase" aria-label="Tablero por fase">${icon('board', 14)}</button><button class="${f.mode === 'cards' ? 'on' : ''}" data-act="imode" data-m="cards" title="Tarjetas" aria-label="Tarjetas">${icon('list2', 14)}</button></div></div>${body}`;
+      <div class="seg" style="margin-left:auto"><button class="${f.mode === 'board' ? 'on' : ''}" data-act="imode" data-m="board" title="Columnas por fase" aria-label="Tablero por fase">Por fase</button><button class="${f.mode === 'cards' ? 'on' : ''}" data-act="imode" data-m="cards" title="Tarjetas" aria-label="Tarjetas">Tarjetas</button></div></div>${body}`;
   },
   after() { bindDnD(); }
 };
