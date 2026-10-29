@@ -442,6 +442,13 @@ export const AuthService = {
   async init() {
     if (this.provider !== 'supabase') return;
     if (!(SB.cfg.url && SB.cfg.anonKey)) throw new Error('supabase.url / supabase.anonKey vacíos');
+    if (/type=signup/.test(location.hash)) {   // llegada desde el correo de confirmación de cuenta: la persona ya queda con sesión
+      try {
+        const q = new URLSearchParams(location.hash.slice(1)), tk = q.get('access_token'), rf = q.get('refresh_token'), pl = JSON.parse(atob(tk.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        if (tk && rf && tk.split('.').length === 3 && String(pl.email || '')) { SB.sess = { email: String(pl.email).toLowerCase(), access: tk, refresh: rf, exp: Math.floor(Date.now() / 1000) + (+q.get('expires_in') || 3600), _st: 's' }; SB.persist(); }
+      } catch (e) { }
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     if (/type=recovery/.test(location.hash)) SB.clear(); else SB.restore();
     if (!SB.sess) SBLogin.show();
   },
