@@ -15,6 +15,7 @@ const fallas = [];
 // 1) reglas y cálculos que ya no deben existir en la SPA
 const RETIRADOS = ['ADMIN_EMAILS', 'ADMIN_USERS', 'PESO_FASES', 'TOPE_SIN_AVANCE', 'aplicarCambioFase', 'aplicarEtapaLocal', 'aplicarFasesFechas', 'autoCompletar', 'avanceEn', 'avanceFaseCalc',
   'avanzoSemana', 'capCls', 'capDe', 'capFin', 'capIni', 'capMeses', 'congelarBase', 'distribuirFases', 'esAprobadorDe', 'escalarSync', 'etapasPosibles', 'fasesMaterializadas',
+  'batchOps', 'createItem', 'deleteItem', 'fieldsOf', 'updateItem',
   'findingsPMO', 'findingsRiesgos', 'findingsRoadmap', 'gatesAprobar', 'michelinCalc', 'michelinSync', 'hitoATiempo', 'cambioAprob', 'resultadoOk', 'riesgoSinMit', 'moverFinPlan', 'notifPara', 'rolDeUser', 'normIni', 'planCambioFase',
   'rangoFases', 'reconciliarAvance', 'setRangoPlan', 'sinAvanceSostenido', 'sincAvance', 'starsHist', 'usuarioActual', 'usuarioSintetico', 'validarFasesFechas'];
 archivos.forEach(({ f, s }) => RETIRADOS.forEach(n => { if (new RegExp('(^|[^\\w$.])' + n.replace(/\$/g, '\\$') + '(?![\\w$])').test(s)) fallas.push(`${f}: reapareció «${n}» (regla que vive en el servidor)`); }));
@@ -38,6 +39,12 @@ const RESIDUAL_ESCRITURA = {};
 archivos.forEach(({ f, s }) => POR_COMANDO.forEach(([c, cmd]) => {
   if (new RegExp('St\\.' + c + '\\s*(\\.push\\(|=(?!=))').test(s) && !(RESIDUAL_ESCRITURA[f] || []).includes(c)) fallas.push(`${f}: escribe St.${c} directamente (se guarda con ${cmd})`);
 }));
+
+// 5) ajustes y tareas: el servidor calcula y valida (apih_ajustar_paso, apih_guardar_tarea, apih_guardar_ajuste); la SPA no escribe APIH_Config ni suma la importancia
+archivos.forEach(({ f, s }) => {
+  if (/['"]APIH_Config['"]/.test(s) && !['01-nucleo.js', '01t-transporte.js', '02-datos.js'].includes(f)) fallas.push(`${f}: toca APIH_Config directo (usa apih_guardar_ajuste)`);
+  if (/\.aj\s*=(?!=)|semSet\(\s*['"]aj['"]/.test(s)) fallas.push(`${f}: la SPA asigna el ajuste de importancia (usa apih_ajustar_paso)`);
+});
 
 if (fallas.length) { console.error('GUARDIA DE ARQUITECTURA: ' + fallas.length + ' problema(s)\n - ' + fallas.join('\n - ')); process.exit(1); }
 console.log('OK: guardia de arquitectura (' + archivos.length + ' módulos, ' + RETIRADOS.length + ' nombres vigilados, ' + definidas.size + ' funciones del servidor)');

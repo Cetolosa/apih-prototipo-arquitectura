@@ -12,7 +12,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
       { spid: 'cfg', f: { Title: 'cfg', DatosJSON: '{"a":1}' } },
       { spid: 'cfgU:ana@x.cl', f: { Title: 'cfgU:ana@x.cl', DatosJSON: JSON.stringify({ n: 'Ana', v: { tema: 'claro' } }) } },
       { spid: 'cfgU:luis@x.cl', f: { Title: 'cfgU:luis@x.cl', DatosJSON: JSON.stringify({ n: 'Luis', v: { tema: 'oscuro' } }) } }] : [];
-    svc.createItem = async (ent, f) => { escritos.push(f.Title); return f.Title; }; svc.updateItem = async (ent, id, f) => { escritos.push(f.Title); };
+    svc.rpc = async (nombre, par) => { if (nombre === 'apih_guardar_ajuste') escritos.push(par.p_clave); };   // la configuración se guarda con el comando del servidor
     const s = await svc.getSettings(); out.mapa = s.cfgU; out.sinClavesSueltas = !Object.keys(s).some(k => k.startsWith('cfgU:'));
     St.usuarios = [{ n: 'Ana', correo: 'ana@x.cl' }, { n: 'Luis', correo: 'luis@x.cl' }]; St.cfg.usuario = 'Ana';
     svc._emailPropio = () => 'ana@x.cl';
