@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Corre la regresión e2e contra la SPA (modo demo). Código de salida ≠ 0 si alguna prueba falla.
 const { spawn, spawnSync } = require('child_process'), path = require('path'), fs = require('fs');
+process.env.TZ = 'America/Santiago';   // el servidor calcula «hoy» en hora de Chile: el navegador de las pruebas debe usar la misma zona (si no, fallan entre las 21:00 y las 24:00 de Chile)
 process.env.CAPTURA_CLAVES = process.env.CAPTURA_CLAVES || '1';   // el puente informa las claves de cada lista: guarda del catálogo de campos del servidor
 const { servir, PUERTO, claves } = require('./servir-demo');
 const BACKEND = process.env.APIH_MODO !== 'demo';   // por defecto, backend real (Postgres + RLS + funciones apih_*); APIH_MODO=demo = SPA sin servidor (en retiro)
