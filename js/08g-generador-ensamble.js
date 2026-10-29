@@ -1,13 +1,17 @@
 import { ENLACES } from './00-registro.js';
 import { DECS, St, _nrm, by, byId, esProp, esSB, expo, fmtD, fmtMon, hitosDe, hoy, isLive, miUsuario, monOf, riesgoAbierto, riesgosDe, toISO } from './01-nucleo.js';
 import { avFase } from './03-interfaz.js';
-import { PRES_MIO, execSummary } from './07-gobierno.js';
+import { PRES_MIO } from './07-gobierno.js';
+import { execSummary } from './07b-gobierno-analisis-capacidad.js';
 import { COLECTOR, Date, GD, Utilities, ppt_nuevaSlide_ } from './08a-generador-motor.js';
 import { ESTILO_PPT, ppt_acotarParaAncho_, ppt_altoTexto_, ppt_decisionAplicaAArea_, ppt_fondo_, ppt_lineasNecesarias_, ppt_texto_ } from './08b-generador-primitivas.js';
-import { ALT4_PALETA_ACTIVA, ESTILO_ALT4, construirSlideAnexo_, construirSlideEjecutivo_, construirSlideFlujoPropuestas_, construirSlideFlujoProyectos_, construirSlidePortada_, construirSlidesDetalle_, ppt_alt4Fondo_, ppt_alt4Header_, ppt_tintar_ } from './08c-generador-portafolio.js';
-import { construirSlideFichaPropuesta_, construirSlideFicha_ } from './08d-generador-ficha.js';
+import { ALT4_PALETA_ACTIVA, ESTILO_ALT4, construirSlideEjecutivo_, construirSlideFlujoPropuestas_, construirSlidePortada_, ppt_alt4Fondo_, ppt_alt4Header_, ppt_tintar_ } from './08c-generador-portafolio.js';
+import { construirSlideAnexo_, construirSlideFlujoProyectos_, construirSlidesDetalle_ } from './08c2-generador-portafolio-detalle.js';
+import { construirSlideFicha_ } from './08d-generador-ficha.js';
+import { construirSlideFichaPropuesta_ } from './08d2-generador-ficha-detalle.js';
 import { construirSlideEstructuraPortafolio_, construirSlidePlanAccion_, construirSlidesBitacora_ } from './08e-generador-bitacora.js';
-import { construirSlidesAlertasEstancamiento_, construirSlidesLogros_, construirSlidesProximosHitos_ } from './08f-generador-pipeline.js';
+import { construirSlidesLogros_ } from './08f-generador-pipeline.js';
+import { construirSlidesAlertasEstancamiento_, construirSlidesProximosHitos_ } from './08f2-generador-pipeline-alertas.js';
 /** Correr UNA VEZ desde el editor: crea la pestaña DecisionesPendientes si no existe. */
 
 function muestraDetalle_(valor) {
