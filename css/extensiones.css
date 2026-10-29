@@ -220,3 +220,6 @@
 .fl-list>.fl-s.wide{grid-column:auto}
 .fl-grid.fl-list{display:flex!important;flex-direction:column;column-count:1!important}.fl-list>.fl-s{break-inside:auto;width:auto}
 .fl-grid.fl-list{align-items:stretch!important}.fl-list>.fl-s{width:100%!important;box-sizing:border-box}
+/* tarjetas de proyecto: la altura se ajusta al contenido (nada recortado); en la cuadrícula las filas igualan altura */
+.icard.ic2{height:auto;min-height:216px;overflow:visible}
+.cards{align-items:stretch}
