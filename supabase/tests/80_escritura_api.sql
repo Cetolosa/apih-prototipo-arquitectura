@@ -14,9 +14,9 @@ $$ declare n int; begin execute q; get diagnostics n = row_count; return n; end 
 
 begin; set local role authenticated;
 select pg_temp.como('tolosa-christian@aramark.cl');
-select pg_temp.ok(pg_temp.filas($$insert into public.registros(lista,id,datos) values ('APIH_Config','prueba-api','p1.{"a":1}') on conflict (lista,id) do nothing returning lista,id$$) = 1, 'admin: alta ignorando duplicados');
-select pg_temp.ok(pg_temp.filas($$insert into public.registros(lista,id,datos) values ('APIH_Config','prueba-api','p1.{"a":9}') on conflict (lista,id) do nothing returning lista,id$$) = 0, 'admin: el duplicado no devuelve fila');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"a":2}' where lista='APIH_Config' and id='prueba-api'$$) = 1, 'admin: actualiza con PATCH');
+select pg_temp.ok(pg_temp.filas($$insert into public.registros(lista,id,datos) values ('APIH_Roles','prueba-api','p1.{"a":1}') on conflict (lista,id) do nothing returning lista,id$$) = 1, 'admin: alta ignorando duplicados');
+select pg_temp.ok(pg_temp.filas($$insert into public.registros(lista,id,datos) values ('APIH_Roles','prueba-api','p1.{"a":9}') on conflict (lista,id) do nothing returning lista,id$$) = 0, 'admin: el duplicado no devuelve fila');
+select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"a":2}' where lista='APIH_Roles' and id='prueba-api'$$) = 1, 'admin: actualiza con PATCH');
 select pg_temp.ok((select substr(datos,4)::jsonb from public.registros_v where id='prueba-api') = '{"a":2}'::jsonb, 'admin: ve el valor actualizado');
 select pg_temp.ok(pg_temp.filas($$insert into public.registros(lista,id,datos) values ('APIH_Roles','usuarios','p1.[{"n":"A"}]') on conflict (lista,id) do nothing returning lista,id$$) = 1, 'admin: escribe la lista de usuarios (arreglo JSON)');
 select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Riesgos','R-x','p1.[1]')$$, 'otras listas siguen exigiendo objeto', 'objeto JSON');

@@ -144,19 +144,6 @@ const spEq = (a, b) => {
 
 /* Mapeo dominio <-> campos de columna */
 const MapaDatos = {
-  fieldsOf(ent, o) {
-    const S = ESQUEMA[ent], f = {};
-    S.cols.forEach(c => {
-      let v = c.get ? c.get(o) : o[c.k];
-      if (c.t === 'Date') v = v ? String(v).slice(0, 10) + 'T12:00:00Z' : null;
-      else if (c.t === 'Number') v = v == null || v === '' || isNaN(+v) ? null : +v;
-      else if (c.t === 'Text' || c.t === 'Choice') v = v == null ? '' : String(v).slice(0, 255);
-      else if (c.t === 'Note') v = v == null ? '' : String(v);
-      f[c.n] = v;
-    });
-    f[DATOS_COL.n] = JSON.stringify(o);
-    return f;
-  },
   objOf(ent, f) {
     const S = ESQUEMA[ent]; let o = null;
     try { if (f[DATOS_COL.n]) o = JSON.parse(f[DATOS_COL.n]); } catch (e) { o = null; }
@@ -240,11 +227,11 @@ export const DataService = {
     S.empty = !ini.length && !hitos.length && !riesgos.length;
     return S;
   },
-  /* firma por registro = JSON de los campos resultantes (incluye columnas derivadas) */
+  /* firma por registro = JSON del registro (sirve para saber si algo cambió en el servidor) */
   snapshot(S) {
     const prev = St; ENLACES.St = S; const out = {};
     try {
-      COLLS.forEach(ent => { const m = new Map(); (S[ESQUEMA[ent].coll] || []).filter(ESQUEMA[ent].filter || (() => true)).forEach(o => m.set(o.id, JSON.stringify(MapaDatos.fieldsOf(ent, o)))); out[ent] = m; });
+      COLLS.forEach(ent => { const m = new Map(); (S[ESQUEMA[ent].coll] || []).filter(ESQUEMA[ent].filter || (() => true)).forEach(o => m.set(o.id, JSON.stringify(o))); out[ent] = m; });
       out.settings = new Map(); settingKeys(S).forEach(k => out.settings.set(k, JSON.stringify(this.settingValue(S, k))));
     } finally { ENLACES.St = prev; }
     return out;

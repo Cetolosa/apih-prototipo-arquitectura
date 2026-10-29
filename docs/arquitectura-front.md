@@ -32,7 +32,10 @@ Hitos, riesgos, decisiones, iniciativas, **compromisos** (`apih_guardar_compromi
 `apih_calculos().notif` entrega el catálogo, la preferencia efectiva (catálogo → organización → persona) y los avisos de quien llama (hitos y compromisos, riesgo crítico, decisiones, atraso, sin actualizar, propuestas estancadas, cambios y eventos de bitácora), con sus canales. La campana y la matriz de Notificaciones solo presentan; guardar la configuración hace que el servidor vuelva a evaluar. Lo leído sigue por navegador (localStorage).
 
 ### Reglas que aún no se mueven (residuales declarados)
-Registros de presentaciones y plantillas (configuración personal, no reglas de negocio) y validaciones de formulario de otras pantallas.
+Ninguna regla de negocio. Lo que queda en el navegador es presentación por naturaleza: ocultar botones según permisos (`puedeGobernar`, `esMia`; el servidor autoriza igual), el filtro de área de pantalla y la exportación a Excel/PNG/PDF (con datos ya autorizados por el servidor).
+
+### Ajustes, importancia y tareas (J1)
+Toda escritura de `APIH_Config` (ajustes, eventos, presentaciones, plantillas, preferencias personales `cfgU:`) pasa por `apih_guardar_ajuste` (clave permitida, rangos de umbrales, tamaño, dueño de `psnap:`); la escritura directa está denegada por RLS. El ajuste personal de un paso (`apih_ajustar_paso`), su puntaje (`base + ajuste`, 0–100) y las tareas personales (`apih_guardar_tarea` / `apih_tarea_estado`) los valida y calcula `apih_cielo()` (`pasos[].aj/pts`, `tareas`). Importar un archivo de proyecto: `apih_importar_proyecto` (vista previa y aplicación en el servidor).
 
 ## Resumen ejecutivo y KPIs
 `apih_resumen(calc)` (dentro de `apih_calculos`) entrega qué proyectos están «on track», los tramos del % On Track (texto y nivel) y las ventanas de días del resumen. El cliente solo los muestra (`CALC.resumen`, `tonoOnTrack`).
@@ -41,7 +44,7 @@ Registros de presentaciones y plantillas (configuración personal, no reglas de 
 `apih_personas_dir()` (dentro de `apih_calculos`, clave `personas`) calcula por persona sus roles, áreas, cargo, acceso y lo abierto a su cargo (proyectos vivos, hitos y vencidos, riesgos, decisiones, acciones de comité). La vista Personas solo filtra y muestra.
 
 ## Misión de Mi cocina
-`apih_mision(calc)` (clave `mision` de `apih_calculos`) entrega por iniciativa los hitos vencidos sin cerrar, los compromisos vencidos y los riesgos por atender (revisión vencida o crítico sin mitigación). La SPA solo arma los textos. Los «Siguientes pasos» (`pasosDe`) siguen calculándose en el cliente.
+`apih_mision(calc)` (clave `mision` de `apih_calculos`) entrega por iniciativa los hitos vencidos sin cerrar, los compromisos vencidos y los riesgos por atender (revisión vencida o crítico sin mitigación). La SPA solo arma los textos.
 
 ## Siguientes pasos
 `apih_pasos` (dentro de `apih_cielo().pasos`) decide qué conviene hacer en cada iniciativa: hitos vencidos, de hoy y de la semana, tenedor «Al día», riesgos (mitigación y revisión), compromisos por vencer y compuerta de fase, con su urgencia (hoy / esta semana / próximo). La SPA solo oculta pasos por preferencia personal y agrega las descripciones. Si el cielo está desactivado en la configuración, no hay pasos.

@@ -493,12 +493,11 @@ export function semSet(o) { if (FL.verComo) { toast('En «Ver como» no se guard
 const pospGet = () => { let l = {}; try { l = JSON.parse(localStorage.getItem('apih_posp') || '{}'); } catch (e) { } return Object.assign({}, l, semOf().posp || {}); };
 const pospSet = o => { try { localStorage.removeItem('apih_posp'); } catch (e) { } semSet({ posp: o }); };
 const pospOn = k => { const p = pospGet()[k]; return !!p && p > hoy(); };
-/* Importancia 0–100 = base automática (plazo y criticidad, reglas fijas) + ajuste propio guardado por paso */
-const SEM_AJ = [[-20, 'Baja'], [0, 'Normal'], [15, 'Alta'], [30, 'Máxima']];
+/* Importancia 0–100: la calcula el servidor (apih_cielo: base por plazo y criticidad + el ajuste propio guardado); aquí solo se muestra */
+const SEM_AJ = [[-20, 'Baja'], [0, 'Normal'], [15, 'Alta'], [30, 'Máxima']];   // etiquetas de las opciones; el servidor valida el valor (apih_ajustar_paso)
 const SEM_CATS = ['Trabajo', 'Desarrollo profesional', 'Personal'];
-const pasoBase = p => +p.base || 0;   // importancia base: la calcula el servidor (apih_cielo); aquí solo se suma el ajuste personal
-const pasoAj = p => { const v = +(semOf().aj || {})[p.k] || 0; return SEM_AJ.some(a => a[0] === v) ? v : 0; };
-const pasoPts = p => Math.max(0, Math.min(100, pasoBase(p) + pasoAj(p)));
+const pasoAj = p => +p.aj || 0;
+const pasoPts = p => +p.pts || 0;
 /* Pendientes personales: viven aparte del portafolio (sin tenedores, sin reportes, sin presentaciones) */
 function tareasPasos() { return ((CALC.cielo || {}).tareas || []).map(t => Object.assign({}, t, { ini: null, nota: '' })); }   // urgencia e importancia: del servidor
 /* Pasos sugeridos de una iniciativa. u: 0 hoy · 1 esta semana · 2 próximo. prot: tenedor o compuerta que protege.
@@ -517,30 +516,23 @@ function pasoHTML(p, conIni) {
     <div class="ps-a"><span class="ps-pr">${p.tarea ? '' : 'protege: '}${esc(p.prot)}</span><span class="edit-only ps-b">${btn(p.btn, p.act, { d: p.d, cls: 'sm pri' })}${acc}</span></div></div>`;
 }
 Acts.pasopos = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const p = pospGet(); p[d.k] = addD(hoy(), 1); Object.keys(p).forEach(k => { if (p[k] <= hoy()) delete p[k]; }); pospSet(p); toast('Paso oculto hasta mañana'); refresh(); };
-Chg.pasoaj = el => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const aj = Object.assign({}, semOf().aj), v = +el.value || 0, k = el.dataset.k; if (!SEM_AJ.some(a => a[0] === v)) return; if (v) aj[k] = v; else delete aj[k]; if (semSet({ aj })) { toast('Importancia ajustada: queda guardada en tu perfil'); refresh(); } };
+Chg.pasoaj = async el => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); if (FL.verComo) { toast('En «Ver como» no se guardan cambios', 'err'); return; } const r = await (0, ENLACES.cmdServidor)('apih_ajustar_paso', { p_k: el.dataset.k, p_aj: +el.value || 0 }, 'Importancia ajustada: queda guardada en tu perfil'); if (r !== null) refresh(); };
 /* Pendientes personales (clasificados; «Desarrollo profesional» alimenta tu historial) */
 function tareaForm(t) {
-  const nw = !t, tareas = () => (semOf().t || []);
+  const nw = !t;
   openForm({
     title: nw ? 'Nuevo pendiente personal' : 'Editar pendiente', saveLabel: nw ? 'Agregar' : 'Guardar', danger: nw ? null : 'Eliminar', values: t ? clone(t) : { t: '', cat: SEM_CATS[0], f: '' },
     fields: [{ k: 't', l: '¿Qué necesitas hacer?', t: 'textarea', req: true, w: 3 }, { k: 'cat', l: 'Clasificación', t: 'select', opts: SEM_CATS, w: 2 }, { k: 'f', l: 'Fecha (opcional)', t: 'date', w: 1 }],
-    onDanger: () => confirmBox('¿Eliminar este pendiente?', () => { if (semSet({ t: tareas().filter(x => x.id !== t.id) })) { toast('Pendiente eliminado'); refresh(); } }, 'Eliminar', true),
-    onSave(o) {
-      if (o.t.length > 200) { toast('El pendiente admite hasta 200 caracteres', 'err'); return false; }
-      if (o.f && (!/^\d{4}-\d{2}-\d{2}$/.test(o.f) || +o.f.slice(0, 4) < 1900 || +o.f.slice(0, 4) > 2100)) { toast('La fecha no es válida', 'err'); return false; }
-      if (!SEM_CATS.includes(o.cat)) o.cat = SEM_CATS[0];
-      if (nw && tareas().length >= 300) { toast('Llegaste al máximo de 300 pendientes: elimina los que ya no uses', 'err'); return false; }
-      const L = tareas().slice();
-      if (nw) { const n = L.reduce((m, x) => Math.max(m, +String(x.id).slice(2) || 0), 0) + 1; L.push({ id: 'T-' + n, t: o.t, cat: o.cat, f: o.f || '', creada: hoy(), hecha: '' }); }
-      else { const x = L.find(y => y.id === t.id); if (x) { x.t = o.t; x.cat = o.cat; x.f = o.f || ''; } }
-      if (!semSet({ t: L })) return false;
-      toast(nw ? 'Pendiente agregado a tu lista' : 'Pendiente actualizado'); refresh();
+    onDanger: () => confirmBox('¿Eliminar este pendiente?', async () => { const r = await (0, ENLACES.cmdServidor)('apih_tarea_estado', { p_id: t.id, p_accion: 'eliminar' }, 'Pendiente eliminado'); if (r !== null) refresh(); }, 'Eliminar', true),
+    onSave(o) {   // el servidor valida (largo, fecha, clasificación, máximo) y asigna el id
+      if (FL.verComo) { toast('En «Ver como» no se guardan cambios', 'err'); return false; }
+      return (0, ENLACES.cmdServidor)('apih_guardar_tarea', { p_tarea: { id: nw ? null : t.id, t: o.t, cat: o.cat, f: o.f || '' } }, nw ? 'Pendiente agregado a tu lista' : 'Pendiente actualizado', true).then(r => { if (r === null) return false; refresh(); return true; });
     }
   });
 }
 Acts.tareanew = () => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); tareaForm(null); };
-Acts.tareaedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const t = (semOf().t || []).find(x => x.id === d.id); if (t) tareaForm(t); };
-Acts.tareahecha = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const L = (semOf().t || []).map(x => x.id === d.id ? Object.assign({}, x, { hecha: hoy() }) : x); if (semSet({ t: L })) { toast('Pendiente hecho'); refresh(); } };
+Acts.tareaedit = d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); const t = (((CALC.cielo || {}).tareas || []).find(x => x.tarea && x.tarea.id === d.id) || {}).tarea; if (t) tareaForm(t); };
+Acts.tareahecha = async d => { if ((0, ENLACES.soloLectura)()) return (0, ENLACES.NO_PERM)('Tu rol o el modo solo lectura no permiten editar'); if (FL.verComo) { toast('En «Ver como» no se guardan cambios', 'err'); return; } const r = await (0, ENLACES.cmdServidor)('apih_tarea_estado', { p_id: d.id, p_accion: 'hecha' }, 'Pendiente hecho'); if (r !== null) refresh(); };
 /* Pestaña «Planificación» de la ficha: fases, cronograma, próximos 14 días y siguientes pasos */
 /* avance de una fase para mostrar: la calculada; una fase ya superada sin unidades vale 100 % */
 const pctFase = (i, v) => v.avance;

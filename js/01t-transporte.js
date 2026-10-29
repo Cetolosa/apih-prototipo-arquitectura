@@ -119,36 +119,9 @@ export class SupabaseService {
     return out;
   }
 
-  /* --- API de dominio (escritura) --- */
-  async _create(ent, o) { const spid = await this.createItem(ent, MapaDatos.fieldsOf(ent, o)); this.ids[ent][o.id] = spid; return spid; }
-  async _update(ent, o) { const spid = this.ids[ent][o.id]; if (!spid) return this._create(ent, o); await this.updateItem(ent, spid, MapaDatos.fieldsOf(ent, o)); return spid; }
-  async _delete(ent, id) { const spid = this.ids[ent][id]; if (!spid) return; await this.deleteItem(ent, spid); delete this.ids[ent][id]; }
-  createProject(p) { return this._create('projects', p); }
-  updateProject(p) { return this._update('projects', p); }
-  deleteProject(id) { return this._delete('projects', id); }
-  createProposal(p) { return this._create('proposals', p); }
-  updateProposal(p) { return this._update('proposals', p); }
-  deleteProposal(id) { return this._delete('proposals', id); }
-  createRisk(r) { return this._create('risks', r); }
-  updateRisk(r) { return this._update('risks', r); }
-  deleteRisk(id) { return this._delete('risks', id); }
-  createMilestone(h) { return this._create('milestones', h); }
-  updateMilestone(h) { return this._update('milestones', h); }
-  deleteMilestone(id) { return this._delete('milestones', id); }
-  createDecision(d) { return this._create('decisions', d); }
-  updateDecision(d) { return this._update('decisions', d); }
-  deleteDecision(id) { return this._delete('decisions', id); }
-  createAudit(b) { return this._create('audit', b); }
-  updateAudit(b) { return this._update('audit', b); }
-  deleteAudit(id) { return this._delete('audit', id); }
-  async _guardarAjuste(k, v) {
-    const ent = k === 'usuarios' ? 'roles' : 'settings';   // los roles viven en su propia lista (permisos exclusivos del administrador)
-    const put = async (key, txt) => { const f = { Title: key, [DATOS_COL.n]: txt }; if (this.ids[ent][key]) await this.updateItem(ent, this.ids[ent][key], f); else this.ids[ent][key] = await this.createItem(ent, f); };
-    const js = JSON.stringify(v), MAX = 50000;
-    if (js.length <= MAX) { await put(k, js); return; }
-    const n = Math.ceil(js.length / MAX); for (let i = 1; i <= n; i++) await put(k + '#' + i, js.slice((i - 1) * MAX, i * MAX));
-    await put(k, JSON.stringify({ __chunks: n }));
-  }
+  /* Escritura: la configuración la valida y escribe el servidor (apih_guardar_ajuste, única vía); todo registro de negocio, sus comandos (cmdServidor).
+     La SPA no escribe tablas: no hay altas, cambios ni bajas genéricas. */
+  async _guardarAjuste(k, v) { await this.rpc('apih_guardar_ajuste', { p_clave: k, p_valor: v }); }
 
   _idCol(ent) { return ent === 'settings' || ent === 'roles' ? 'Title' : ESQUEMA[ent].key; }
   async _rest(path, opt = {}, tries = 3) {
@@ -185,56 +158,6 @@ export class SupabaseService {
         out.push({ spid: r.id, f: { [idc]: r.id, [DATOS_COL.n]: txt } });
       }
       if (!data || data.length < PAGE) break;
-    }
-    return out;
-  }
-  async _row(ent, fields) { const idc = this._idCol(ent), id = String(fields[idc] || ''); if (!id) throw new Error('Registro sin identificador (' + ent + ')'); return { lista: this.listName(ent), id, datos: 'p1.' + (fields[DATOS_COL.n] || '') }; }   // texto plano; la protección es el RLS del servidor
-  /* Alta o actualización sin ON CONFLICT DO UPDATE: ese modo exige SELECT sobre la columna `datos`, que el rol de la API no tiene (los montos se leen solo por registros_v).
-     Se insertan las filas nuevas en bloque (ignorando las existentes) y las que ya existían se actualizan una a una. */
-  async _upsert(rows) {
-    if (!rows.length) return;
-    const { data } = await this._rest('registros?on_conflict=lista,id&select=lista,id', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' }, body: JSON.stringify(rows) });
-    const nuevas = new Set((data || []).map(r => r.lista + '\u0001' + r.id)), q = rows.filter(r => !nuevas.has(r.lista + '\u0001' + r.id));
-    await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const r = q.shift(); await this._rest('registros?lista=eq.' + encodeURIComponent(r.lista) + '&id=eq.' + encodeURIComponent(r.id), { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ datos: r.datos }) }); } }));
-  }
-  async createItem(ent, fields) { const r = await this._row(ent, fields); await this._upsert([r]); return r.id; }
-  async updateItem(ent, spid, fields) { const r = await this._row(ent, fields); await this._upsert([r]); }
-  async deleteItem(ent, spid) { await this._rest('registros?lista=eq.' + encodeURIComponent(this.listName(ent)) + '&id=eq.' + encodeURIComponent(spid), { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); }
-  async batchOps(ops) {
-    const out = ops.map(() => ({ ok: true, err: '' })), up = [], upI = [], del = {}, cond = [], alt = [];
-    for (let i = 0; i < ops.length; i++) {
-      const op = ops[i];
-      if (op.t === 'd') { (del[op.ent] = del[op.ent] || []).push([i, op.id]); }
-      else if (op.t === 'u' && this.ver && this.ver[op.ent + ':' + op.o.id]) { cond.push(i); }
-      else if (op.t === 'c') { alt.push(i); }
-      else { up.push(await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o))); upI.push(i); }
-    }
-    /* V22.34: detección de conflictos. Una actualización solo se aplica si el registro sigue con la versión que se leyó; un alta no pisa un id ya usado. */
-    const unoAUno = async (lst, fn) => { const q = lst.slice(); await Promise.all(Array.from({ length: Math.min(4, q.length) }, async () => { while (q.length) { const i = q.shift(); try { await fn(i); } catch (e) { out[i] = e.conflict ? { ok: false, conflict: true, err: e.message } : { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) }; } } })); };
-    await unoAUno(cond, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
-      const { data } = await this._rest('registros?lista=eq.' + encodeURIComponent(row.lista) + '&id=eq.' + encodeURIComponent(row.id) + '&actualizado=eq.' + encodeURIComponent(this.ver[k]) + '&select=actualizado', { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ datos: row.datos }) });
-      if (!data || !data.length) { const e = new Error('«' + op.o.id + '» fue modificado por otra persona'); e.conflict = true; throw e; }
-      this.ver[k] = data[0].actualizado || null; this.ids[op.ent][op.o.id] = op.o.id;
-    });
-    await unoAUno(alt, async i => {
-      const op = ops[i], k = op.ent + ':' + op.o.id, row = await this._row(op.ent, MapaDatos.fieldsOf(op.ent, op.o));
-      try { const { data } = await this._rest('registros?select=actualizado', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify([row]) }); this.ver = this.ver || {}; this.ver[k] = (data && data[0] && data[0].actualizado) || null; this.ids[op.ent][op.o.id] = op.o.id; }
-      catch (e) { if (e.status === 409) { const c = new Error('El id «' + op.o.id + '» ya fue usado por otra persona'); c.conflict = true; throw c; } throw e; }
-    });
-    if (up.length) {
-      try { await this._upsert(up); upI.forEach(i => { this.ids[ops[i].ent][ops[i].o.id] = ops[i].o.id; }); }
-      catch (e) {
-        if (e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) && up.length > 1) {
-          /* un registro inválido no debe bloquear al resto: se reintenta fila por fila */
-          for (let k = 0; k < up.length; k++) { const i = upI[k]; try { await this._upsert([up[k]]); this.ids[ops[i].ent][ops[i].o.id] = ops[i].o.id; } catch (e2) { out[i] = { ok: false, err: e2.message, perm: e2.status >= 400 && e2.status < 500 && ![401, 403, 408, 429].includes(e2.status) }; } }
-        } else upI.forEach(i => { out[i] = { ok: false, err: e.message, perm: e.status >= 400 && e.status < 500 && ![401, 403, 408, 429].includes(e.status) && up.length === 1 }; });
-      }
-    }
-    for (const ent of Object.keys(del)) {
-      const ids = del[ent].map(x => '"' + String(x[1]).replace(/"/g, '') + '"').join(',');
-      try { await this._rest('registros?lista=eq.' + encodeURIComponent(this.listName(ent)) + '&id=in.(' + encodeURIComponent(ids) + ')', { method: 'DELETE', headers: { Prefer: 'return=minimal' } }); del[ent].forEach(x => { delete this.ids[ent][x[1]]; }); }
-      catch (e) { del[ent].forEach(x => { out[x[0]] = { ok: false, err: e.message }; }); }
     }
     return out;
   }

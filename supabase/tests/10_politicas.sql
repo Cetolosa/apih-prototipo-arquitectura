@@ -119,12 +119,15 @@ insert into public.registros(lista,id,datos) values
 begin; set local role authenticated;
 select pg_temp.como('colab-a@test.cl');
 select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 1, 'colaborador solo ve su configuración personal');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab A","v":{"tema":"z"}}' where id='cfgU:colab-a@test.cl'$$) = 1, 'edita su configuración personal');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"n":"Colab B","v":{"tema":"hack"}}' where id='cfgU:colab-b@test.cl'$$) = 0, 'no edita la configuración de otra persona');
-select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Config','cfgU:colab-b@test.cl2','p1.{}')$$, 'no crea configuración personal ajena', '%row-level security%');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":999}' where id='cfg'$$) = 0, 'colaborador no cambia parámetros de la organización');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.[1]' where id='pres'$$) = 1, 'colaborador edita colecciones compartidas');
-update public.registros set datos='p1.{"PRJ":2,"RSK":9,"NUEVO":1}' where id='seq';
+select public.apih_guardar_ajuste('cfgU:colab-a@test.cl', '{"n":"Colab A","v":{"tema":"z"}}'::jsonb);
+select pg_temp.ok((select substr(datos,4)::jsonb #>> '{v,tema}' from public.registros_v where id='cfgU:colab-a@test.cl') = 'z', 'edita su configuración personal');
+select pg_temp.falla($$select public.apih_guardar_ajuste('cfgU:colab-b@test.cl', '{"n":"Colab B","v":{"tema":"hack"}}'::jsonb)$$, 'no edita la configuración de otra persona', '%sin permiso%');
+select pg_temp.falla($$select public.apih_guardar_ajuste('cfgU:colab-b@test.cl2', '{"n":"x","v":{}}'::jsonb)$$, 'no crea configuración personal ajena', '%sin permiso%');
+select pg_temp.falla($$insert into public.registros(lista,id,datos) values ('APIH_Config','cfgU:colab-a@test.cl2','p1.{}')$$, 'ni por la tabla', '%row-level security%');
+select pg_temp.falla($$select public.apih_guardar_ajuste('cfg', '{"umbral":999}'::jsonb)$$, 'colaborador no cambia parámetros de la organización', '%sin permiso%');
+select public.apih_guardar_ajuste('pres', '[1]'::jsonb);
+select pg_temp.ok((select substr(datos,4) from public.registros_v where id='pres') = '[1]', 'colaborador edita colecciones compartidas');
+select public.apih_guardar_ajuste('seq', '{"PRJ":2,"RSK":9,"NUEVO":1}'::jsonb);
 reset role;
 select pg_temp.ok((select substr(datos,4)::jsonb ->> 'PRJ' from public.registros where id='seq') = '10', 'el contador no retrocede');
 select pg_temp.ok((select substr(datos,4)::jsonb ->> 'RSK' from public.registros where id='seq') = '9', 'el contador sí avanza');
@@ -132,19 +135,21 @@ rollback;
 
 begin; set local role authenticated;
 select pg_temp.como('resp-g@test.cl');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":2}' where id='cfg'$$) = 1, 'responsable que gobierna cambia parámetros');
+select public.apih_guardar_ajuste('cfg', '{"umbral":2}'::jsonb);
+select pg_temp.ok((select substr(datos,4)::jsonb ->> 'umbral' from public.registros_v where id='cfg') = '2', 'responsable que gobierna cambia parámetros');
 select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 0, 'responsable no ve configuración personal ajena');
 rollback;
 
 begin; set local role authenticated;
 select pg_temp.como('inv-a@test.cl');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.[1]' where id='pres'$$) = 0, 'invitado no edita colecciones compartidas');
+select pg_temp.falla($$select public.apih_guardar_ajuste('pres', '[1]'::jsonb)$$, 'invitado no edita colecciones compartidas', '%sin permiso%');
 rollback;
 
 begin; set local role authenticated;
 select pg_temp.como('tolosa-christian@aramark.cl');
 select pg_temp.ok((select count(*) from public.registros_v where id like 'cfgU:%') = 2, 'admin ve toda la configuración personal');
-select pg_temp.ok(pg_temp.filas($$update public.registros set datos='p1.{"umbral":3}' where id='cfg'$$) = 1, 'admin cambia parámetros');
+select public.apih_guardar_ajuste('cfg', '{"umbral":3}'::jsonb);
+select pg_temp.ok((select substr(datos,4)::jsonb ->> 'umbral' from public.registros_v where id='cfg') = '3', 'admin cambia parámetros');
 rollback;
 
 -- alta de usuarios: dominio configurable
