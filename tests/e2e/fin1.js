@@ -20,14 +20,14 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
   const r = {}, n = s => p.$$eval(s, a => a.length);
   // 2) Planificación: Gantt, Roadmap, Fases, Hitos y Riesgos con selector de tipo
   r.ganttAmbos = await p.$$eval('.g-bar', a => a.map(x => x.dataset.id).filter(id => /050/.test(id)).join(','));
-  await p.selectOption('[data-chg="ptipo"]', 'prop'); await p.waitForTimeout(200); r.ganttProp = await p.$$eval('.g-bar', a => a.map(x => x.dataset.id).join(','));
+  await p.click('[data-id="pop-fx-alc"]'); await p.selectOption('[data-chg="ptipo"]', 'prop'); await p.waitForTimeout(200); r.ganttProp = await p.$$eval('.g-bar', a => a.map(x => x.dataset.id).join(','));
   await p.selectOption('[data-chg="ptipo"]', 'all');
   for (const v of ['roadmap', 'fases', 'hitos', 'riesgos']) { await p.evaluate(v => { UI.view = v; render(); }, v); await p.waitForTimeout(250); r['seg_' + v] = await n('[data-chg="ptipo"] option'); }
   await p.evaluate(() => { UI.view = 'roadmap'; render(); }); await p.waitForTimeout(200); r.roadmapProp = await p.evaluate(() => document.body.innerText.includes('Propuesta Planificador de Menús'));
   await p.evaluate(() => { UI.view = 'fases'; F('fases', {}).id = 'PRO-050'; F('fases', {}).tab = 'linea'; render(); }); await p.waitForTimeout(250); r.fasesProp = await p.$$eval('.fz-step', a => a.map(x => x.textContent.split(' ')[0]).length);
   // 3) Categorías: filtro en Hitos
   await p.evaluate(() => { UI.view = 'hitos'; render(); }); await p.waitForTimeout(200);
-  r.hitosTodos = await n('.tbl tbody tr[data-t="hito"]'); r.hitosGobEsperado = await p.$$eval('.tbl tbody tr[data-t="hito"] small', a => a.filter(x => /^Gobierno ·/.test(x.textContent.trim())).length); await p.selectOption('[data-v="hitos"][data-f="cat"]', 'Gobierno'); await p.waitForTimeout(200);
+  r.hitosTodos = await n('.tbl tbody tr[data-t="hito"]'); r.hitosGobEsperado = await p.$$eval('.tbl tbody tr[data-t="hito"] small', a => a.filter(x => /^Gobierno ·/.test(x.textContent.trim())).length); await p.click('[data-id="pop-fx-fil"]'); await p.selectOption('[data-v="hitos"][data-f="cat"]', 'Gobierno'); await p.waitForTimeout(200);
   r.hitosGob = await n('.tbl tbody tr[data-t="hito"]');
   await p.screenshot({ path: '/tmp/t/fin-a.png' });
   // 1) Ficha de propuesta con Planificación e Hitos, filtro por categoría
