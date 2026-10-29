@@ -744,7 +744,7 @@ export function rolActual() { return ctx().appRol || 'Invitado'; }
 export const areasDe = a => String(Array.isArray(a) ? a.join(',') : a || '').split(',').map(x => x.trim()).filter(Boolean);
 export const areasPropias = () => ctx().areas || [];
 const puedeVerTodo = () => !!ctx().veTodo;
-export const areaVisible = a => puedeVerTodo() || !areasDe(a).length || areasDe(a).some(x => (ctx().areasVisibles || []).includes(x));   // solo afina listas ya filtradas por el servidor
+export const areaVisible = a => puedeVerTodo() || ctx().restringido || !areasDe(a).length || areasDe(a).some(x => (ctx().areasVisibles || []).includes(x));   // solo afina listas ya filtradas por el servidor
 function puedeEditarArea(a) { if (ctx().editaTodo) return true; const l = ctx().areasEditables || [], v = areasDe(a); return !v.length || v.some(x => l.includes(x)); }   // alta de algo que aún no existe en el servidor
 export const puedeEditarIni = i => !!i && (PERM.edit.has(i.id) ? PERM.edit.get(i.id) : puedeEditarArea(i.area));
 export const puedeVerAnalisis = () => APIH_CONFIG.analisis !== false && !!ctx().puedeVerAnalisis;

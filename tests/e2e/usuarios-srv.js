@@ -18,11 +18,14 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     [...document.querySelectorAll('.modal button')].find(x => /^Guardar/.test(x.textContent.trim())).click();
     for (let k = 0; k < 40; k++) { await new Promise(r => setTimeout(r, 250)); const u = (UI.usrs || []).find(x => x.email === o.yo.email); if (u && (u.proyectos || []).includes('PRJ-909')) { o.asig = true; break; } }
     o.ctx = (PERM.ctx.proyectos || []).includes('PRJ-909');
+    const c0 = PERM.ctx; PERM.ctx = Object.assign({}, c0, { esAdmin: false, veTodo: false, areasVisibles: [], restringido: false }); o.sinAcceso = !areaVisible('Otra área');
+    PERM.ctx = Object.assign({}, c0, { esAdmin: false, veTodo: false, areasVisibles: [], restringido: true }); o.acotado = !!areaVisible('Otra área'); PERM.ctx = c0;
     return o;
   });
   ok(r.lista && r.tabla, 'Administración muestra los usuarios que entrega el servidor');
   ok(r.campo, 'el formulario permite elegir proyectos asignados');
   ok(r.asig, 'la asignación de proyectos se guarda en el servidor');
+  ok(r.sinAcceso && r.acotado, 'quien está acotado a proyectos ve los que el servidor le entrega, aunque no tenga áreas visibles');
   ok(!errs.length, 'sin errores de página ' + errs.join('|'));
   await b.close(); console.log(f.length ? 'FALLA usuarios-srv' : 'OK usuarios-srv'); process.exit(f.length ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });
