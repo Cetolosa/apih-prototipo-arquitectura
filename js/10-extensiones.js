@@ -542,7 +542,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       m.insertAdjacentHTML('afterbegin', ht); return;
     }
     const h = `<div class="menu-tabs" role="tablist" aria-label="${esc(g.t)}">${g.vs.map(x => { const b = +navBadge(x[0]) || 0; return `<a role="tab" class="${UI.view === x[0] ? 'on' : ''}" data-act="go" data-v="${x[0]}" href="#/${x[0]}" aria-selected="${UI.view === x[0]}">${esc(x[1])}${b ? `<em>${b}</em>` : ''}</a>`; }).join('')}</div>`;
-    const ia = ['inicio', 'iniciativas', 'planificacion'].includes(g.k) && sr(':scope>.ph .ph-act', m);
+    const ia = ['inicio', 'iniciativas', 'planificacion', 'gobierno'].includes(g.k) && sr(':scope>.ph .ph-act', m);
     if (ia) {   /* Tabla / Tablero, Dashboard / Mi cocina y las pestañas de Planificación van junto al título */
       let hh = h;
       if (g.k === 'planificacion') {   /* Cronograma agrupa Gantt, Fases, Roadmap y Calendario */
@@ -550,7 +550,12 @@ import { GUIA, presLayout } from './09-presentaciones.js';
         const tab = x => { const b = +navBadge(x[0]) || 0; return `<a role="tab" class="${UI.view === x[0] ? 'on' : ''}" data-act="go" data-v="${x[0]}" href="#/${x[0]}" aria-selected="${UI.view === x[0]}">${esc(x[1])}${b ? `<em>${b}</em>` : ''}</a>`; };
         const crono = cr.length ? `<span class="popw fx-crono"><button type="button" role="tab" class="${act ? 'on' : ''}" data-act="pop" data-id="pop-crono" aria-selected="${!!act}" aria-haspopup="menu">${esc('Cronograma' + (act ? ' · ' + act[1] : ''))} <span aria-hidden="true">▾</span></button><div class="pop" id="pop-crono" role="menu">${cr.map(x => `<button type="button" role="menuitem" data-act="go" data-v="${x[0]}" class="${UI.view === x[0] ? 'on' : ''}">${esc(x[1])}${UI.view === x[0] ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div></span>` : '';
         hh = `<div class="menu-tabs" role="tablist" aria-label="${esc(g.t)}">${crono}${rs.map(tab).join('')}</div>`;
-        const h1 = sr(':scope>.ph h1', m); if (h1) h1.textContent = g.t;   /* el título es el módulo; la pestaña activa se ve en el selector */
+      }
+      if (g.k === 'gobierno') hh = h.replace('>Pipeline de propuestas<', '>Pipeline<');   /* el título ya dice el módulo */
+      const SUB = { planificacion: ['Cronograma, hitos y riesgos', 'del portafolio'], gobierno: ['Propuestas, decisiones', 'y cambios del portafolio'] }[g.k];
+      if (SUB) {   /* el título es el módulo (la pestaña activa se ve en el selector) y la bajada va en dos líneas */
+        const h1 = sr(':scope>.ph h1', m), pp = sr(':scope>.ph p', m); if (h1) h1.textContent = g.t;
+        if (pp) { pp.title = ''; pp.innerHTML = `<span class="ph-s2"><span>${esc(SUB[0])}</span><span>${esc(SUB[1])}</span></span>`; }
       }
       ia.insertAdjacentHTML('afterbegin', hh.replace('class="menu-tabs"', 'class="menu-tabs in-ph"')); if (UI.pop === 'pop-crono') { const e = sr('#pop-crono'); if (e) e.classList.add('open'); } return;
     }
