@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, DECS, HITOS, St, _nrm, atrasado, by, byId, clone, diffD, esProp, esc, expo, fmtD, fmtDL, hitosDe, hoy, icon, inArea, isLive, log, nameOf, nextId, riesgoAbierto, riesgosDe, save, scope, scopeP, sum, tipoLbl, uniq } from './01-nucleo.js';
+import { $, $$, DECS, HITOS, St, _nrm, atrasado, by, byId, clone, diffD, esProp, esc, expo, fmtD, fmtDL, hitosDe, hoy, icon, inArea, isLive, nameOf, nextId, riesgoAbierto, riesgosDe, save, scope, scopeP, sum, tipoLbl, uniq } from './01-nucleo.js';
 import { Acts, Chg, F, Modal, NAV, UI, Views, btn, confirmBox, downloadBlob, empty, go, openForm, pageHead, panelDec, panelHito, panelIni, panelRisk, refresh, render, selOpts, toast, zipStore } from './03-interfaz.js';
 import { NAV_GRP, esAdministra, ptemaEf, ptemaSet, soloMio } from './07-gobierno.js';
 import { GENE } from './08g-generador-ensamble.js';
@@ -91,7 +91,7 @@ const offKey = (ck, k) => ck === 'portafolio' || k.startsWith('free:') ? k : ck 
 const isOff = (c, ck, k) => { const v = c.off[offKey(ck, k)]; return v === undefined ? (DEF_OFF[ck] || []).includes(k) : !!v; };
 const OPTS = {};   // las láminas del original no tienen opciones: qué entra se decide con las casillas "Incluir en presentación"
 const OPT_DEF = {};
-const REGLAS_DEF = () => ({ hitosDias: 30, riesgoMin: 15, soloEnCurso: true, soloAtencion: false, decPend: true, propAprob: true });
+const REGLAS_DEF = () => ({});   // solo lo que la persona cambia; el servidor completa los valores por defecto y evalúa
 export const PRES_DEF = () => ({ alcance: 'portafolio', proys: [], multi: 'bloques', cur: '', titulo: 'Portafolio TI Operaciones · Comité Ejecutivo', comite: '', area: '', nivel: 'ej', order: {}, off: {}, so: {}, free: [], exec: {}, idx: 0, tpl: '', frozen: '', optk: '', tab: 'slides', reglas: REGLAS_DEF() });
 const pcfg = () => { const c = F('pres', PRES_DEF()); if (!c.reglas || !c.order || Array.isArray(c.order)) { c.reglas = c.reglas || REGLAS_DEF(); if (!c.order || Array.isArray(c.order)) c.order = {}; } return c; };
 const catKey = (c, id) => c.alcance === 'proyecto' ? (byId(id || c.cur || (c.proys || [])[0]) && esProp(byId(id || c.cur || c.proys[0])) ? 'propuesta' : 'proyecto') : 'portafolio';
@@ -102,17 +102,16 @@ function withArea(c, fn) { const sv = St.cfg.areaGlobal; if (c.area) St.cfg.area
 const areaTxt = c => { const a = c.area || St.cfg.areaGlobal; return a === 'Todas' ? 'Todas las áreas' : a; };
 
 /* ---------- reglas "Aplicar reglas" ---------- */
-function evalRegla(kind, o, R) {   // → {ok, why}
-  if (kind === 'prj') {
-    if (R.soloEnCurso && o.estado !== 'En curso') return { ok: false, why: 'Estado ' + o.estado };
-    if (R.soloAtencion && !(o.rag !== 'Verde' || atrasado(o))) return { ok: false, why: 'Verde y sin atraso' };
-    return { ok: true, why: o.estado + ' · ' + o.rag + (atrasado(o) ? ' · atrasado' : '') };
-  }
-  if (kind === 'prop') { if (R.propAprob && !(o.fase === 'Aprobación' && o.estado === 'Vigente')) return { ok: false, why: 'Fase ' + o.fase + (o.estado !== 'Vigente' ? ' · ' + o.estado : '') }; return { ok: true, why: o.fase + ' · ' + o.estado }; }
-  if (kind === 'hito') { if (o.completado) return { ok: false, why: 'Ya completado' }; const d = diffD(o.fecha, hoy()); return d <= R.hitosDias ? { ok: true, why: d < 0 ? 'Vencido hace ' + (-d) + ' d' : 'En ' + d + ' d' } : { ok: false, why: 'A ' + d + ' d (> ' + R.hitosDias + ')' }; }
-  if (kind === 'rsk') { if (!riesgoAbierto(o)) return { ok: false, why: 'Cerrado' }; return expo(o) >= R.riesgoMin ? { ok: true, why: 'Exposición ' + expo(o) } : { ok: false, why: 'Exposición ' + expo(o) + ' (< ' + R.riesgoMin + ')' }; }
-  if (kind === 'dec') { if (R.decPend && o.estado !== 'Pendiente') return { ok: false, why: o.estado }; return { ok: true, why: o.estado }; }
-  return { ok: true, why: '' };
+/* El servidor evalúa las reglas (apih_pres_evaluar). Aquí solo se guarda el último resultado y se repinta cuando llega. */
+const EV = { clave: '', items: {}, reglas: {}, esperando: '' };
+const evalRegla = (kind, o) => EV.items[kind + ':' + o.id] || { ok: true, why: '…' };
+const reglasEf = c => Object.assign({}, EV.reglas, c.reglas || {});
+const itemsDe = K => [['prj', 'prj'], ['prop', 'prop'], ['hito', 'hito'], ['rsk', 'rsk'], ['dec', 'dec']].flatMap(([g, k]) => (K[g] || []).map(o => ({ k, id: o.id })));
+function pedirEval(c, K) {
+  const items = itemsDe(K), clave = JSON.stringify([items, c.reglas || {}]);
+  if (clave === EV.clave || clave === EV.esperando) return;
+  EV.esperando = clave;
+  ENLACES.DataService.svc.rpc('apih_pres_evaluar', { p_reglas: c.reglas || {}, p_items: items }).then(r => { EV.clave = clave; EV.items = (r && r.items) || {}; EV.reglas = (r && r.reglas) || {}; EV.esperando = ''; if (document.querySelector('.qe-rules')) render(); }).catch(() => { EV.esperando = ''; });
 }
 function candidatos(c) { return soloMio(() => _cand(c)); }
 function _cand(c) {   // universo del alcance (para el panel "Qué entra" y "Aplicar reglas")
@@ -126,12 +125,11 @@ function _cand(c) {   // universo del alcance (para el panel "Qué entra" y "Apl
     return { prj: P.filter(isLive), prop: Q.filter(isLive), hito: HITOS().filter(h => inA(h.ini) && !h.completado), rsk: St.riesgos.filter(r => riesgoAbierto(r) && inA(r.ini)), dec: DECS().filter(d => d.estado === 'Pendiente' && inA(d.ini)), bit: St.bitacora.filter(b => b.tipo === 'Comentario' && b.ini && inA(b.ini)) };
   });
 }
-function aplicarReglas(c) {
-  const K = candidatos(c), R = c.reglas; let off = 0;
-  [['prj', 'prj'], ['prop', 'prop'], ['hito', 'hito'], ['rsk', 'rsk'], ['dec', 'dec']].forEach(([g, kind]) => K[g].forEach(o => { const ok = evalRegla(kind, o, R).ok; if (ok) delete o.inPres; else { o.inPres = false; off++; } }));
-  log('Cambio', null, 'Presentación: reglas aplicadas (' + off + ' elementos fuera)'); save(); return off;
+async function aplicarReglas(c) {
+  const r = await (0, ENLACES.cmdServidor)('apih_pres_aplicar_reglas', { p_reglas: c.reglas || {}, p_items: itemsDe(candidatos(c)) }, null);
+  return r ? r.fuera : 0;
 }
-function marcarTodo(c, val) { const K = candidatos(c); Object.values(K).forEach(a => a.forEach(o => { if (val) delete o.inPres; else o.inPres = false; })); save(); }
+async function marcarTodo(c, val) { const K = candidatos(c); await (0, ENLACES.cmdServidor)('apih_pres_marcar', { p_items: [...itemsDe(K), ...K.bit.map(o => ({ k: 'bit', id: o.id }))].map(x => ({ ...x, incluir: !!val })) }, null); }
 
 
 const clip = (s, n) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
@@ -275,8 +273,8 @@ function incMarks() {
   m.querySelectorAll('article.icard[data-t="ini"][data-id]').forEach(a => { const k = kindOf('ini', a.dataset.id), h = chk(k, a.dataset.id); if (h) a.insertAdjacentHTML('beforeend', `<div class="inc-mini">${h}</div>`); });
   m.querySelectorAll('.dcard').forEach(a => { const e = a.querySelector('[data-t="dec"][data-id]'); if (!e) return; const h = chk('dec', e.dataset.id); if (h) a.insertAdjacentHTML('beforeend', `<div class="inc-mini">${h}</div>`); });
 }
-Chg.incl = el => { const o = (INC_E[el.dataset.e]() || []).find(x => x.id === el.dataset.id); if (!o) return; if (el.checked) delete o.inPres; else o.inPres = false; save(); refresh(); };
-Chg.incltxt = el => { const o = byId(el.dataset.id); if (!o) return; o.incTxt = o.incTxt || {}; if (el.checked) delete o.incTxt[el.dataset.f]; else o.incTxt[el.dataset.f] = false; if (!Object.keys(o.incTxt).length) delete o.incTxt; save(); refresh(); };
+Chg.incl = el => { (0, ENLACES.cmdServidor)('apih_pres_marcar', { p_items: [{ k: el.dataset.e, id: el.dataset.id, incluir: el.checked }] }, null).then(() => refresh()); };
+Chg.incltxt = el => { const o = byId(el.dataset.id); if (!o) return; (0, ENLACES.cmdServidor)('apih_pres_marcar', { p_items: [{ k: esProp(o) ? 'prop' : 'prj', id: o.id, campo: el.dataset.f, incluir: el.checked }] }, null).then(() => refresh()); };
 
 /* ---------- vista Presentaciones ---------- */
 const activeId = c => c.alcance === 'proyecto' ? (c.proys.includes(c.cur) ? c.cur : c.proys[0]) : undefined;
@@ -306,9 +304,9 @@ function slideList(c, M) {
   }).join('')}</div><div style="margin-top:10px">${btn('Diapositiva libre', 'pfree', { d: { id: '' }, ic: 'plus' })}</div>`;
 }
 function queEntra(c) {
-  const K = candidatos(c), R = c.reglas, single = c.alcance === 'proyecto';
+  const K = candidatos(c), R = reglasEf(c), single = c.alcance === 'proyecto'; pedirEval(c, K);
   const grp = (title, key, kind, lab) => { const A = K[key]; if (!A.length) return ''; const n = A.filter(inc).length;
-    return `<details class="qe" ${single || A.length < 12 ? 'open' : ''}><summary><b>${title}</b> <span class="cnt">${n} de ${A.length} entran</span></summary><div class="qe-l">${A.map(o => { const e = evalRegla(kind, o, R), on = inc(o); return `<label class="qe-r ${on ? '' : 'off'}"><input type="checkbox" data-chg="incl" data-e="${kind}" data-id="${esc(o.id)}" ${on ? 'checked' : ''}><span class="r-m"><b>${esc(lab(o))}</b></span><span class="pill soft ${e.ok ? 'ok' : 'no'}" title="${e.ok ? 'Cumple las reglas' : 'No cumple las reglas'}">${e.ok ? '✔' : '✘'} ${esc(e.why)}</span></label>`; }).join('')}</div></details>`; };
+    return `<details class="qe" ${single || A.length < 12 ? 'open' : ''}><summary><b>${title}</b> <span class="cnt">${n} de ${A.length} entran</span></summary><div class="qe-l">${A.map(o => { const e = evalRegla(kind, o), on = inc(o); return `<label class="qe-r ${on ? '' : 'off'}"><input type="checkbox" data-chg="incl" data-e="${kind}" data-id="${esc(o.id)}" ${on ? 'checked' : ''}><span class="r-m"><b>${esc(lab(o))}</b></span><span class="pill soft ${e.ok ? 'ok' : 'no'}" title="${e.ok ? 'Cumple las reglas' : 'No cumple las reglas'}">${e.ok ? '✔' : '✘'} ${esc(e.why)}</span></label>`; }).join('')}</div></details>`; };
   const txt = single ? c.proys.map(byId).filter(Boolean).map(i => `<details class="qe" open><summary><b>Textos · ${esc(i.id)}</b></summary><div class="qe-l">${[['resumen', 'Resumen'], ['logros', 'Logros'], ['proximos', 'Próximos pasos'], ['issue', 'Tema a resolver']].filter(([f]) => i[f]).map(([f, l]) => `<label class="qe-r"><input type="checkbox" data-chg="incltxt" data-id="${i.id}" data-f="${f}" ${incT(i, f) ? 'checked' : ''}><span class="r-m"><b>${l}</b><small>${esc(clip(i[f], 110))}</small></span></label>`).join('')}</div></details>`).join('') : '';
   return `<div class="qe-rules"><div class="fgrid"><div class="fld"><label>Hitos hasta (días)</label><input type="number" min="1" value="${R.hitosDias}" data-chg="preg" data-r="hitosDias" data-num="1"></div><div class="fld"><label>Riesgos con exposición ≥</label><input type="number" min="1" max="25" value="${R.riesgoMin}" data-chg="preg" data-r="riesgoMin" data-num="1"></div>
     <label class="chk"><input type="checkbox" data-chg="preg" data-r="soloEnCurso" data-bool="1" ${R.soloEnCurso ? 'checked' : ''}> <span>Proyectos solo En curso</span></label><label class="chk"><input type="checkbox" data-chg="preg" data-r="soloAtencion" data-bool="1" ${R.soloAtencion ? 'checked' : ''}> <span>Solo rojo / ámbar / atrasados</span></label>
@@ -391,8 +389,8 @@ Acts.pfreedel = d => { const c = pcfg(); c.free = c.free.filter(x => x.id !== d.
 Acts.pexec = d => { const c = pcfg(), M = slidesOf(c, activeId(c)), p = (M.pages[d.k] || [])[0]; if (!p || !p.exec) return; c.exec = c.exec || {}; const cur = c.exec._ ? c.exec._.lead : p.exec.gen.lead;
   openForm({ title: 'Editar mensaje del resumen ejecutivo', values: { lead: cur }, wide: true, danger: p.exec.edited ? 'Restaurar texto generado' : null, onDanger: () => { delete c.exec._; Modal.close(); prr(); }, fields: [{ k: 'lead', l: 'Mensaje principal (aparece bajo las cifras; ~260 caracteres)', t: 'textarea', w: 3 }], onSave(o) { c.exec._ = { lead: o.lead }; prr(); } }); };
 Chg.preg = el => { const c = pcfg(); c.reglas[el.dataset.r] = el.dataset.bool ? el.checked : Math.max(1, +el.value || 1); prr(); };
-Acts.paplicar = () => { const n = aplicarReglas(pcfg()); toast(n ? n + ' elementos quedaron fuera de la presentación' : 'Todo cumple las reglas: nada que excluir'); prr(); };
-Acts.pall = d => { marcarTodo(pcfg(), +d.v); toast(+d.v ? 'Todo incluido' : 'Todo excluido'); prr(); };
+Acts.paplicar = async () => { const n = await aplicarReglas(pcfg()); toast(n ? n + ' elementos quedaron fuera de la presentación' : 'Todo cumple las reglas: nada que excluir'); prr(); };
+Acts.pall = async d => { await marcarTodo(pcfg(), +d.v); toast(+d.v ? 'Todo incluido' : 'Todo excluido'); prr(); };
 Acts.pnav = d => { const c = pcfg(), n = buildAll(c).length; if (!n) return; c.idx = (c.idx + +d.d + n) % n; prr(); };
 Acts.pgoto = d => { pcfg().idx = +d.k; prr(); };
 
@@ -400,7 +398,7 @@ Acts.pgoto = d => { pcfg().idx = +d.k; prr(); };
 Acts.ptplsave = () => { const c = pcfg(), ck = catKey(c, activeId(c)), a = c.alcance === 'proyecto' ? (byId(activeId(c)) || { area: '' }).area.split(',')[0].trim() : (c.area || St.cfg.areaGlobal);
   openForm({ title: 'Guardar como plantilla', values: { nombre: '', area: a === 'Todas' ? 'Todas' : a }, fields: [{ k: 'nombre', l: 'Nombre', req: true, w: 3 }, { k: 'area', l: 'Disponible para', t: 'select', opts: [{ v: 'Todas', t: 'Todas las áreas' }, ...St.cfg.areas.map(x => ({ v: x, t: x }))], w: 3 }], onSave(o) {
     const ord = ordOf(c, ck), t = { id: nextId('TPL', St.ptpl || []), nombre: o.nombre, area: o.area, ck, alcance: c.alcance, order: ord.slice(), off: Object.fromEntries(ord.map(k => [k, isOff(c, ck, k) ? 1 : 0])), so: clone(Object.fromEntries(Object.entries(c.so).filter(([k]) => ord.includes(k)))), free: clone(c.free.filter(f => f.ck === ck)), nivel: c.nivel, reglas: clone(c.reglas), autor: St.cfg.usuario, priv: esAdministra() ? 0 : 1, fecha: hoy() };
-    St.ptpl = St.ptpl || []; St.ptpl.push(t); c.tpl = t.id; log('Cambio', null, 'Plantilla de presentación creada: ' + o.nombre); save(); toast('Plantilla guardada'); prr(); } }); };
+    St.ptpl = St.ptpl || []; St.ptpl.push(t); c.tpl = t.id; save(); toast('Plantilla guardada'); prr(); } }); };
 Acts.ptplapply = () => { const c = pcfg(), t = (St.ptpl || []).find(x => x.id === c.tpl); if (!t) { toast('Elige una plantilla', 'err'); return; } const ck = t.ck;
   c.free = c.free.filter(f => f.ck !== ck).concat(clone(t.free || [])); c.order[ck] = t.order.slice(); Object.keys(t.off || {}).forEach(k => { c.off[offKey(ck, k)] = t.off[k]; }); Object.assign(c.so, clone(t.so)); c.nivel = t.nivel || c.nivel; if (t.reglas) c.reglas = clone(t.reglas); c.idx = 0; toast('Plantilla aplicada: ' + t.nombre); prr(); };
 Acts.ptpldel = () => { const c = pcfg(), t = (St.ptpl || []).find(x => x.id === c.tpl); if (!t) return; confirmBox(`¿Eliminar la plantilla <b>${esc(t.nombre)}</b>?`, () => { St.ptpl = St.ptpl.filter(x => x.id !== t.id); c.tpl = ''; save(); prr(); }, 'Eliminar', true); };
@@ -421,7 +419,7 @@ function saveSnap(c, deck, nombre, items) {
 Acts.pressave = () => { const c = pcfg(); if (c.frozen) { toast('Ya es una copia guardada', 'err'); return; }
   if (c.alcance === 'proyecto' && c.multi === 'separados' && c.proys.length > 1) { decksSeparados(c).forEach(d => saveSnap(c, d.slides, c.titulo + ' · ' + d.id, [d.id])); toast(c.proys.length + ' presentaciones guardadas en el historial'); }
   else { const d = buildAll(c); if (!d.length) { toast('No hay diapositivas para guardar', 'err'); return; } saveSnap(c, d, c.titulo, c.alcance === 'proyecto' ? c.proys.slice() : []); toast('Presentación guardada (contenido y selección congelados)'); }
-  log('Cambio', null, 'Presentación guardada: ' + c.titulo); save(); c.tab = 'hist'; prr(); };
+  save(); c.tab = 'hist'; prr(); };
 Acts.phver = d => { const c = pcfg(); c.frozen = d.id; c.idx = 0; c.tab = 'hist'; prr(); };
 Acts.phlive = () => { pcfg().frozen = ''; pcfg().idx = 0; prr(); };
 Acts.phdup = d => { const sn = St.psnap[d.id]; if (!sn) return; const c = pcfg(); const cf = clone(sn.cfg); Object.keys(cf).forEach(k => { c[k] = cf[k]; }); c.frozen = ''; c.titulo = (cf.titulo || 'Presentación') + ' (copia)'; c.tab = 'slides'; c.idx = 0; toast('Copia editable creada con la configuración guardada (datos actuales)'); prr(); };
@@ -514,7 +512,7 @@ function layoutBlocks(S, blocks, x, y, w, hMax) {
 function svgPng(svg, w, h, scale = 2) {   // SVG → PNG (Uint8Array) con canvas
   return new Promise(res => {
     const img = new Image(), done = v => res(v); img.onload = () => { try { const cv = document.createElement('canvas'); cv.width = Math.round(w * scale); cv.height = Math.round(h * scale); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); cv.toBlob(async b => done(b ? new Uint8Array(await b.arrayBuffer()) : null), 'image/png'); } catch (e) { done(null); } };
-    img.onerror = () => done(null); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    img.onerror = () => done(null); img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));   // V11: blob: en vez de data: (CSP img-src sin data:)
   });
 }
 async function prepSlide(s) {   // rasteriza los SVG de la diapositiva (recursivo)
@@ -670,7 +668,7 @@ export const GUIA = {
     ['Ve lo suyo', '«Ver lo suyo» filtra por esa persona; «Ver como» (solo administrador) simula su sesión.']] },
   admin: { t: 'Administración', p: [
     ['Elige la pestaña', 'Parámetros, catálogos, usuarios, calidad de datos, conexión y respaldo.'],
-    ['Conecta datos', 'Conexión: «Probar conexión» → «Sincronizar ahora». Las tablas y reglas se crean con las migraciones de supabase/.'],
+    ['Conecta datos', 'Conexión: «Probar conexión» → «Sincronizar ahora». Las tablas y reglas se crean con las migraciones de db/azure-sql/.'],
     ['Cuida la calidad', 'La auditoría lista campos faltantes; corrígelos desde cada ficha.'],
     ['Respalda', '«Respaldo JSON» antes de cambios grandes; «Importar respaldo» restaura.']] },
   cielo: { t: 'Mi cocina', p: [
@@ -767,7 +765,7 @@ NAV.push(['ficha', 'Ficha', 'list']); NAV_GRP.ficha = 'Sistema';
    4. Skeleton de carga (en lugar del spinner genérico).
    5. Simple y Profesional: mismo esqueleto, orden, colores e íconos; cambia solo la densidad. Siempre parte en Simple.
    6. Comentarios de colaboradores por área (los ve quien tiene acceso al área; Administra/Responsable los marca «abordado»).
-   7. Login individual con Supabase Auth: cada persona su contraseña, que solo ella conoce y puede cambiar.
+   7. Acceso según el ambiente (01t-transporte.js y 10b-acceso.js).
    ============================================================ */
 
 // Enlaces para módulos anteriores (ver 00-registro.js)

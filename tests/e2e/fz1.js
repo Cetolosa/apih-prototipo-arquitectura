@@ -1,6 +1,6 @@
 // V22.53 · Vista Fases: 4 miradas con datos sintéticos (docs/seed/iniciativas-sinteticas.json)
 const { chromium, launchOpts } = require('./_pw');
-const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
+const plan = require('./fixtures/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
   const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));

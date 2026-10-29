@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, CALC, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, log, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, DECS, EST_MOTIVO, EST_REVISION, FASES_ACT, FASES_PRJ, FASES_PROP, HITOS, PRJS, RIESGOS, St, addD, by, byId, clone, completitud, diasSinUpd, diffD, esProp, esSB, esc, estadosDe, fasesDe, fmtD, fmtMon, compuertas, hitosDe, hoy, icon, inArea, isDone, isLive, miUsuario, monOf, nameOf, nextId, riesgoAbierto, roi, tipoLbl } from './01-nucleo.js';
 import { DataService } from './02-datos.js';
 import { Acts, Chg, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, refresh, tipoPill, toast } from './03-interfaz.js';
 /* =====================================================================
@@ -9,25 +9,6 @@ import { Acts, Chg, Modal, UI, confirmBox, estTag, iniLink, kv, openForm, prog, 
    ===================================================================== */
 
 /* Convierte el modelo anterior (una sola entidad INI-xxx) al modelo V5 (PROP-/PRJ-) */
-export function migrateV5(S) {
-  if (!S || !S.ini || S.ini.every(i => i.tipo)) return S;
-  const OLDP = ['Propuesta', 'Recepción', 'Evaluación', 'Caso Negocio', 'Caso de Negocio', 'Aprobación'];
-  const map = {}, meta = []; let np = 0, nj = 0; const p3 = n => String(n).padStart(3, '0');
-  S.ini.forEach(i => { const prop = i.tipo ? i.tipo === 'Propuesta' : OLDP.includes(i.fase); const id = (prop ? 'PROP-' : 'PRJ-') + p3(prop ? ++np : ++nj); map[i.id] = id; meta.push({ old: i.id, prop }); });
-  const T = JSON.parse(JSON.stringify(S).replace(/INI-\d+/g, m => map[m] || m));   // reasigna todas las referencias (hitos, riesgos, decisiones, bitácora, comités…)
-  const EP = { 'En espera': 'En espera', 'Pausada': 'En espera', 'Cancelada': 'Rechazada', 'Completada': 'Aprobada', 'En curso': 'Vigente' };
-  const EJ = { 'En espera': 'Pausado', 'Pausada': 'Pausado', 'Cancelada': 'Cancelado', 'Completada': 'Completado', 'En curso': 'En curso' };
-  T.ini.forEach((i, k) => {
-    const prop = meta[k].prop; i.tipo = prop ? 'Propuesta' : 'Proyecto'; i.legacyId = meta[k].old;
-    if (i.fase === 'Propuesta') i.fase = 'Recepción'; if (i.fase === 'Caso Negocio') i.fase = 'Caso de Negocio';
-    i.estado = (prop ? EP : EJ)[i.estado] || (prop ? 'Vigente' : 'En curso');
-    if (prop) { i.rag = i.rag || 'Verde'; } 
-    i.propuestaOrigen = i.propuestaOrigen || null; i.faseDesde = i.faseDesde || i.actualizada || i.creada || null;
-    i.estadoMotivo = i.estadoMotivo || ''; i.estadoRev = i.estadoRev || null;
-    if (i.estado === 'En espera' || i.estado === 'Pausado') { i.estadoMotivo = i.estadoMotivo || 'Migrado de versión anterior'; i.estadoRev = i.estadoRev || addD(hoy(), 30); }
-  });
-  return T;
-}
 export const diasEnFase = i => diffD(hoy(), i.faseDesde || i.actualizada || i.creada || hoy());
 export function semFase(i) { const s = CALC.sem && CALC.sem[i.id]; return { c: s && s.nivel === 'rojo' ? '#D13438' : s && s.nivel === 'amb' ? '#F2A100' : '#107C10', d: s ? s.dias : diasEnFase(i) }; }   // el nivel (verde/ámbar/rojo) lo decide el servidor
 
@@ -81,7 +62,7 @@ function errorServidor(e, enForm) {
   toast(m, 'err');
   if (enForm && e && e.campo) { const el = $('#f_' + e.campo); if (el) { el.classList.add('bad'); const tp = el.closest('.ftab'); if (tp && !tp.classList.contains('on')) Acts.ftab({ t: tp.dataset.t }); el.focus(); } }
 }
-/* Con servidor (Supabase): la aprobación es un comando transaccional en la base (apih_aprobar_propuesta); aquí solo se pide y se recarga */
+/* Con servidor: la aprobación es un comando transaccional de la API (apih_aprobar_propuesta); aquí solo se pide y se recarga */
 export async function aprobarEnServidor(p, miss, force, nota) {
   if (miss.length && !(0, ENLACES.esAdministra)()) return toast('Hay compuertas incumplidas. Solo el rol Administra puede forzarlas: completa los datos.', 'err');
   if (miss.length && !force) return toast(`Hay ${miss.length} compuerta(s) sin cumplir. Pulsa «Corregir» en cada una o marca «Forzar cambio» (solo Administra).`, 'err');
@@ -196,16 +177,8 @@ function propResumen(i) {
    ============================================================ */
 export const nextHito = i => hitosDe(i.id).filter(h => !h.completado).sort(by('fecha'))[0] || null;
 export const priorScore = i => (i && CALC.puntajes && CALC.puntajes[i.id]) || 0;   // el puntaje de priorización lo calcula el servidor
-export function myWork() {
-  const me = miUsuario(), items = [], L = d => diffD(d, hoy());
-  HITOS().forEach(h => { const i = byId(h.ini); if (!i || i.lider !== me || h.completado || !isLive(i) || !inArea(i)) return; if (L(h.fecha) <= 14) items.push({ k: 'hito', id: h.id, t: h.nombre, s: i.titulo, when: h.fecha, over: L(h.fecha) < 0, ic: 'flag' }); });
-  RIESGOS().forEach(r => { if (r.dueno === me && riesgoAbierto(r) && r.fRev && L(r.fRev) <= 14) items.push({ k: 'risk', id: r.id, t: 'Revisar riesgo: ' + r.desc, s: nameOf(r.ini), when: r.fRev, over: L(r.fRev) < 0, ic: 'shield' }); });
-  DECS().forEach(d => { if (d.estado === 'Pendiente' && d.solicita === me && d.limite && L(d.limite) <= 14) items.push({ k: 'dec', id: d.id, t: 'Decisión: ' + d.titulo, s: d.ini ? nameOf(d.ini) : '', when: d.limite, over: L(d.limite) < 0, ic: 'gavel' }); });
-  St.comites.forEach(c => [...(c.acciones || []).map(a => ({ ...a, tp: 'Acción' })), ...(c.compromisos || []).map(a => ({ ...a, tp: 'Compromiso' }))].forEach(a => { if (a.resp === me && ['Abierta', 'Abierto'].includes(a.estado) && a.limite && L(a.limite) <= 14) items.push({ k: 'acc', id: a.id, t: a.tp + ': ' + a.texto, s: a.ini ? nameOf(a.ini) : c.nombre, when: a.limite, over: L(a.limite) < 0, ic: 'check' }); }));
-  ACUERDOS().forEach(a => { if (a.resp === me && a.estado === 'Abierto' && a.limite && L(a.limite) <= 14) items.push({ k: 'acu', id: a.id, t: 'Compromiso: ' + a.texto, s: a.ini ? nameOf(a.ini) : (a.tema || 'General'), when: a.limite, over: L(a.limite) < 0, ic: 'check' }); });
-  St.ini.forEach(i => { if (i.lider === me && isLive(i) && FASES_ACT.includes(i.fase) && diasSinUpd(i) > (0, ENLACES.cfgI)(i,'diasSinUpdate') && inArea(i)) items.push({ k: 'upd', id: i.id, t: 'Actualizar avance (hace ' + diasSinUpd(i) + ' d)', s: i.titulo, when: addD(i.actualizada, (0, ENLACES.cfgI)(i,'diasSinUpdate')), over: true, ic: 'refresh' }); });
-  return items.sort(by('when'));
-}
+/* «Mi trabajo»: lo arma el servidor (apih_trabajo). Aquí solo se aplica el filtro de área elegido en pantalla. */
+export function myWork() { return (CALC.trabajo || []).filter(x => !x.areaFiltro || inArea(byId(x.ini))); }
 
 
 // Enlaces para módulos anteriores (ver 00-registro.js)
@@ -215,7 +188,6 @@ Object.defineProperties(ENLACES, {
   eliminarEnServidor: { get: () => eliminarEnServidor, enumerable: true, configurable: true },
   diasEnFase: { get: () => diasEnFase, enumerable: true, configurable: true },
   hitoEnServidor: { get: () => hitoEnServidor, enumerable: true, configurable: true },
-  migrateV5: { get: () => migrateV5, enumerable: true, configurable: true },
   propResumen: { get: () => propResumen, enumerable: true, configurable: true },
   resolverEnServidor: { get: () => resolverEnServidor, enumerable: true, configurable: true },
 });

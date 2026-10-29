@@ -11,7 +11,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-902', titulo: 'Proyecto de avisos', area: 'Área de prueba', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', lider: me, actualizada: addD(hoy(), -3), inicioPlan: addD(hoy(), -60), finPlan: addD(hoy(), 90) }));
     St.hitos.push({ id: 'HIT-902', ini: 'PRJ-902', nombre: 'Hito vencido e2e', fecha: addD(hoy(), -5), completado: false, fechaReal: null, resp: me, fase: 'Ejecución' });
     St.compromisos.push({ id: 'ACU-902', ini: 'PRJ-902', texto: 'Enviar informe e2e', resp: me, de: '', limite: addD(hoy(), -2), fechaReal: null, estado: 'Abierto', origen: 'manual', tema: '', creada: hoy() });
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     const A = () => (CALC.notif && CALC.notif.avisos) || [], tiene = k => A().some(a => a.key === k);
     o.catalogo = CALC.notif.catalogo.tipos.length; o.hito = tiene('hito_venc:HIT-902'); o.comp = tiene('comp_venc:ACU-902');
     o.texto = (A().find(a => a.key === 'hito_venc:HIT-902') || {}).texto;

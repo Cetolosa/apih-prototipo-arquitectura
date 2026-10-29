@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, $$, ACUERDOS, CALC, BIT_C, BIT_TIPOS, DECS, DEC_C, DEC_ICON, DEC_TIPOS, DIAS, ESTADOS, ESTADOS_PRJ, ESTADOS_PROP, FASES, FASES_ACT, FASES_PIPE, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, MES3, MESES, PLAN_TIPOS, PRIOS, RAGS, RAG_C, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _nrm, addD, atrasado, avatar, avg, by, byId, clone, critScore, desv, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtBig, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, iniHead, isActive, isDone, isLive, kpis, log, miUsuario, monKeys, monMain, monOf, nameOf, nivelRiesgo, pD, pad, pct, pctMon, personProjects, planSeg, planTipo, porTipo, quarter, rel, respItem, respSel, restTxt, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, roiTxt, save, scope, scopeAll, scopeP, scopeTT, sum, sumM, tipoLbl, tipoPF, toISO, uid, uniq, tonoOnTrack } from './01-nucleo.js';
+import { $, $$, ACUERDOS, CALC, BIT_C, BIT_TIPOS, DECS, DEC_C, DEC_ICON, DEC_TIPOS, DIAS, ESTADOS, ESTADOS_PRJ, ESTADOS_PROP, FASES, FASES_ACT, FASES_PIPE, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, MES3, MESES, PLAN_TIPOS, PRIOS, RAGS, RAG_C, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _nrm, addD, atrasado, avatar, avg, by, byId, clone, critScore, desv, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtBig, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, compuertas, hitoCats, hitoEstado, hitosDe, hoy, icon, inArea, iniHead, isActive, isDone, isLive, kpis, miUsuario, monKeys, monMain, monOf, nameOf, nivelRiesgo, pD, pad, pct, pctMon, personProjects, planSeg, planTipo, porTipo, quarter, rel, respItem, respSel, restTxt, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, roiTxt, save, scope, scopeAll, scopeP, scopeTT, sum, sumM, tipoLbl, tipoPF, toISO, uid, uniq, tonoOnTrack } from './01-nucleo.js';
 import { Acts, Chg, F, Modal, UI, Views, avFase, avFaseTip, btn, kv, confirmBox, copyText, decForm, download, empty, estPill, estTag, fasePill, go, hbars, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prioPill, prog, ragPill, refresh, render, selOpts, selectEntity, stackBar, syncPop, tipoPill, toCSV, toast } from './03-interfaz.js';
 import { cmdServidor, diasEnFase, myWork, nextHito, priorScore, semFase } from './04-flujos.js';
 import { avanceCalc, avanceEf, avanceManualDe, ventanasSrv } from './01-nucleo.js';
@@ -348,17 +348,7 @@ Acts.fnota = d => faseNotaForm(byId(d.id), d.f);
 
 /* ======================= V23 · Tarjeta y panel complementarios =======================
    Tarjeta: ¿dónde está y cómo va?  Panel: ¿por qué está así y qué sigue?  (señales, próximos hitos y pendientes con otras personas) */
-export function senalesIni(i) {
-  const out = [], H = hoy(), um = +(0, ENLACES.cfgI)(i, 'umbralCritico') || 15, hs = hitosDe(i.id), ven = hs.filter(h => !h.completado && h.fecha && h.fecha < H).sort(by('fecha'));
-  const dv = desv(i); if (dv > 0) out.push({ bad: true, t: 'Atrasado ' + dv + ' d.', d: 'Termina el ' + fmtD(forecast(i)) + '; el plan decía ' + fmtD(i.finPlan) + '.' });
-  if (ven.length) out.push({ bad: true, t: ven.length + (ven.length === 1 ? ' hito vencido:' : ' hitos vencidos:'), d: ven.slice(0, 2).map(h => h.nombre + ' (' + diffD(H, h.fecha) + ' d)').join(', ') + (ven.length > 2 ? ' y ' + (ven.length - 2) + ' más.' : '.') });
-  const rk = riesgosDe(i.id).filter(r => riesgoCritico(r) && !String(r.mit || '').trim());
-  if (rk.length) out.push({ bad: true, t: rk.length + (rk.length === 1 ? ' riesgo crítico sin mitigación:' : ' riesgos críticos sin mitigación:'), d: String(rk[0].desc || rk[0].id).slice(0, 60) + (rk.length > 1 ? ' y ' + (rk.length - 1) + ' más.' : '.') });
-  const pres = +i.presupuesto || 0, gas = i.gastado == null || i.gastado === '' ? null : +i.gastado;
-  if (pres > 0 && gas != null && isFinite(gas)) { const gp = Math.round(gas / pres * 100), av = Math.round(+i.avance || 0); out.push(gp > av + 10 ? { bad: true, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' } : { bad: false, t: 'Gasto ' + gp + ' %', d: 'con ' + av + ' % de avance.' }); }
-  if (!out.some(x => x.bad)) out.unshift({ bad: false, t: 'Sin señales de alerta.', d: '' });
-  return out;
-}
+export function senalesIni(i) { return (CALC.senales || {})[i && i.id] || []; }   // las señales las calcula el servidor (apih_trabajo)
 /* tarjeta de iniciativa (proyectos): lectura de un segundo */
 function cardProyecto(i, sel) {
   const FS = fasesDe(i), k = Math.max(0, FS.indexOf(i.fase)), nh = nextHito(i), H = hoy(), ven = hitosDe(i.id).filter(h => !h.completado && h.fecha && h.fecha < H).length, dv = desv(i), plan = Math.round(esperado(i)), av = Math.round(+i.avance || 0);
@@ -506,11 +496,11 @@ const pospOn = k => { const p = pospGet()[k]; return !!p && p > hoy(); };
 /* Importancia 0–100 = base automática (plazo y criticidad, reglas fijas) + ajuste propio guardado por paso */
 const SEM_AJ = [[-20, 'Baja'], [0, 'Normal'], [15, 'Alta'], [30, 'Máxima']];
 const SEM_CATS = ['Trabajo', 'Desarrollo profesional', 'Personal'];
-function pasoBase(p) { const d = p.f ? diffD(hoy(), p.f) : 0; return [75, 50, 25][p.u] + (d > 0 ? 8 + Math.min(7, d) : Math.max(0, 7 + d)) + (/cr[ií]tico|vencido/i.test(p.tipo) ? 10 : 0); }
+const pasoBase = p => +p.base || 0;   // importancia base: la calcula el servidor (apih_cielo); aquí solo se suma el ajuste personal
 const pasoAj = p => { const v = +(semOf().aj || {})[p.k] || 0; return SEM_AJ.some(a => a[0] === v) ? v : 0; };
 const pasoPts = p => Math.max(0, Math.min(100, pasoBase(p) + pasoAj(p)));
 /* Pendientes personales: viven aparte del portafolio (sin tenedores, sin reportes, sin presentaciones) */
-function tareasPasos() { const H = hoy(); return (semOf().t || []).filter(t => !t.hecha).map(t => ({ k: 'T:' + t.id, u: t.f ? (t.f <= H ? 0 : diffD(t.f, H) <= 7 ? 1 : 2) : 2, tipo: t.cat, t: t.t, por: t.f ? (t.f < H ? 'Venció el ' : 'Fecha: ') + fzd(t.f) + '.' : 'Sin fecha.', prot: 'Tu lista personal', btn: 'Marcar hecho', act: 'tareahecha', d: { id: t.id }, f: t.f || '9999-12-31', ini: null, tarea: t, nota: '' })); }
+function tareasPasos() { return ((CALC.cielo || {}).tareas || []).map(t => Object.assign({}, t, { ini: null, nota: '' })); }   // urgencia e importancia: del servidor
 /* Pasos sugeridos de una iniciativa. u: 0 hoy · 1 esta semana · 2 próximo. prot: tenedor o compuerta que protege.
    Qué pasos hay y su urgencia los calcula el servidor (apih_cielo().pasos); aquí solo se aplican las preferencias personales (ocultar) y las descripciones. */
 export function pasosDe(i) {
@@ -921,7 +911,7 @@ Views.bitacora = {
 };
 Chg.noop = () => { };
 Acts.bitadd = async () => { const t = $('#bt-txt').value.trim(); if (!t) return toast('Escribe un comentario', 'err'); await (0, ENLACES.cmdServidor)('apih_comentar', { p_ini: $('#bt-ini').value || null, p_texto: t, p_tema: $('#bt-tema').value.trim() || null, p_en_pres: !!$('#bt-pres').checked }, 'Publicado en la bitácora'); };
-Chg.bitpres = el => { const b = St.bitacora.find(x => x.id === el.dataset.id); if (!b) return; if (el.checked) delete b.inPres; else b.inPres = false; save(); toast(el.checked ? 'La nota entra en las presentaciones' : 'La nota queda fuera de las presentaciones'); };
+Chg.bitpres = el => { (0, ENLACES.cmdServidor)('apih_pres_marcar', { p_items: [{ k: 'bit', id: el.dataset.id, incluir: el.checked }] }, el.checked ? 'La nota entra en las presentaciones' : 'La nota queda fuera de las presentaciones'); };
 Acts.btipo = d => { const f = F('bit', {}); f.tipos = f.tipos.includes(d.t) ? f.tipos.filter(x => x !== d.t) : [...f.tipos, d.t]; render(); };
 Acts.bmore = () => { F('bit', {}).n += 60; render(); };
 Acts.bitcsv = () => { download('APIH_bitacora_' + hoy() + '.csv', toCSV(St.bitacora, [{ h: 'Fecha', f: b => b.ts }, { h: 'Tipo', f: b => b.tipo }, { h: 'Iniciativa', f: b => nameOf(b.ini) }, { h: 'Autor', f: b => b.autor }, { h: 'Texto', f: b => b.texto }, { h: 'Detalle', f: b => b.meta }]), 'text/csv'); toast('Bitácora exportada'); };

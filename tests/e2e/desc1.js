@@ -14,7 +14,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     St.ini.push(n);
     St.hitos.push({ id: 'HIT-700', ini: 'PRJ-700', nombre: 'Entrega A', fase: 'Ejecución', fecha: addD(H, 3), completado: false, resp: me, subfase: 'PRJ-700-SF1', desc: 'HITO-DESC: pedir revisión a TI.' });
     St.hitos.push({ id: 'HIT-701', ini: 'PRJ-700', nombre: 'Peligroso', fase: 'Ejecución', fecha: addD(H, 2), completado: false, resp: me, desc: X });
-    save(); await DataService.flush(); await DataService.refresh(false, true); n = byId(n.id);
+    await sembrarSt(); await DataService.refresh(false, true); n = byId(n.id);
     const pasos = pasosDe(n); const out = {};
     out.hitoNota = (pasos.find(x => /Entrega A/.test(x.t)) || {}).nota || '';
     out.xssNota = (pasos.find(x => /Peligroso/.test(x.t)) || {}).nota || '';

@@ -8,7 +8,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   await p.goto(URL); await p.waitForTimeout(1800);
   const r = await p.evaluate(async () => {
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-904', titulo: 'Personas e2e', area: 'Área de prueba', tipo: 'Proyecto', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', lider: 'Persona Prueba Uno', actualizada: hoy(), inicioPlan: addD(hoy(), -30), finPlan: addD(hoy(), 120) }));
-    save(); await DataService.flush(); await DataService.refresh(false, true);
+    await sembrarSt(); await DataService.refresh(false, true);
     const o = {}, s = CALC.personas.find(x => x.n === 'Persona Prueba Uno');
     o.srv = !!s && s.lidera === 1 && s.roles['Líder de proyecto'] === 1 && s.areas.includes('Área de prueba');
     o.cli = CALC.personas.every(x => Array.isArray(x.areas) && typeof x.roles === 'object');

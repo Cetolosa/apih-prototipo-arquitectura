@@ -9,7 +9,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     const o = {}; o.admin = esAdmin(); o.rol = rolActual(); o.ro = soloLectura(); o.gob = puedeGobernar(); o.users = St.usuarios.length;
     // alta como admin en dos áreas distintas
     St.ini.push(Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-901', titulo: 'En área propia', area: 'Área de prueba', tipo: 'Proyecto' }), Object.assign({}, ESQUEMA.projects.tpl(), { id: 'PRJ-902', titulo: 'Ajena', area: 'Otra', tipo: 'Proyecto' }));
-    save(); await DataService.flush(); await DataService.refresh(true, true);
+    await sembrarSt(); await DataService.refresh(true, true);
     o.adminEdita = puedeEditarIni(byId('PRJ-902'));
     await Acts.vercomo({ n: 'Editor de prueba' });
     o.como = FL.verComo; o.roComo = soloLectura(); o.verAjena = !!byId('PRJ-902'); o.propia = !!byId('PRJ-901'); o.editaComo = puedeEditarIni(byId('PRJ-901'));

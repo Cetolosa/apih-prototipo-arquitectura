@@ -1,6 +1,6 @@
 // V22.55 · Subfases por proyecto (ADR-012): heredan fechas de la fase, no salen de ella, se muestran en ficha, Fases, tablero y hito
 const { chromium, launchOpts } = require('./_pw');
-const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[0];
+const plan = require('./fixtures/iniciativas-sinteticas.json').iniciativas[0];
 (async () => {
   const b = await chromium.launch(launchOpts); const p = await b.newPage({ viewport: { width: 1440, height: 1000 } });
   await p.addInitScript(() => localStorage.setItem('apih_tour22', '1')); const errs = []; p.on('pageerror', e => errs.push(e.message));
@@ -9,7 +9,7 @@ const plan = require('../../docs/seed/iniciativas-sinteticas.json').iniciativas[
     const n = Object.assign({ id: 'PRJ-050', legacy: '', creada: '2026-10-15', faseDesde: '2026-10-15', origen: 'importación', est: [], hist: [['2026-10-15', x.avance]], tags: [], rec: null, folio: '', oc: '', ahorroReal: 0, inicioReal: null, propuestaOrigen: null, estadoMotivo: '', estadoRev: null, gastado: 0, proyecto: null, deps: [], actualizada: '2026-10-16' }, x); delete n.hitos; delete n.riesgos; n.fase = 'Ejecución'; St.ini.push(n);
     x.hitos.forEach(h => St.hitos.push({ id: nextId('HIT', St.hitos), ini: n.id, nombre: h.nombre, fase: h.fase, fecha: h.fecha, completado: !!h.completado, fechaReal: h.completado ? h.fecha : null, resp: h.resp }));
     UI.view = 'fases'; render(); }, plan);
-  await p.evaluate(async () => { save(); await DataService.flush(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(400);
+  await p.evaluate(async () => { await sembrarSt(); await DataService.refresh(false, true); render(); }); await p.waitForTimeout(400);
   const r = {}, txt = s => p.$eval(s, e => e.textContent.trim()).catch(() => '');
   r.ventana = await p.evaluate(() => { const v = ventanaDe(byId('PRJ-050'), 'Ejecución'); return v.ini + '|' + v.fin; });
   // 1) nueva subfase: hereda las fechas de la fase

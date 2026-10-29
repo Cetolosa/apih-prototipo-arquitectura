@@ -1,8 +1,8 @@
 import { ENLACES } from './00-registro.js';
-import { $, CALC, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, log, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, CAMBIOS, DECS, ESTADOS_PRJ, FASES, FASES_ACT, FASES_FIJAS, FASES_PRJ, FASES_PROP, FASE_COLOR, FL, HITOS, METODO_DEF, MONEDAS, PRIOS, RAGS, RIESGOS, RISK_CATS, RISK_ESTADOS, St, _ixGen, _nrm, addD, atrasado, audParse, avatar, avg, by, byId, clone, completitud, defaultCfg, desv, diasSinUpd, diffD, esProp, esSB, esc, esperado, expo, fasesDe, fmtD, fmtMon, fmtN, forecast, hitoCats, hitosDe, hoy, icon, inArea, isActive, isLive, miUsuario, monOf, nameOf, nextId, pD, pct, ragSugerido, riesgoAbierto, riesgoCritico, riesgosDe, save, scopeP, seedState, tipoLbl } from './01-nucleo.js';
 import { AuthService, DataService, SETTINGS_KEYS, ESQUEMA } from './02-datos.js';
 import { Acts, BK, Chg, F, Modal, UI, Views, avFase, btn, closePops, confirmBox, download, downloadBlob, empty, go, iniLink, iniOpts, iniOptsF, openForm, pageHead, people, prog, refresh, render, sanSt, selOpts, selectEntity, shell, syncInfo, syncPop, toast } from './03-interfaz.js';
-import { cmdServidor, diasEnFase, migrateV5 } from './04-flujos.js';
+import { cmdServidor, diasEnFase } from './04-flujos.js';
 import { DESC_MAX, cutDesc, faseNotaP, fasesVentana, hitosSub, rangoTx, sfImportar, sfRef, subfasesDe, ventanaDe } from './05-vistas.js';
 /* ======================= ADMINISTRACIÓN ======================= */
 const umbralNote = () => `<div class="note" style="margin-top:12px">${icon('info', 14)}<span>Los umbrales de alerta (desviación, días sin actualización, riesgo crítico, semáforo de propuestas y meta de «Mi cocina») se ajustan en <button class="lnk" data-act="go" data-v="miconfig">Mi configuración</button>, donde Administra los fija para todos y cada líder puede personalizarlos.</span></div>` + ((0, ENLACES.esAdministra)() && window.V22 && V22.MENU ? (0, ENLACES.menuRolCard)() : '');
@@ -84,8 +84,8 @@ Views.admin = {
       const c = St.cfg;
       b = `<div class="card"><header><h2>Parámetros de negocio</h2><small>Alimentan reglas de negocio, semáforos y KPIs</small></header><div class="fgrid">
         <div class="fld"><label>Unidad monetaria</label><input value="${esc(c.unidad)}" data-chg="cfg" data-k="unidad" data-key="c-unidad"><small>Los montos del portafolio se expresan en esta unidad</small></div>
-        <div class="fld"><label>Plazo máximo de una decisión (días)</label><input type="number" min="1" value="${c.decMaxDias || 30}" data-chg="cfg" data-k="decMaxDias" data-num="1" data-key="c-dmax"><small>No se puede registrar una decisión con fecha límite más lejana</small></div>
-        <div class="fld"><label>Escalar decisiones tras (días de atraso)</label><input type="number" min="1" value="${c.decEscalaDias || 7}" data-chg="cfg" data-k="decEscalaDias" data-num="1" data-key="c-desc"><small>Pasan a «escalada a Administra», quedan en bitácora y generan alerta del Reglas PMO</small></div>
+        <div class="fld"><label>Plazo máximo de una decisión (días)</label><input type="number" min="1" value="${c.decMaxDias}" data-chg="cfg" data-k="decMaxDias" data-num="1" data-key="c-dmax"><small>No se puede registrar una decisión con fecha límite más lejana</small></div>
+        <div class="fld"><label>Escalar decisiones tras (días de atraso)</label><input type="number" min="1" value="${c.decEscalaDias}" data-chg="cfg" data-k="decEscalaDias" data-num="1" data-key="c-desc"><small>Pasan a «escalada a Administra», quedan en bitácora y generan alerta del Reglas PMO</small></div>
         <div class="fld"><label>Capacidad máx. de proyectos por líder</label><input type="number" min="1" value="${c.capacidadMax}" data-chg="cfg" data-k="capacidadMax" data-num="1" data-key="c-cap"><small>Reglas de roadmap: sobrecarga de líderes</small></div>
         <div class="fld"><label>Fecha de referencia ("hoy")</label><input type="date" value="${esc(c.hoyFija)}" data-chg="cfg" data-k="hoyFija"><small>Vacío = fecha real del sistema. Útil para demos congeladas.</small></div>
         <div class="fld"><label>Usuario actual</label><input value="${esc(c.usuario)}" disabled><small>Viene del inicio de sesión Microsoft. Para probar como otra persona usa «Ver como» en la barra superior.</small></div>
@@ -106,9 +106,8 @@ Views.admin = {
       b = `<div class="card"><header><h2>Auditoría de calidad de datos</h2><small>Promedio ${pct(avg(rows, r => r.c.pct))} · críticos = Sponsor, Líder, Área, Prioridad, Fechas plan</small></header><div class="tbl-w"><table class="tbl"><thead><tr><th>Iniciativa</th><th>Completitud</th><th>Faltan (crítico)</th><th>Faltan (recomendado)</th><th>Faltan (opcional)</th></tr></thead><tbody>${rows.map(({ i, c }) => `<tr data-act="sel" data-t="ini" data-id="${i.id}"><td><b>${esc(i.titulo)}</b><small>${i.id}</small></td><td style="min-width:130px">${prog(c.pct, c.pct > 80 ? 'Verde' : c.pct > 60 ? 'Ámbar' : 'Rojo', 6)}<small>${c.pct}%</small></td><td class="${c.crit.length ? 'neg' : ''}">${esc(c.crit.join(', ') || '—')}</td><td>${esc(c.rec.join(', ') || '—')}</td><td>${esc(c.opt.join(', ') || '—')}</td></tr>`).join('')}</tbody></table></div></div>`;
     } else if (f.tab === 'dat') {
       const sz = Math.round(JSON.stringify(St).length / 1024), cnt = St.ini.length + St.hitos.length + St.riesgos.length + St.decisiones.length + St.bitacora.length + St.comites.length;
-      b = `<div class="grid12"><section class="card c6"><header><h2>Exportación y respaldo</h2><small>${cnt} registros · ${sz} KB</small></header><p class="desc">${DataService.svc ? 'Los datos se guardan automáticamente en el servidor (Supabase).' : '<b>Modo demo:</b> los datos viven solo en memoria. Exporta un respaldo antes de cerrar o conecta SharePoint.'} El Excel completo replica las columnas de cada lista (útil para carga masiva).</p><div class="chips">${btn('Excel completo (6 hojas)', 'xlsxall', { ic: 'down', cls: 'pri' })}${btn('Respaldo JSON', 'expjson', { ic: 'down' })}${btn('Importar respaldo', 'impjson', { ic: 'up', title: 'Restaura un respaldo JSON completo (reemplaza los datos actuales)' })}${btn('Importar iniciativas', 'impini', { ic: 'up', title: 'Agrega o actualiza iniciativas desde un archivo JSON/CSV' })}${btn('Plantilla iniciativas', 'inipl', { ic: 'down' })}${btn('Portfolio CSV', 'pcsv', { ic: 'down' })}${btn('Riesgos CSV', 'riskcsv', { ic: 'down' })}${btn('Hitos CSV', 'hitocsv', { ic: 'down' })}${btn('Bitácora CSV', 'bitcsv', { ic: 'down' })}</div><input type="file" id="impfile" accept="application/json" style="display:none" data-chg="impfile"><input type="file" id="impinifile" accept="application/json" style="display:none" data-chg="impinifile"></section>
-      <section class="card c6"><header><h2>Origen de los datos</h2></header><p class="desc">Datos cargados <b>solo desde el archivo Iniciativas IT ARAMARK</b> (iniciativas, propuestas, hitos, riesgos, decisiones pendientes, bitácora, ciclos del calendario, presentaciones y usuarios con su rol y área). No hay estimaciones ni iniciativas de ejemplo: lo que el archivo no trae (presupuesto, beneficio, sponsor de proyectos, fechas, responsable de hitos, mitigaciones) queda vacío y se completa desde la plataforma.</p>
-      <div class="chips">${btn(DataService.svc ? 'Restablecer a los datos del archivo (reescribe el servidor)' : 'Restaurar datos del archivo', 'reset', { ic: 'undo', cls: 'danger' })}</div></section></div>`;
+      b = `<div class="grid12"><section class="card c6"><header><h2>Exportación y respaldo</h2><small>${cnt} registros · ${sz} KB</small></header><p class="desc">${DataService.svc ? 'Los datos se guardan automáticamente en el servidor (API de APIH).' : '<b>Modo demo:</b> los datos viven solo en memoria. Exporta un respaldo antes de cerrar o conecta SharePoint.'} El Excel completo replica las columnas de cada lista (útil para carga masiva).</p><div class="chips">${btn('Excel completo (6 hojas)', 'xlsxall', { ic: 'down', cls: 'pri' })}${btn('Respaldo JSON', 'expjson', { ic: 'down' })}${btn('Importar iniciativas', 'impini', { ic: 'up', title: 'Agrega o actualiza iniciativas desde un archivo JSON/CSV' })}${btn('Plantilla iniciativas', 'inipl', { ic: 'down' })}${btn('Portfolio CSV', 'pcsv', { ic: 'down' })}${btn('Riesgos CSV', 'riskcsv', { ic: 'down' })}${btn('Hitos CSV', 'hitocsv', { ic: 'down' })}${btn('Bitácora CSV', 'bitcsv', { ic: 'down' })}</div><input type="file" id="impinifile" accept="application/json" style="display:none" data-chg="impinifile"></section>
+      </div>`;
     } else if (f.tab === 'sp') {
       b = spTab();
     }
@@ -120,21 +119,9 @@ Chg.cfg = el => { const k = el.dataset.k; St.cfg[k] = el.dataset.bool ? el.check
 Acts.catadd = d => { const el = $('#new_' + d.k), v = el.value.trim(); if (!v) return; if (!St.cfg[d.k].includes(v)) St.cfg[d.k].push(v); refresh(); };
 Acts.catdel = d => { St.cfg[d.k].splice(+d.n, 1); refresh(); };
 Acts.expjson = () => { download('APIH_respaldo_' + hoy() + '.json', JSON.stringify(St, null, 1), 'application/json'); toast('Respaldo exportado'); };
-Acts.impjson = () => $('#impfile').click();
-Chg.impfile = el => { const fl = el.files[0]; el.value = ''; if (!fl) return;
-  if (!(0, ENLACES.esAdministra)() || FL.verComo) { toast('Solo el rol Administra puede importar un respaldo', 'err'); return; }
-  const r = new FileReader(); r.onload = () => { try {
-    const o = JSON.parse(r.result); if (!o || o.v !== 3 || !Array.isArray(o.ini)) throw new Error('Formato inválido');
-    const ks = [['ini', 'Iniciativas'], ['hitos', 'Hitos'], ['riesgos', 'Riesgos'], ['decisiones', 'Decisiones']], len = (x, k) => Array.isArray(x[k]) ? x[k].length : 0;
-    const bad = ks.filter(([k]) => o[k] != null && !Array.isArray(o[k])).map(x => x[1]); if (bad.length) throw new Error('Datos dañados en: ' + bad.join(', '));
-    const cmp = ks.map(([k, n]) => n + ': ' + len(St, k) + ' → ' + len(o, k)).join(' · '), loss = len(o, 'ini') < len(St, 'ini') * 0.5 && len(St, 'ini') >= 4;
-    const msg = 'Se reemplazarán TODOS los datos actuales por el respaldo' + (DataService.svc ? ' y el cambio se sincronizará para todos los usuarios' : '') + '.<br><br>Actual → Respaldo<br>' + cmp + (loss ? '<br><br>⚠ El respaldo tiene menos de la mitad de las iniciativas actuales.' : '') + '<br><br>Antes de importar se descargará una copia de los datos actuales. ¿Continuar?';
-    confirmBox(msg, () => { try { download('APIH_antes_de_importar_' + hoy() + '.json', JSON.stringify(St, null, 1), 'application/json'); } catch (e) { }
-      ENLACES.St = migrateV5(o); ['hitos', 'riesgos', 'decisiones', 'comites', 'bitacora', 'usuarios', 'eventos', 'compromisos', 'cambios', 'notas', 'documentos', 'pres'].forEach(k => { St[k] = St[k] || []; }); St.comites.forEach(c => { if (c && typeof c === 'object') ['acciones', 'compromisos', 'decisiones'].forEach(k => { if (!Array.isArray(c[k])) c[k] = []; }); }); St.cfgU = St.cfgU || {}; St.ini.forEach(x => { if (!x || typeof x !== 'object') return; ['deps', 'subfases', 'hist', 'est', 'tags'].forEach(k => { if (!Array.isArray(x[k])) x[k] = []; }); if (!x.faseNota || typeof x.faseNota !== 'object') x.faseNota = {}; ['titulo', 'lider', 'sponsor', 'negocio', 'proveedor', 'desc', 'bc', 'resumen', 'proximos', 'folio', 'oc', 'estadoMotivo', 'tipoIni'].forEach(k => { if (typeof x[k] !== 'string') x[k] = x[k] == null ? '' : String(x[k]); }); if (typeof x.area !== 'string') x.area = 'BISE'; if (typeof x.rag !== 'string') x.rag = 'Verde'; if (typeof x.prioridad !== 'string') x.prioridad = 'Media'; if (typeof x.moneda !== 'string') x.moneda = 'CLP'; if (typeof x.estado !== 'string') x.estado = 'En curso'; if (typeof x.fase !== 'string') x.fase = 'Planificación'; }); /* F-03: respaldo parcial */ sanSt(St); St.cfg = Object.assign(defaultCfg(), St.cfg); St.ptpl = St.ptpl || []; St.psnap = St.psnap || {}; toast('Respaldo importado (copia previa descargada)'); shell(); refresh(); if (DataService.svc) save(); }, 'Importar', true);
-  } catch (e) { toast('No se pudo importar: ' + e.message, 'err'); } }; r.readAsText(fl); };
 /* V22.50: importar iniciativas (suma registros, no reemplaza) */
 export const INI_PLANTILLA = () => ({ formato: 'apih-iniciativas', v: 1, iniciativas: [
-  { tipo: 'Proyecto', titulo: 'APIH Prototipo', desc: 'Prototipo de APIH sobre SPA + Supabase (interino). Fuente de verdad de las reglas de negocio y las vistas.', area: 'BISE', lider: St.cfg.usuario || '', sponsor: '', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', avance: 70, inicioPlan: hoy(), finPlan: addD(hoy(), 120), presupuesto: 0 },
+  { tipo: 'Proyecto', titulo: 'APIH Prototipo', desc: 'Prototipo de APIH: origen de los cambios de reglas y vistas, que se traspasan al Corporativo en la misma entrega.', area: 'BISE', lider: St.cfg.usuario || '', sponsor: '', fase: 'Ejecución', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', avance: 70, inicioPlan: hoy(), finPlan: addD(hoy(), 120), presupuesto: 0 },
   { tipo: 'Proyecto', titulo: 'APIH Corporativo', desc: 'APIH conforme a los requisitos de TI: SPA con Entra ID, API y Azure SQL (3 capas). Reutiliza el núcleo del prototipo.', area: 'BISE', lider: St.cfg.usuario || '', sponsor: '', fase: 'Planificación', estado: 'En curso', rag: 'Verde', prioridad: 'Alta', avance: 5, inicioPlan: hoy(), finPlan: addD(hoy(), 240), presupuesto: 0,
     hitos: [{ nombre: 'Plan aprobado', fase: 'Planificación', fecha: addD(hoy(), 10), cat: 'Gobierno' }, { nombre: 'API lista', fase: 'Ejecución', fecha: addD(hoy(), 60), cat: 'Entregable', subfase: 'Construcción' }, { nombre: 'Piloto con usuarios', fase: 'Ejecución', fecha: addD(hoy(), 90), cat: 'Técnico', subfase: 'Piloto' }],
     subfases: [{ nombre: 'Construcción', fase: 'Ejecución', fin: addD(hoy(), 70), desc: 'Construir y probar en local antes del piloto.' }, { nombre: 'Piloto', fase: 'Ejecución', inicio: addD(hoy(), 71), desc: 'Piloto con un grupo acotado; recoger feedback.' }],
@@ -202,65 +189,14 @@ Acts.proyarchget = d => { const i = byId(d.id); if (!i) return; download('APIH_'
 Acts.proyarchup = d => { const f = $('#archfile'); if (f) { f.dataset.id = d.id; f.value = ''; f.click(); } };
 Chg.proyarchf = el => { const fl = el.files[0], id = el.dataset.id; el.value = ''; if (!fl) return;
   const i = byId(id); if (!i) return;
-  if ((0, ENLACES.soloLectura)() || !(0, ENLACES.puedeEditarIni)(i)) { toast('Tu rol no permite editar este proyecto', 'err'); return; }
-  const r = new FileReader(); r.onload = () => { try {
-    let t = String(r.result).trim(); const m = t.match(/```(?:json)?\s*([\s\S]*?)```/); if (m) t = m[1].trim();
-    const o = JSON.parse(t); if (!o || o.formato !== 'apih-proyecto-archivo') throw new Error('No es un archivo apih-proyecto-archivo');
-    if (o.proyecto_id !== i.id) throw new Error('El archivo es de ' + o.proyecto_id + ', no de ' + i.id);
-    const ch = [], err = [], ap = [], dI = {}, items = [], hFase = [], iw = Object.assign({}, i, { subfases: clone(subfasesDe(i)) }), um = (0, ENLACES.cfgI)(i, 'umbralCritico'), P = o.proyecto || {}, L = (a, b, c) => ch.push(a + ': ' + b + ' → ' + c);
-    const ver = x => x === '' || x == null ? '—' : String(x).slice(0, 70);
-    Object.keys(P).forEach(k => { const v = P[k], a = i[k];
-      if (ARCH_TXT.includes(k)) { if (typeof v !== 'string') return err.push(k + ': debe ser texto'); if (k === 'titulo' && !v.trim()) return err.push('titulo vacío'); if (v !== (a || '')) { L(k, ver(a), ver(v)); ap.push(() => { dI[k] = v; }); } }
-      else if (ARCH_NUM.includes(k)) { if (typeof v !== 'number' || !isFinite(v) || v < 0 || (k === 'avance' && v > 100)) return err.push(k + ': número inválido (' + v + ')'); if (v !== (a || 0)) { L(k, ver(a || 0), v); ap.push(() => { if (k === 'avance') dI.avanceManual = v; else dI[k] = v; });   /* V23: el avance del archivo es un ajuste manual */ } }
-      else if (ARCH_DATE.includes(k)) { if (v !== null && v !== '' && !archFecha(v)) return err.push(k + ': fecha inválida (' + v + ')'); const nv = v || null; if (nv !== (a || null)) { L(k, ver(a), ver(nv)); ap.push(() => { dI[k] = nv; }); } }
-      else if (k === 'rag' || k === 'prioridad' || k === 'moneda') { const cat = k === 'rag' ? RAGS : k === 'prioridad' ? PRIOS : Object.keys(MONEDAS); if (!cat.includes(v)) return err.push(k + ': valor inválido (' + v + ')'); if (v !== a) { L(k, ver(a), v); ap.push(() => { dI[k] = v; }); } }
-      else err.push('Campo no editable por esta vía: ' + k); });
-    const ip = P.inicioPlan !== undefined ? P.inicioPlan : i.inicioPlan, fp = P.finPlan !== undefined ? P.finPlan : i.finPlan; if (ip && fp && fp < ip) err.push('finPlan anterior a inicioPlan: no se aplica nada hasta corregir el archivo');
-    const bloqueo = ip && fp && fp < ip;
-    if (o.notas_de_fase && typeof o.notas_de_fase === 'object' && !Array.isArray(o.notas_de_fase)) Object.keys(o.notas_de_fase).forEach(fx => { const v = o.notas_de_fase[fx]; if (!fasesDe(i).includes(fx)) return err.push('Nota de fase: «' + fx + '» no es una fase de ' + tipoLbl(i).toLowerCase()); if (typeof v !== 'string' || v.length > DESC_MAX) return err.push('Nota de fase ' + fx + ': texto inválido'); if ((faseNotaP(i, fx) || '') !== v) { ch.push('Nota de fase ' + fx); ap.push(() => { dI.faseNota = dI.faseNota || Object.assign({}, i.faseNota); if (v.trim()) dI.faseNota[fx] = cutDesc(v.trim()); else delete dI.faseNota[fx]; }); } });
-    const sfN = [];   // subfases que el archivo crea o cambia (para resolver referencias de hitos al validar)
-    (Array.isArray(o.subfases) ? o.subfases : []).forEach(x => { const e0 = err.length; const tmp = { id: i.id, tipo: i.tipo, fase: i.fase, inicioPlan: i.inicioPlan, finPlan: i.finPlan, fasesFechas: i.fasesFechas, creada: i.creada, subfases: [] }; sfImportar(Object.assign(tmp, { subfases: [] }), [x], m => err.push(m)); if (err.length > e0) return;
-      const w = ventanaDe(i, x.fase) || {}, ex = subfasesDe(i).find(s => (x.id && s.id === x.id) || (s.fase === x.fase && _nrm(s.nombre) === _nrm(x.nombre)));
-      sfN.push({ id: ex ? ex.id : null, nombre: x.nombre, fase: x.fase });
-      if (ex && ex.nombre === x.nombre && ex.fase === x.fase && ex.inicio === (x.inicio || w.ini) && ex.fin === (x.fin || w.fin) && (x.resp == null || x.resp === (ex.resp || ''))) return;   // sin cambios
-      ch.push((ex ? 'Subfase ' + ex.nombre + ': ' : 'Subfase NUEVA: ') + x.nombre + ' · ' + x.fase + ' · ' + rangoTx(x.inicio || w.ini, x.fin || w.fin)); ap.push(() => { sfImportar(iw, [x], m => toast(m, 'err'), hFase); dI.subfases = iw.subfases; }); });
-    const sfVal = (ref, fase) => { if (!ref) return ''; const s0 = sfRef(i, ref, fase) || sfN.find(s => s.id === ref || (_nrm(s.nombre) === _nrm(ref) && (!fase || s.fase === fase))) || sfN.find(s => _nrm(s.nombre) === _nrm(ref)); if (!s0) return 'subfase «' + ref + '» no existe'; if (fase && s0.fase !== fase) return 'la subfase «' + s0.nombre + '» es de ' + s0.fase + ' y el hito de ' + fase; return ''; };
-    (o.hitos || []).forEach(h => { if (!h || typeof h !== 'object') return;
-      if (h.id) { const x = St.hitos.find(y => y.id === h.id); if (!x || x.ini !== i.id) return err.push('Hito ' + h.id + ' no pertenece a este proyecto'); const c = [], e0 = err.length;
-        ['nombre', 'fase', 'resp'].forEach(k => { if (h[k] !== undefined && h[k] !== x[k]) { if (typeof h[k] !== 'string' || (k === 'nombre' && !h[k].trim())) return err.push(h.id + '.' + k + ' inválido'); if (k === 'fase' && h[k] && !FASES.includes(h[k])) return err.push(h.id + ': fase inválida'); c.push(k + ' ' + ver(x[k]) + ' → ' + ver(h[k])); } });
-        ['fecha', 'fechaReal'].forEach(k => { if (h[k] !== undefined && h[k] !== (x[k] || null)) { if (h[k] !== null && !archFecha(h[k])) return err.push(h.id + '.' + k + ' fecha inválida'); if (k === 'fecha' && !h[k]) return err.push(h.id + '.fecha vacía'); c.push(k + ' ' + ver(x[k]) + ' → ' + ver(h[k])); } });
-        if (h.cat !== undefined && (h.cat || '') !== (x.cat || '')) { if (h.cat && !hitoCats().includes(h.cat)) return err.push(h.id + ': categoría inválida (' + h.cat + ')'); c.push('cat ' + ver(x.cat) + ' → ' + ver(h.cat)); }
-        if (h.desc !== undefined && (h.desc || '') !== (x.desc || '')) { if (String(h.desc).length > DESC_MAX) return err.push(h.id + ': descripción supera ' + DESC_MAX); c.push('descripción'); }
-        if (h.subfase !== undefined && (h.subfase || '') !== (x.subfase || '')) { const e1 = sfVal(h.subfase, h.fase !== undefined ? h.fase : x.fase); if (e1) return err.push(h.id + ': ' + e1); c.push('subfase ' + ver(x.subfase) + ' → ' + ver(h.subfase)); }
-        if (h.completado !== undefined && !!h.completado !== !!x.completado) c.push('completado ' + !!x.completado + ' → ' + !!h.completado);
-        if (err.length > e0) return;   // A-1: un hito con algún campo inválido se omite completo (F-01)
-        if (c.length) { ch.push('Hito ' + h.id + ': ' + c.join('; ')); ap.push(() => { const d = {}; ['nombre', 'fase', 'resp', 'fecha'].forEach(k => { if (h[k] !== undefined) d[k] = h[k]; }); if (h.desc !== undefined) d.desc = String(h.desc).trim() ? cutDesc(String(h.desc).trim()) : ''; if (h.cat !== undefined) d.cat = h.cat || ''; if (h.subfase !== undefined) { const sf = sfRef(iw, h.subfase, x.fase); d.subfase = sf ? sf.id : ''; } if (h.completado !== undefined) d.completado = !!h.completado; items.push({ k: 'hito', id: h.id, datos: d }); }); } }
-      else { if (typeof h.nombre !== 'string' || !h.nombre.trim() || !archFecha(h.fecha) || (h.resp !== undefined && typeof h.resp !== 'string') || (h.completado !== undefined && typeof h.completado !== 'boolean')) return err.push('Hito nuevo sin nombre o con fecha inválida: ' + JSON.stringify(h).slice(0, 60)); if (h.fase && !FASES.includes(h.fase)) return err.push('Hito nuevo «' + h.nombre + '»: fase inválida');
-        if (St.hitos.some(y => y.ini === i.id && _nrm(y.nombre) === _nrm(h.nombre))) return err.push('Hito nuevo «' + h.nombre + '» ya existe (se omite)');
-        if (h.cat && !hitoCats().includes(h.cat)) return err.push('Hito nuevo «' + h.nombre + '»: categoría inválida'); if (h.subfase) { const e2 = sfVal(h.subfase, h.fase || i.fase); if (e2) return err.push('Hito nuevo «' + h.nombre + '»: ' + e2); }
-        ch.push('Hito NUEVO: ' + h.nombre + ' · ' + (h.fase || i.fase) + ' · ' + h.fecha); ap.push(() => { const nw = { ini: i.id, nombre: h.nombre, fase: h.fase || i.fase, fecha: h.fecha, completado: !!h.completado, resp: h.resp || i.lider || '' }; if (h.cat) nw.cat = h.cat; if (typeof h.desc === 'string' && h.desc.trim()) nw.desc = cutDesc(h.desc.trim()); const sf = h.subfase && sfRef(iw, h.subfase, nw.fase); if (sf) nw.subfase = sf.id; items.push({ k: 'hito', id: null, datos: nw }); }); } });
-    (o.riesgos || []).forEach(q => { if (!q || typeof q !== 'object') return; const x = q.id ? St.riesgos.find(y => y.id === q.id) : null; if (q.id && (!x || x.ini !== i.id)) return err.push('Riesgo ' + q.id + ' no pertenece a este proyecto');
-      const qq = {}; ['desc', 'cat', 'prob', 'imp', 'estado', 'dueno', 'fIdent', 'fRev', 'mit'].forEach(k => { if (q[k] !== undefined) qq[k] = q[k]; });   // A-1: solo campos de riesgo (sin id/ini)
-      if (['desc', 'dueno', 'mit'].some(k => qq[k] !== undefined && typeof qq[k] !== 'string')) return err.push((q.id || 'Riesgo nuevo') + ': texto inválido');
-      if (['prob', 'imp'].some(k => qq[k] !== undefined && !(Number.isInteger(qq[k]) && qq[k] >= 1 && qq[k] <= 5))) return err.push((q.id || 'Riesgo nuevo') + ': probabilidad/impacto debe ser entero 1-5');   // N-F-06
-      if (['fIdent', 'fRev'].some(k => qq[k] !== undefined && !archFecha(qq[k]))) return err.push((q.id || 'Riesgo nuevo') + ': fecha inválida');   // N-F-06
-      const v = Object.assign({}, x || { cat: 'Técnico', prob: 3, imp: 3, estado: 'Abierto', dueno: i.lider || '', fIdent: hoy(), fRev: addD(hoy(), 30), mit: '' }, qq);
-      if (!x && !String(q.desc || '').trim()) return err.push('Riesgo nuevo sin descripción'); if (!RISK_CATS.includes(v.cat)) return err.push((q.id || 'Riesgo nuevo') + ': categoría inválida'); if (!RISK_ESTADOS.includes(v.estado)) return err.push((q.id || 'Riesgo nuevo') + ': estado inválido');
-      if (![v.prob, v.imp].every(n => Number.isInteger(n) && n >= 1 && n <= 5)) return err.push((q.id || 'Riesgo nuevo') + ': prob e imp deben ser enteros 1-5');
-      if (['fIdent', 'fRev'].some(k => v[k] && !archFecha(v[k]))) return err.push((q.id || 'Riesgo nuevo') + ': fecha inválida');
-      if (riesgoAbierto(v) && v.prob * v.imp >= um && !String(v.mit || '').trim()) return err.push((q.id || 'Riesgo nuevo «' + String(v.desc).slice(0, 30) + '»') + ': crítico sin mitigación (se omite)');
-      if (x) { const c = ['desc', 'cat', 'prob', 'imp', 'estado', 'dueno', 'fRev', 'mit'].filter(k => v[k] !== (x[k] || (typeof v[k] === 'number' ? 0 : ''))).map(k => k + ' ' + ver(x[k]) + ' → ' + ver(v[k])); if (c.length) { ch.push('Riesgo ' + q.id + ': ' + c.join('; ')); ap.push(() => items.push({ k: 'riesgo', id: q.id, datos: qq })); } }
-      else { ch.push('Riesgo NUEVO: ' + v.desc + ' · ' + v.prob + '×' + v.imp); ap.push(() => items.push({ k: 'riesgo', id: null, datos: Object.assign({ ini: i.id }, v) })); } });
-    if (!ch.length) { Modal.close && Modal.close(); toast(err.length ? 'Sin cambios válidos. ' + err.slice(0, 3).join(' | ') : 'El archivo no trae cambios', 'err'); return; }
-    if (bloqueo) { Modal.close && Modal.close(); toast('Archivo rechazado: finPlan es anterior a inicioPlan. Corrígelo y súbelo de nuevo (no se aplicó nada)', 'err'); return; }   /* N-U-06 */
-    const lst = ch.slice(0, 40).map(x => '• ' + esc(x)).join('<br>') + (ch.length > 40 ? '<br>… y ' + (ch.length - 40) + ' más' : '');
-    confirmBox('<b>Revisar cambios del archivo</b><br>' + ch.length + ' cambio(s) propuesto(s) en ' + esc(i.titulo) + ' (formato: campo: antes → después):<br><br>' + lst + (err.length ? '<br><br><b style="color:var(--red)">Se omiten ' + err.length + ':</b><br>' + err.slice(0, 15).map(x => '✕ ' + esc(x)).join('<br>') : '') + '<br><br>¿Aplicar?', () => {
-      if (bloqueo) { toast('finPlan anterior a inicioPlan: corrige el archivo', 'err'); return; }
-      ap.forEach(f => f());   // arma los cambios; los aplica el servidor (apih_cargar_lote) con las reglas y permisos de los formularios
-      const all = []; if (Object.keys(dI).length) all.push({ k: 'ini', id: i.id, datos: dI }); hFase.forEach(h => all.push({ k: 'hito', id: h.id, datos: { fase: h.fase } })); all.push(...items);
-      cmdServidor('apih_cargar_lote', { p_origen: 'Completado con archivo', p_ini: i.id, p_items: all }, null).then(r => { if (r === null) return; const e = r.errores || []; toast(r.ok + ' cambio(s) aplicados' + (e.length ? ' · ' + e.length + ' omitidos: ' + e.slice(0, 2).join(' | ') : ''), e.length ? 'warn' : undefined); refresh(); }); }, 'Aplicar');
-  } catch (e) { toast(e instanceof SyntaxError ? 'El archivo no es un JSON válido' : 'No se pudo leer: ' + e.message, 'err'); } }; r.readAsText(fl); };
-Acts.reset = () => confirmBox(DataService.svc ? 'Se reemplazarán TODOS los datos de ' + BK() + ' por los datos del archivo original. ¿Continuar?' : 'Se perderán los cambios y se restaurarán los datos de demostración. ¿Continuar?', () => { ENLACES.St = seedState(); UI.sel = null; shell(); toast('Datos restaurados'); refresh(); }, 'Restaurar', true);
+  const r = new FileReader(); r.onload = async () => {   // V5: la vista previa y la aplicación las decide el servidor (apih_importar_proyecto)
+    const txt = String(r.result), pre = await cmdServidor('apih_importar_proyecto', { p_ini: id, p_archivo: txt, p_simular: true }, null, false); if (pre === null) return;
+    const om = pre.omitidos || [], cam = pre.cambios || [], lst = a => a.slice(0, 40).map(x => '• ' + esc(x)).join('<br>') + (a.length > 40 ? '<br>… y ' + (a.length - 40) + ' más' : '');
+    if (pre.bloqueo) { Modal.close && Modal.close(); toast('Archivo rechazado: ' + pre.bloqueo, 'err'); return; }
+    if (!cam.length) { Modal.close && Modal.close(); toast(om.length ? 'Sin cambios válidos. ' + om.slice(0, 3).join(' | ') : 'El archivo no trae cambios', 'err'); return; }
+    confirmBox('<b>Revisar cambios del archivo</b><br>' + cam.length + ' cambio(s) propuesto(s) en ' + esc(i.titulo) + ' (formato: campo: antes → después):<br><br>' + lst(cam) + (om.length ? '<br><br><b style="color:var(--red)">Se omiten ' + om.length + ':</b><br>' + om.slice(0, 15).map(x => '✕ ' + esc(x)).join('<br>') : '') + '<br><br>¿Aplicar?', () =>
+      cmdServidor('apih_importar_proyecto', { p_ini: id, p_archivo: txt, p_simular: false }, null).then(x => { if (x === null) return; const e = [...(x.omitidos || []), ...(x.errores || [])]; toast(x.ok + ' cambio(s) aplicados' + (e.length ? ' · ' + e.length + ' omitidos: ' + e.slice(0, 2).join(' | ') : ''), e.length ? 'warn' : undefined); refresh(); }), 'Aplicar');
+  }; r.readAsText(fl); };
 
 
 /* ---------- Administración → Usuarios (servidor): cuentas pendientes, rol, áreas y proyectos asignados ---------- */
@@ -304,19 +240,19 @@ Acts.usroff = d => {
 /* ---------- Administración → Conexión ---------- */
 function spTab() {
   const d = DataService, i = syncInfo(), c = APIH_CONFIG, u = AuthService.user();
-  const host = (() => { try { return new URL(c.supabase.url).hostname; } catch (e) { return '—'; } })();
-  const mode = d.svc ? 'Servidor (Supabase)' : 'Demo (memoria)';
+  const host = (() => { try { return new URL(c.api.url || location.origin, location.origin).hostname; } catch (e) { return '—'; } })();
+  const mode = d.svc ? 'Servidor (API de APIH)' : 'Demo (memoria)';
   const schema = Object.keys(ESQUEMA).map(e => { const S = ESQUEMA[e]; return `<details class="sch"><summary>${esc(c[S.cfg])} <span class="mut">· ${S.label} · ${S.cols.length + 1} columnas</span></summary><div class="tbl-w"><table class="tbl"><thead><tr><th>Columna</th><th>Tipo</th><th>Campo de dominio</th><th>Detalle</th></tr></thead><tbody>${S.cols.map(x => `<tr><td class="mono">${x.n}${x.n === 'Title' ? ' <span class="mut">(' + esc(S.title) + ')</span>' : ''}</td><td>${x.t}</td><td class="mono">${x.k || '—'}</td><td>${x.ch ? esc(x.ch.join(' · ')) : x.rw ? 'editable fuera de la app' : x.get ? 'calculada' : 'clave'}</td></tr>`).join('')}<tr><td class="mono">DatosJSON</td><td>Note</td><td class="mono">(objeto completo)</td><td>Conserva campos sin columna propia</td></tr></tbody></table></div></details>`; }).join('') +
     `<details class="sch"><summary>${esc(c.settingsList)} <span class="mut">· Config · 2 columnas</span></summary><p class="desc">Title = clave (${SETTINGS_KEYS.join(', ')}) · DatosJSON = valor. El usuario actual y el filtro de área son de sesión y no se comparten.</p></details>`;
   const lista = (et, nom) => `<tr><td>${esc(et)}</td><td class="mono">${esc(nom)}</td></tr>`;
-  return `<div class="grid12"><section class="card c7"><header><h2>Conexión a Supabase</h2><small><span class="dot-s ${i.c}"></span> ${esc(i.t)} · ${mode}</small></header>
+  return `<div class="grid12"><section class="card c7"><header><h2>Conexión a la API</h2><small><span class="dot-s ${i.c}"></span> ${esc(i.t)} · ${mode}</small></header>
     <div class="note ${d.svc ? '' : 'warn'}">${icon('db', 14)}<span>${d.svc ? 'Conectado. Los cambios se sincronizan solos (registro por registro, con reintentos y detección de conflictos). ' + (d.st.last ? 'Último sync: ' + d.st.last.toTimeString().slice(0, 8) + '.' : '') : esc(i.tip)}</span></div>
-    <div class="fgrid sp-fg"><div class="fld"><label>Proyecto</label><input value="${esc(host)}" readonly></div><div class="fld"><label>Sesión</label><input value="${esc(u ? u.email : 'sin sesión')}" readonly></div>
+    <div class="fgrid sp-fg"><div class="fld"><label>Servidor</label><input value="${esc(host)}" readonly></div><div class="fld"><label>Sesión</label><input value="${esc(u ? u.email : 'sin sesión')}" readonly></div>
     <div class="fld"><label>Refresco automático (s)</label><input value="${esc(c.pollSec)}" data-chg="spc" data-p="pollSec" data-key="sp-pollSec"><small>0 = desactivado</small></div></div>
-    <div class="chips" style="margin-top:12px">${btn('Conectar / recargar', 'spconnect', { ic: 'refresh', cls: 'pri' })}${btn('Probar conexión', 'sptest', { ic: 'check' })}${btn('Cargar datos del archivo', 'spseed', { ic: 'down' })}${btn('Sincronizar ahora', 'spsync', { ic: 'refresh' })}${u ? btn('Cerrar sesión (' + u.name + ')', 'splogout', { ic: 'lock' }) : btn('Iniciar sesión', 'login', { ic: 'lock' })}</div>
+    <div class="chips" style="margin-top:12px">${btn('Conectar / recargar', 'spconnect', { ic: 'refresh', cls: 'pri' })}${btn('Probar conexión', 'sptest', { ic: 'check' })}${btn('Sincronizar ahora', 'spsync', { ic: 'refresh' })}${u ? btn('Cerrar sesión (' + u.name + ')', 'splogout', { ic: 'lock' }) : btn('Iniciar sesión', 'login', { ic: 'lock' })}</div>
     <div class="logbox" id="splog" style="margin-top:12px">${esc(UI.splog || 'Sin actividad. Use “Probar conexión” para validar el acceso a las listas.')}</div></section>
     <section class="card c5"><header><h2>Listas</h2><small>Fijas: coinciden con las reglas del servidor</small></header><div class="tbl-w"><table class="tbl"><thead><tr><th>Contenido</th><th>Lista</th></tr></thead><tbody>${lista('Proyectos', c.projectsList)}${lista('Propuestas', c.proposalsList)}${lista('Riesgos', c.risksList)}${lista('Hitos', c.milestonesList)}${lista('Decisiones', c.decisionsList)}${lista('Bitácora (auditoría)', c.auditList)}${lista('Comités', c.committeesList)}${lista('Configuración', c.settingsList)}${lista('Roles y usuarios', c.rolesList)}</tbody></table></div>
-    <p class="mut" style="font-size:12px;margin-top:10px">Las tablas, políticas y comandos del servidor se crean con las migraciones de <b>supabase/migrations</b>. La autorización por rol, área y monto se aplica en el servidor, no en esta pantalla.</p></section></div>
+    <p class="mut" style="font-size:12px;margin-top:10px">Las tablas, políticas y comandos del servidor se crean con las migraciones de <b>db/azure-sql/migraciones</b>. La autorización por rol, área y monto se aplica en el servidor, no en esta pantalla.</p></section></div>
     <section class="card"><header><h2>Esquema de entidades</h2><small>ID de dominio = Title (Riesgos, Decisiones, Bitácora) o Codigo (Proyectos, Hitos, Comités)</small></header>${schema}</section>`;
 }
 Chg.spc = el => { if (el.dataset.p === 'pollSec') { APIH_CONFIG.pollSec = Math.max(0, +el.value || 0); DataService.startPoll(); } };
@@ -325,7 +261,7 @@ Acts.sptest = async () => { splog('Probando…'); try { splog((await DataService
 Acts.spconnect = async () => {
   splog('Conectando…'); if (DataService.svc) await DataService.flush();
   const S = await DataService.init(); ENLACES.St = S; UI.sel = null; shell(); render();
-  splog(DataService.svc ? '✔ Conectado a Supabase · ' + St.ini.length + ' proyectos, ' + St.riesgos.length + ' riesgos, ' + St.hitos.length + ' hitos.' : '✘ ' + (DataService.offlineWhy || DataService.st.err || 'Modo demo'));
+  splog(DataService.svc ? '✔ Conectado a la API · ' + St.ini.length + ' proyectos, ' + St.riesgos.length + ' riesgos, ' + St.hitos.length + ' hitos.' : '✘ ' + (DataService.offlineWhy || DataService.st.err || 'Modo demo'));
 };
 Acts.spsync = async () => { if (!DataService.svc) return toast('Sin conexión a ' + BK(), 'err'); await DataService.flush(); await DataService.refresh(false, true); };
 Acts.splogout = async () => { try { await AuthService.logout(); } catch (e) { } const S = await DataService.init(); ENLACES.St = S; shell(); render(); };
@@ -389,25 +325,27 @@ Acts.fasadd = d => {
 };
 Acts.fasdel = d => {
   const m = MET(), L = d.w === 'prop' ? m.fasesProp : m.fasesPrj, x = L[+d.n]; if (!x || FASES_FIJAS.includes(x)) return;
-  if (enUso(x)) return toast(`Hay ${enUso(x)} iniciativa(s) en «${x}»: muévelas de fase antes de eliminarla`, 'err');
   const prev = L[+d.n - 1];
-  confirmBox(`¿Eliminar la fase <b>${esc(x)}</b>? Los hitos tipo de esa fase pasan a «${esc(prev)}».`, () => { L.splice(+d.n, 1); m.tipos.forEach(t => t.hitos.forEach(h => { if (h.fase === x) h.fase = prev; })); St.hitos.forEach(h => { if (h.fase === x) h.fase = prev; }); refresh(); }, 'Eliminar', true);
+  confirmBox(`¿Eliminar la fase <b>${esc(x)}</b>? Los hitos de esa fase pasan a «${esc(prev)}». Si hay iniciativas en ella, el servidor no lo permite.`, async () => {
+    const r = await cmdServidor('apih_fase_cascada', { p_accion: 'eliminar', p_de: x, p_a: prev }, null);   // el servidor valida y mueve los hitos
+    if (r === null) return;
+    L.splice(+d.n, 1); m.tipos.forEach(t => t.hitos.forEach(h => { if (h.fase === x) h.fase = prev; })); refresh();
+  }, 'Eliminar', true);
 };
 Acts.fasmv = d => { const m = MET(), L = d.w === 'prop' ? m.fasesProp : m.fasesPrj, n = +d.n, k = n + (+d.d); if (n <= 0 || n >= L.length - 1 || k <= 0 || k >= L.length - 1) return; [L[n], L[k]] = [L[k], L[n]]; refresh(); };
-Chg.fasren = el => {
+Chg.fasren = async el => {
   const m = MET(), L = el.dataset.w === 'prop' ? m.fasesProp : m.fasesPrj, n = +el.dataset.n, old = L[n], v = el.value.trim();
   if (!v || v === old) return render(); if (FASES_FIJAS.includes(old)) return render();
   if ([...m.fasesProp, ...m.fasesPrj].some(x => x.toLowerCase() === v.toLowerCase())) { toast('Ya existe una fase con ese nombre', 'err'); return render(); }
   L[n] = v; FASE_COLOR[v] = FASE_COLOR[old];
-  // N-U-02: al renombrar, migrar también subfases, notas de fase y descripción global (antes quedaban huérfanas)
-  St.ini.forEach(i => { if (i.fase === old) i.fase = v; subfasesDe(i).forEach(sf => { if (sf.fase === old) sf.fase = v; }); if (i.faseNota && i.faseNota[old] !== undefined) { i.faseNota[v] = i.faseNota[old]; delete i.faseNota[old]; } });
   if (m.faseDesc && m.faseDesc[old] !== undefined) { m.faseDesc[v] = m.faseDesc[old]; delete m.faseDesc[old]; }
-  St.hitos.forEach(h => { if (h.fase === old) h.fase = v; }); m.tipos.forEach(t => t.hitos.forEach(h => { if (h.fase === old) h.fase = v; })); refresh();
+  m.tipos.forEach(t => t.hitos.forEach(h => { if (h.fase === old) h.fase = v; }));
+  save();   // primero la configuración (nombre nuevo); el servidor lo espera y mueve iniciativas, subfases, notas y hitos
+  await cmdServidor('apih_fase_cascada', { p_accion: 'renombrar', p_de: old, p_a: v }, null); render();
 };
-Acts.metreset = () => confirmBox('Se restablecen fases y tipos a la metodología sugerida. Las iniciativas en fases personalizadas pasan a la fase anterior base. ¿Continuar?', () => {
-  const def = METODO_DEF(), keep = new Set([...def.fasesProp, ...def.fasesPrj]);
-  St.ini.forEach(i => { if (!keep.has(i.fase)) i.fase = esProp(i) ? 'Evaluación' : 'Ejecución'; }); St.hitos.forEach(h => { if (h.fase && !keep.has(h.fase)) h.fase = ''; });
-  St.cfg.metodo = def; F('adm', {}).tipo = null; refresh(); toast('Metodología restablecida');
+Acts.metreset = () => confirmBox('Se restablecen fases y tipos a la metodología sugerida. Las iniciativas en fases personalizadas pasan a la fase base. ¿Continuar?', async () => {
+  St.cfg.metodo = METODO_DEF(); F('adm', {}).tipo = null; save();
+  await cmdServidor('apih_fase_cascada', { p_accion: 'restablecer', p_de: '', p_a: null }, 'Metodología restablecida');
 }, 'Restablecer', true);
 
 /* ============================================================
@@ -594,7 +532,7 @@ function repCanvas(esc2) {
     const h = Math.ceil(wrap.getBoundingClientRect().height); const xml = new XMLSerializer().serializeToString(wrap); host.remove();
     const k = esc2 || 2, svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"><foreignObject width="100%" height="100%">' + xml + '</foreignObject></svg>';
     const img = new Image(); img.onload = () => { try { const c = document.createElement('canvas'); c.width = w * k; c.height = h * k; const x = c.getContext('2d'); x.fillStyle = '#f5f5f5'; x.fillRect(0, 0, c.width, c.height); x.scale(k, k); x.drawImage(img, 0, 0); ok({ c, w, h }); } catch (e) { ko(e); } };
-    img.onerror = () => ko(new Error('no se pudo dibujar el reporte')); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    img.onerror = () => ko(new Error('no se pudo dibujar el reporte')); img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));   // V11: blob: en vez de data: (CSP img-src sin data:)
   });
 }
 function repPdfBlob(jpgB64, pw, ph, wpx, hpx) {

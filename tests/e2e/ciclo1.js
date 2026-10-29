@@ -16,7 +16,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
     mk('V23-E', { avance: 30, fase: 'Ejecución' }); hit('V23-E', 'Planificación', true); hit('V23-E', 'Ejecución', false);
     mk('V23-F', { fase: 'Cierre' }); hit('V23-F', 'Planificación', true); hit('V23-F', 'Ejecución', true); hit('V23-F', 'Transición', true); hit('V23-F', 'Cierre', false, { id: 'V23-F-ULT' });
     save(); render(); });
-  await p.evaluate(async () => { await DataService.flush(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
+  await p.evaluate(async () => { await sembrarSt(); });   // con servidor, los datos de la prueba viven en la base: los comandos (apih_*) los leen de allí
   const r = {}, ev = (f, a) => p.evaluate(f, a);
   // 1) diálogo único: ofrece fases y estados; aplica la fase
   await ev(() => Acts.etapa({ id: 'V23-A' })); await p.waitForTimeout(250);
@@ -45,7 +45,7 @@ const URL = process.env.APIH_URL || 'http://localhost:8765/demo/index.html';
   r.editManual = await p.$$eval('#f_avanceManual', a => a.length) === 1;
   await p.click('[data-act="mclose"]'); await p.waitForTimeout(150);
   // 3) avance: lo calcula y lo guarda el servidor; el ajuste manual manda y las compuertas leen el calculado
-  const sync = async () => { await ev(async () => { await DataService.flush(); await DataService.refresh(false, true); }); await p.waitForTimeout(200); };
+  const sync = async () => { await ev(async () => { await sembrarSt(); await DataService.refresh(false, true); }); await p.waitForTimeout(200); };
   await sync();
   r.calcA = await ev(() => byId('V23-A').avance);
   r.calcAfase = await ev(() => fasesVentana(byId('V23-A')).find(v => v.fase === 'Planificación').avance);

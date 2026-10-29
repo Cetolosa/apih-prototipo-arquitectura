@@ -1,5 +1,5 @@
 import { ENLACES } from './00-registro.js';
-import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, log, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq, tonoOnTrack } from './01-nucleo.js';
+import { $, CALC, ACUERDOS, APIH_CONFIG, PERM, CAMBIOS, DECS, FASES_ACT, FASES_PRJ, FL, HITOS, IC, MES3, MESES, RAG_C, RIESGOS, St, _PP, _nrm, addD, atrasado, avatar, by, byId, critScore, desv, diasSinUpd, diffD, esAdmin, esAdminReal, esProp, esSB, esc, esperado, expo, fmtD, fmtDL, fmtMon, fmtN, fmtTot, forecast, hitosDe, hoy, icon, inArea, isActive, isDone, isLive, kpis, miUsuario, monOf, nameOf, pD, pad, pct, pctMon, personProjects, ppInval, quarter, ragSugerido, respSel, riesgoAbierto, riesgoCritico, riesgosCriticos, riesgosDe, save, scope, scopeP, toISO, uniq, tonoOnTrack } from './01-nucleo.js';
 import { AuthService, DataService } from './02-datos.js';
 import { Acts, Chg, F, Modal, UI, Views, btn, closePops, confirmBox, copyText, decForm, download, empty, go, hitoForm, kv, openForm, pageHead, refresh, render, riskForm, selOpts, selectEntity, spark, toCSV, toast, toggleHito } from './03-interfaz.js';
 import { cmdServidor, diasEnFase, priorScore } from './04-flujos.js';
@@ -267,7 +267,7 @@ function hisHTML(me) {
 const CIELO_TABS = [['sem', 'Esta semana'], ['his', 'Mi historial'], ['ins', 'Insignias'], ['gal', 'Galería Michelin']];
 Views.cielo = {
   render() {
-    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = ((CIELO().yo || {}).meta) || cfgMi('cieloMeta') || 80, adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
+    const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = ((CIELO().yo || {}).meta) || cfgMi('cieloMeta'), adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
     const tabs = `<div class="seg" style="margin-bottom:12px">${CIELO_TABS.map(([k, l]) => `<button class="${f.tab === k ? 'on' : ''}" data-act="cielotab" data-k="${k}">${l}</button>`).join('')}</div>`;
     const head = pageHead('Mi cocina', 'Tenedores por gestionar bien el día a día (se mueven cada semana) y estrellas Michelin por cumplir hitos (una vez ganadas, no se pierden). Un proyecto en rojo que se reporta a tiempo también enciende sus tenedores.', `<span class="edit-only">${btn('Ronda de actualización' + (rondaIds().length ? ' (' + rondaIds().length + ')' : ''), 'ronda', { ic: 'refresh', cls: 'pri' })}</span>`) + tabs;
     if (f.tab === 'his') return head + hisHTML(me);
@@ -379,8 +379,7 @@ const PERS_DEF = [
 Views.miconfig = {
   render() {
     const g = esAdministra(), me = miUsuario(), o = cfgOf(me), n = St.ini.filter(i => _nrm(i.lider) === _nrm(me)).length;
-    const def = { propDiasAmb: 30, propDiasRojo: 60, cieloMeta: 80 };
-    const rows = PERS_DEF.map(([k, l, h, mn, mx]) => { const fx = fijo(k), pers = !g && !fx && o[k] != null, gen = St.cfg[k] != null ? St.cfg[k] : def[k], v = pers ? o[k] : gen, dis = FL.verComo || (!g && fx);
+    const rows = PERS_DEF.map(([k, l, h, mn, mx]) => { const fx = fijo(k), pers = !g && !fx && o[k] != null, gen = St.cfg[k], v = pers ? o[k] : gen, dis = FL.verComo || (!g && fx);
       const tag = fx ? '<span class="mc-tag on">' + icon('lock', 11) + ' ' + (g ? 'Fijo' : 'Fijado por Administra') + '</span>' : g ? '<span class="mc-tag on">Global</span>' : pers ? '<span class="mc-tag on">Personal</span> <small>general: ' + gen + '</small>' : '<span class="mc-tag">General</span>';
       const act = g ? btn(fx ? 'Liberar' : 'Fijar', 'myfix', { cls: 'sm', d: { k } }) : pers ? btn('Restablecer', 'myreset', { cls: 'sm', d: { k } }) : '';
       return `<div class="mc-row"><div><b>${l}</b><br><small>${h}</small></div><input type="number" min="${mn}" max="${mx}" value="${v}" data-chg="mycfg" data-k="${k}" data-min="${mn}" data-max="${mx}" ${dis ? 'disabled' : ''}><div>${tag}</div><div>${act}</div></div>`; }).join('');
@@ -420,7 +419,7 @@ Acts.myreset = d => { if (FL.verComo || (!esAdministra() && fijo(d.k === '_tema'
    1 Compuertas duras (solo Administra puede forzar) · 2 Línea base y valor ganado · 3 Riesgos críticos con mitigación y decisiones con plazo/escalamiento
    4 Beneficio real y priorización ponderada · 5 Tercera estrella exige resultado
    ============================================================ */
-const decMaxDias = () => +St.cfg.decMaxDias || 30;
+const decMaxDias = () => +St.cfg.decMaxDias;
 const decEscalada = d => !!(d && d.estado === 'Pendiente' && d.escalada);   // la marca la pone el servidor (apih_mantener) al vencer el plazo de escalamiento
 const evm = i => (i && CALC.evm && CALC.evm[i.id]) || null;   // valor ganado: lo calcula el servidor contra la línea base
 function controlHTML(i) {
@@ -505,7 +504,7 @@ function celebrarMichelin(i) {
 }
 /* Mantenimiento: el servidor marca las decisiones escaladas y otorga las estrellas Michelin nuevas (nunca quita). Aquí solo se pide y se celebra. */
 async function mantenerSrv() {
-  if (!St || !St.ini || UI.mantBusy || (UI.mantTs && Date.now() - UI.mantTs < 20000)) return;
+  if (!St || !St.ini || !DataService.svc || UI.mantBusy || (UI.mantTs && Date.now() - UI.mantTs < 20000)) return;   // sin servidor (modo demo) no hay mantenimiento
   UI.mantBusy = true; UI.mantTs = Date.now();
   try {
     const boot = !UI.msBoot; UI.msBoot = true;
@@ -700,7 +699,7 @@ Views.capacidad = {
 Acts.caph = d => { F('cap', {}).h = +d.h; render(); };
 Acts.capopen = d => { const f = F('cap', {}); f.open = f.open === d.n ? '' : d.n; render(); };
 Chg.capalerta = el => { F('cap', {}).alerta = el.checked; render(); };
-Chg.capp = el => { if (!esAdministra() || FL.verComo) return; const v = Math.min(20, Math.max(1, +el.value || 0)), def = Math.max(1, +St.cfg.capacidadMax || 5), c = Object.assign({}, St.cfg.capPers || {}); if (v === def) delete c[_nrm(el.dataset.n)]; else c[_nrm(el.dataset.n)] = v; St.cfg.capPers = c; refresh(); };
+Chg.capp = el => { if (!esAdministra() || FL.verComo) return; const v = Math.min(20, Math.max(1, +el.value || 0)), def = Math.max(1, +St.cfg.capacidadMax), c = Object.assign({}, St.cfg.capPers || {}); if (v === def) delete c[_nrm(el.dataset.n)]; else c[_nrm(el.dataset.n)] = v; St.cfg.capPers = c; refresh(); };
 Acts.capcsv = () => { const D = capData(F('cap', { h: 6 }).h); download('APIH_capacidad_' + hoy() + '.csv', toCSV(D.gente, [{ h: 'Persona', f: p => p.n }, { h: 'Capacidad', f: p => p.cap }, ...D.meses.map((m, k) => ({ h: m.l + ' ' + m.y, f: p => p.ns[k] }))])); };
 
 Views.personas = {
@@ -754,8 +753,8 @@ export const areasPermitidas = () => ctx().areasVisibles || [];
 export const NO_PERM = (m) => toast(m || 'No tienes permiso para esta acción', 'err');
 
 /* Compuertas de interfaz: solo evitan viajes inútiles; la decisión final siempre es del servidor (RLS y comandos). */
-const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'impjson', 'reset', 'sptest', 'spconnect', 'spsync', 'splogout', 'spseed', 'spretry', 'xlsxall', 'atab', 'syncgo'];
-const CHG_ADMIN = ['cfg', 'spc', 'impfile', 'impinifile'];
+const ACT_ADMIN = ['catadd', 'catdel', 'expjson', 'sptest', 'spconnect', 'spsync', 'splogout', 'spretry', 'xlsxall', 'atab', 'syncgo'];
+const CHG_ADMIN = ['cfg', 'spc', 'impinifile'];
 const ACT_EDIT = ['carmar', 'advance', 'etapa', 'etapago', 'applyrag', 'hitotoggle', 'resolvedec', 'aprobar', 'aprobargo', 'estado', 'reopen', 'reabrirPrj', 'edit', 'sfnew', 'sfedit', 'fnota', 'avauto', 'fasefix', 'fasefechas'];
 const CHG_EDIT = ['advto', 'hitotoggle', 'acutoggle', 'bitpres'];
 const ACT_COM = ['csug', 'cdel', 'cpart', 'ctema', 'cacc', 'cdec', 'cclose'];
