@@ -542,8 +542,18 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       m.insertAdjacentHTML('afterbegin', ht); return;
     }
     const h = `<div class="menu-tabs" role="tablist" aria-label="${esc(g.t)}">${g.vs.map(x => { const b = +navBadge(x[0]) || 0; return `<a role="tab" class="${UI.view === x[0] ? 'on' : ''}" data-act="go" data-v="${x[0]}" href="#/${x[0]}" aria-selected="${UI.view === x[0]}">${esc(x[1])}${b ? `<em>${b}</em>` : ''}</a>`; }).join('')}</div>`;
-    const ia = g.k === 'iniciativas' && sr(':scope>.ph .ph-act', m);
-    if (ia) { ia.insertAdjacentHTML('afterbegin', h.replace('class="menu-tabs"', 'class="menu-tabs in-ph"')); return; }   /* Tabla / Tablero junto al título */
+    const ia = ['inicio', 'iniciativas', 'planificacion'].includes(g.k) && sr(':scope>.ph .ph-act', m);
+    if (ia) {   /* Tabla / Tablero, Dashboard / Mi cocina y las pestañas de Planificación van junto al título */
+      let hh = h;
+      if (g.k === 'planificacion') {   /* Cronograma agrupa Gantt, Fases, Roadmap y Calendario */
+        const CR = ['gantt', 'fases', 'roadmap', 'calendario'], cr = g.vs.filter(x => CR.includes(x[0])), rs = g.vs.filter(x => !CR.includes(x[0])), act = cr.find(x => x[0] === UI.view);
+        const tab = x => { const b = +navBadge(x[0]) || 0; return `<a role="tab" class="${UI.view === x[0] ? 'on' : ''}" data-act="go" data-v="${x[0]}" href="#/${x[0]}" aria-selected="${UI.view === x[0]}">${esc(x[1])}${b ? `<em>${b}</em>` : ''}</a>`; };
+        const crono = cr.length ? `<span class="popw fx-crono"><button type="button" role="tab" class="${act ? 'on' : ''}" data-act="pop" data-id="pop-crono" aria-selected="${!!act}" aria-haspopup="menu">${esc('Cronograma' + (act ? ' · ' + act[1] : ''))} <span aria-hidden="true">▾</span></button><div class="pop" id="pop-crono" role="menu">${cr.map(x => `<button type="button" role="menuitem" data-act="go" data-v="${x[0]}" class="${UI.view === x[0] ? 'on' : ''}">${esc(x[1])}${UI.view === x[0] ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}</div></span>` : '';
+        hh = `<div class="menu-tabs" role="tablist" aria-label="${esc(g.t)}">${crono}${rs.map(tab).join('')}</div>`;
+        const h1 = sr(':scope>.ph h1', m); if (h1) h1.textContent = g.t;   /* el título es el módulo; la pestaña activa se ve en el selector */
+      }
+      ia.insertAdjacentHTML('afterbegin', hh.replace('class="menu-tabs"', 'class="menu-tabs in-ph"')); if (UI.pop === 'pop-crono') { const e = sr('#pop-crono'); if (e) e.classList.add('open'); } return;
+    }
     m.insertAdjacentHTML('afterbegin', h);
   }
   const go0 = go;
@@ -577,6 +587,47 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       if (innerWidth >= 1100) { row.classList.add('one'); if (row.scrollWidth > row.clientWidth + 1 || row.offsetHeight > 52) row.classList.remove('one'); }
     }
   }
+  /* Encabezado único (modelo: Iniciativas). Dashboard: «Resumen | Análisis» a la derecha de los filtros.
+     Planificación: los filtros se agrupan en «Alcance» (Área, Responsable, Tipo, Iniciativa) y «Filtros de …»
+     (los propios de cada pantalla); lo activo se ve como etiquetas que se quitan con ×. «Solo lo mío» queda a un clic. */
+  function encabezadoFiltros() {
+    const m = sr('#main'); if (!m || innerWidth < 700) return;
+    const row = sr(':scope>.v22-row', m); if (!row) return;
+    if (UI.view === 'dashboard' && !sr('.fx-vs', row)) {
+      const vs = document.createElement('div'); vs.className = 'seg fx-vs'; vs.setAttribute('role', 'group'); vs.setAttribute('aria-label', 'Vista');
+      vs.innerHTML = `<button class="on" aria-pressed="true">Resumen</button><button data-act="go" data-v="analisis" aria-pressed="false">Análisis</button>`; row.appendChild(vs); return;
+    }
+    const g = grupoDe(UI.view, menuGroups()); if (!g || g.k !== 'planificacion' || sr('.fx-alc', row) || (modoUI() === 'simple' && !UI.sx)) return;   /* en modo Simple esos filtros ya están ocultos */
+    const NOM = { 'flt/ini': 'Iniciativa', 'cflt/ini': 'Proyecto', 'flt/estado': 'Estado', 'flt/cat': 'Categoría', 'flt/nivel': 'Nivel', 'flt/dueno': 'Dueño' };
+    const key = x => x.dataset.chg + '/' + (x.dataset.f || '');
+    const alc = [], fil = [];
+    [...row.children].forEach(n => {
+      const x = n.matches('select') ? n : (n.tagName === 'LABEL' ? sr('select', n) : null); if (!x) return;
+      if (['areaG', 'respG', 'ptipo'].includes(x.dataset.chg) || key(x) === 'flt/ini' || key(x) === 'cflt/ini') alc.push([n, x]);
+      else if (NOM[key(x)]) fil.push([n, x]);
+    });
+    if (!alc.length && !fil.length) return;
+    const lbl = (n, x) => { if (n !== x) return n; const l = document.createElement('label'); l.className = 'flt ' + (x.className || ''); const sm = document.createElement('small'); sm.textContent = NOM[key(x)]; l.appendChild(sm); l.appendChild(x); return l; };
+    const txt = x => { const o = x.options[x.selectedIndex]; return o ? o.textContent.trim() : ''; };
+    const activo = x => x.dataset.chg === 'areaG' ? x.value !== 'Todas' : x.dataset.chg === 'respG' ? (x.value !== '' && !x.disabled) : x.dataset.chg === 'ptipo' ? false : x.value !== '';
+    const chips = [], panel = (id, titulo, valor, items) => {
+      const w = document.createElement('span'); w.className = 'popw fx-grp';
+      w.innerHTML = `<button type="button" class="btn fx-b" data-act="pop" data-id="${id}" aria-haspopup="true"><span class="fx-t">${esc(titulo)}</span><b>${esc(valor)}</b><span aria-hidden="true">▾</span></button><div class="pop fx-panel" id="${id}"></div>`;
+      const box = sr('.pop', w); items.forEach(([n, x]) => box.appendChild(lbl(n, x))); if (UI.pop === id) box.classList.add('open'); return w;
+    };
+    const nA = alc.filter(([, x]) => activo(x)).length, nF = fil.filter(([, x]) => activo(x)).length;
+    alc.concat(fil).forEach(([, x]) => { if (activo(x)) chips.push([x.dataset.chg, x.dataset.f || '', (NOM[key(x)] || (x.dataset.chg === 'areaG' ? 'Área' : 'Responsable')) + ': ' + txt(x), x.dataset.chg === 'areaG' ? 'Todas' : '']); });
+    const mine = sr('button.mine', row), ref = mine || sr('.search', row) || null;
+    const wa = alc.length ? panel('pop-fx-alc', 'Alcance', nA ? nA + ' activo' + (nA === 1 ? '' : 's') : 'Todo', alc) : null, wf = fil.length ? panel('pop-fx-fil', g.k && UI.view === 'riesgos' ? 'Filtros de riesgo' : 'Filtros', nF ? String(nF) : 'Todos', fil) : null;
+    if (wa) { wa.classList.add('fx-alc'); row.insertBefore(wa, mine ? mine : ref); }
+    if (wf) row.insertBefore(wf, (wa && wa.nextSibling) || ref);
+    let at = mine || wf || wa; chips.forEach(([c, f, t, v]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'fx-chip'; b.dataset.fxc = c; b.dataset.fxf = f; b.dataset.fxv = v; b.setAttribute('aria-label', 'Quitar filtro ' + t); b.innerHTML = `${esc(t)} <span aria-hidden="true">×</span>`; if (at) { at.after(b); at = b; } else row.appendChild(b); });
+  }
+  document.addEventListener('click', e => {   /* quitar un filtro desde su etiqueta */
+    const b = e.target.closest && e.target.closest('.fx-chip'); if (!b) return;
+    const x = sr(`#main select[data-chg="${b.dataset.fxc}"]${b.dataset.fxf ? `[data-f="${b.dataset.fxf}"]` : ''}`); if (!x) return;
+    x.value = b.dataset.fxv; x.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   const presLayout0 = presLayout;
   ENLACES.presLayout = function () { presLayout0.apply(this, arguments); const b = sr('.p2-bar [data-act=pdrawer] span'); if (b) b.textContent = 'Diapositivas'; const t = sr('.p2-bar input[data-k=titulo]'); if (t) { t.placeholder = 'Título de la presentación'; t.setAttribute('aria-label', 'Título'); } };
   const render0 = render;
@@ -584,7 +635,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
     /* compactar() mueve los filtros a otra fila y eso quita el foco del campo que se está escribiendo: se restaura al final */
     const act = document.activeElement, key = act && act.dataset ? act.dataset.key : null, ss = act && act.selectionStart != null ? [act.selectionStart, act.selectionEnd] : null;
     render0.apply(this, arguments);
-    try { if (St !== _audSt) audSnap(); primaria(); compactar(); contrasta(); menuTabs(); paginar(); a11y(); } catch (e) { console.error(e); }
+    try { if (St !== _audSt) audSnap(); primaria(); compactar(); encabezadoFiltros(); contrasta(); menuTabs(); paginar(); a11y(); } catch (e) { console.error(e); }
     if (key) { const el = $(`[data-key="${key}"]`); if (el && el !== document.activeElement) { el.focus(); if (ss && el.setSelectionRange) try { el.setSelectionRange(ss[0], ss[1]); } catch (e) { } } }
   };
   /* texto oscuro sobre fondos claros (celdas de la matriz y exposición) */
