@@ -682,7 +682,7 @@ import { GUIA, presLayout } from './09-presentaciones.js';
       if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(r.status === 429 ? 'Demasiados intentos; espera unos minutos e inténtalo de nuevo' : (j.msg || j.error_description || 'No se pudo enviar el correo (' + r.status + ')')); }
     },
     async registrar(nombre, email, pw) {
-      const r = await fetch(SB.cfg.url + '/auth/v1/signup', { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pw, data: { nombre } }) });
+      const r = await fetch(SB.cfg.url + '/auth/v1/signup?redirect_to=' + encodeURIComponent(location.origin + location.pathname), { method: 'POST', headers: { apikey: SB.cfg.anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pw, data: { nombre } }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(r.status === 429 ? 'Demasiados intentos; espera unos minutos e inténtalo de nuevo' : r.status === 422 && /password|weak/i.test(j.msg || j.error_code || '') ? 'La contraseña es muy débil' : (j.msg || j.error_description || 'No se pudo crear la cuenta (' + r.status + ')'));
       return j;
