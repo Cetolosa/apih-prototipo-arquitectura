@@ -5,13 +5,17 @@
 //   2. index.html: idéntico salvo connect-src de la CSP y los scripts de vendor/ (acceso del ambiente).
 //   3. Servidor: los mismos comandos con los mismos argumentos (API del Corporativo ↔ funciones apih_* del Prototipo).
 // Regla de trabajo (docs/paridad.md): todo cambio parte en el Prototipo y se traspasa al Corporativo en la misma entrega.
+// Con --sincronizar copia primero al Corporativo todo lo común (js, css, index.html, e2e, lista de regresión y este archivo)
+// desde el Prototipo y luego comprueba. Lo único que queda a mano es el servidor (apih_* en SQL ↔ comandos en api/src).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const OTRO = process.argv[2] ? path.resolve(process.argv[2]) : null;
-if (!OTRO || !fs.existsSync(OTRO)) { console.error('Uso: node tools/paridad.mjs <ruta-del-otro-repositorio>'); process.exit(2); }
+const ARGS = process.argv.slice(2);
+const SINCRONIZAR = ARGS.includes('--sincronizar');
+const OTRO = ARGS.find(a => !a.startsWith('--')) ? path.resolve(ARGS.find(a => !a.startsWith('--'))) : null;
+if (!OTRO || !fs.existsSync(OTRO)) { console.error('Uso: node tools/paridad.mjs <ruta-del-otro-repositorio> [--sincronizar]'); process.exit(2); }
 
 /* Lo único que puede diferir: transporte y acceso del ambiente, y la infraestructura de pruebas de cada servidor */
 const PROPIOS = {
@@ -40,6 +44,51 @@ function carpeta(rel, propios, filtro = () => true) {
     if (leer(path.join(a, f)) !== leer(path.join(b, f))) mal(`${rel}/${f}: difiere (traspasar el cambio del Prototipo al Corporativo)`);
   }
   for (const f of ['01t-transporte.js', '10b-acceso.js']) if (rel === 'js' && !(la.includes(f) && lb.includes(f))) mal(`${rel}/${f}: debe existir en ambos (aunque su contenido difiera)`);
+}
+
+// 0. Sincronizar (Prototipo → Corporativo): solo lo común; lo propio de cada ambiente no se toca
+if (SINCRONIZAR) {
+  const cambios = [];
+  const escribir = (f, txt) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, txt); cambios.push(path.relative(CORP, f)); };
+  const copiar = (a, b) => { if (!fs.existsSync(b) || leer(a) !== leer(b)) escribir(b, leer(a)); };
+  for (const [rel, propios, ext] of [['js', PROPIOS.js, '.js'], ['css', PROPIOS.css, '.css']]) {
+    const a = path.join(web(PROTO), rel), b = path.join(web(CORP), rel);
+    const la = fs.readdirSync(a).filter(f => f.endsWith(ext) && !propios.includes(f));
+    for (const f of la) copiar(path.join(a, f), path.join(b, f));
+    for (const f of fs.readdirSync(b).filter(f => f.endsWith(ext) && !propios.includes(f) && !la.includes(f))) { fs.rmSync(path.join(b, f)); cambios.push(`(borrado) ${path.relative(CORP, path.join(b, f))}`); }
+  }
+  // index.html: el del Prototipo con la CSP (comentario y connect-src) y los scripts de vendor/ del Corporativo
+  const hp = leer(path.join(web(PROTO), 'index.html')), hcF = path.join(web(CORP), 'index.html'), hc = leer(hcF);
+  const comentario = h => (/^\s*<!--[^\n]*connect-src[^\n]*-->$/m.exec(h) || [null])[0];
+  let h = hp;
+  if (comentario(hp) && comentario(hc)) h = h.replace(comentario(hp), () => comentario(hc));
+  const cs = /connect-src [^;"]*/.exec(hc);
+  if (cs) h = h.replace(/connect-src [^;"]*/g, () => cs[0]);
+  const lc = hc.split('\n');
+  lc.forEach((l, i) => {
+    if (!/^\s*<script src="vendor\/[^"]+"><\/script>$/.test(l)) return;
+    const ancla = lc.slice(0, i).reverse().find(x => !/vendor\//.test(x));
+    const lh = h.split('\n'), j = lh.indexOf(ancla);
+    if (j < 0) { mal(`index.html: no encuentro dónde insertar ${l.trim()}`); return; }
+    let k = j + 1; while (/vendor\//.test(lh[k] || '')) k++;
+    lh.splice(k, 0, l); h = lh.join('\n');
+  });
+  if (h !== hc) escribir(hcF, h);
+  // pruebas e2e: las de la regresión del Prototipo (salvo las propias) y sus fixtures; la lista del Corporativo conserva sus pruebas propias
+  const archLista = r => ['tools/correr-e2e.mjs', 'tools/correr-e2e.js'].map(x => path.join(r, x)).find(x => fs.existsSync(x));
+  const reLista = /const PRUEBAS = \[([^\]]*)\]/;
+  const nombres = txt => (reLista.exec(txt) || [, ''])[1].match(/'[^']+'/g)?.map(x => x.slice(1, -1)) ?? [];
+  const propio = t => PROPIOS.e2e.includes(t + '.js');
+  const lpS = nombres(leer(archLista(PROTO))), lcF = archLista(CORP), lcTxt = leer(lcF);
+  const nueva = [...lpS.filter(t => !propio(t)), ...nombres(lcTxt).filter(propio)];
+  for (const t of lpS.filter(t => !propio(t))) copiar(path.join(PROTO, 'tests/e2e', t + '.js'), path.join(CORP, 'tests/e2e', t + '.js'));
+  const fx = path.join(PROTO, 'tests/e2e/fixtures');
+  if (fs.existsSync(fx)) for (const f of fs.readdirSync(fx, { recursive: true })) { const a = path.join(fx, f); if (fs.statSync(a).isFile()) copiar(a, path.join(CORP, 'tests/e2e/fixtures', f)); }
+  const lcNuevo = lcTxt.replace(reLista, () => `const PRUEBAS = [${nueva.map(t => `'${t}'`).join(', ')}]`);
+  if (lcNuevo !== lcTxt) escribir(lcF, lcNuevo);
+  // este mismo archivo vive en ambos
+  copiar(path.join(PROTO, 'tools/paridad.mjs'), path.join(CORP, 'tools/paridad.mjs'));
+  console.log(cambios.length ? cambios.map(c => 'COPIA ' + c).join('\n') + `\nsincronizar: ${cambios.length} archivo(s) actualizados en el Corporativo` : 'sincronizar: el Corporativo ya estaba al día');
 }
 
 // 1. SPA
