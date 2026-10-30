@@ -15,15 +15,28 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y postgresql libfaketime   # backend de pruebas: Postgres real con las migraciones del repositorio
       - run: npm ci
       - run: node tools/guardia-reglas.js && node tools/lint-terminos.js && node tools/verificar-modulos.js
-      - name: Paridad con el Corporativo (si hay acceso; el CI del Corporativo la exige siempre)
+      - name: Traspaso automático al Corporativo y paridad (si hay acceso; el CI del Corporativo la exige siempre)
         env:
           CORP_TOKEN: ${{ secrets.CORP_TOKEN }}
+          GH_TOKEN: ${{ secrets.CORP_TOKEN }}
+          TITULO: ${{ github.event.pull_request.title }}
+          ORIGEN: ${{ github.event.pull_request.html_url }}
         run: |
           # El Corporativo es privado: sin el secreto CORP_TOKEN este paso solo avisa. La paridad la exige el CI del Corporativo.
+          # Con CORP_TOKEN, en cada PR copia lo común (js, css, index.html, e2e) a la rama del mismo nombre en el Corporativo
+          # y abre su PR. Lo único que queda a mano es el servidor (comandos en api/src), que la paridad informa.
           [ -n "$CORP_TOKEN" ] || { echo "::notice::Sin CORP_TOKEN: la paridad se verifica en el CI del Corporativo"; exit 0; }
           R="${{ github.head_ref || github.ref_name }}"; U="https://x-access-token:$CORP_TOKEN@github.com/Cetolosa/apih-corporativo-arquitectura"
-          git clone -q --depth 1 --branch "$R" "$U" ../otro 2>/dev/null || git clone -q --depth 1 "$U" ../otro
-          node tools/paridad.mjs ../otro
+          git clone -q --depth 1 --branch "$R" "$U" ../otro 2>/dev/null || { git clone -q --depth 1 "$U" ../otro && git -C ../otro checkout -q -b "$R"; }
+          if [ "${{ github.event_name }}" != "pull_request" ]; then node tools/paridad.mjs ../otro; exit $?; fi
+          node tools/paridad.mjs ../otro --sincronizar || FALLA=1
+          cd ../otro
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "APIH traspaso"; git config user.email "traspaso@users.noreply.github.com"
+            git add -A && git commit -q -m "Traspaso automático desde el Prototipo (${GITHUB_SHA::7})" && git push -q origin "$R"
+            gh pr view "$R" -R Cetolosa/apih-corporativo-arquitectura >/dev/null 2>&1 || gh pr create -R Cetolosa/apih-corporativo-arquitectura --head "$R" --base main --title "$TITULO" --body "Traspaso automático de $ORIGEN"
+          fi
+          [ -z "$FALLA" ] || { echo "::error::Falta traspasar el servidor (ver FALLA arriba): escribir el comando en api/src del Corporativo"; exit 1; }
       - run: node tools/empaquetar-migraciones.js && git diff --exit-code supabase/aplicar_en_supabase.sql   # el paquete para Supabase debe estar al día
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
