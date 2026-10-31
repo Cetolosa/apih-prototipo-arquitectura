@@ -7,6 +7,9 @@ import { esc, icon } from './01-nucleo.js';
 import { AuthService, Sesion as SB, PantallaAcceso as SBLogin } from './02-datos.js';
 import { Acts, Modal, closePops, render, toast } from './03-interfaz.js';
 
+/* Versión visible en las pantallas de acceso (la etiqueta la define apih-config.js) */
+const VER = (b => ({ v: b.v || '', b: b.b || '' }))(window.APIH_BUILD || {});
+
 (function () {
   const sr = (s, p = document) => p.querySelector(s);
   /* opción del menú de la persona (10-extensiones.js la muestra si el ambiente la define) */
