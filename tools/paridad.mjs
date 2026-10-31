@@ -26,6 +26,42 @@ const PROPIOS = {
 /* Funciones del Prototipo que las políticas de acceso (RLS) y las vistas necesitan ejecutar como la persona; no son comandos */
 const AUXILIARES_SQL = ['apih_compuertas', 'apih_compuertas_aprobar', 'apih_faltan_aprobar', 'apih_faltan_transicion', 'apih_g', 'apih_hoy', 'apih_umbral'];
 
+/* Despliegue (Cetolosa/APIH, datos reales de Sistemas BISE): copia exacta del Prototipo Arquitectura en SPA, pruebas y servidor.
+   Solo difieren apih-config.js, la línea connect-src de la CSP y lo que no es aplicación (README, workflows, tools propios). */
+const esDesp = r => { try { return /Prototipo Despliegue/.test(fs.readFileSync(path.join(r, 'apih-config.js'), 'utf8')); } catch (e) { return false; } };
+if (esDesp(AQUI) || esDesp(OTRO)) {
+  const [DESP, ARQ] = esDesp(AQUI) ? [AQUI, OTRO] : [OTRO, AQUI];
+  if (esDesp(ARQ) || !fs.existsSync(path.join(ARQ, 'supabase', 'migrations')) || fs.existsSync(path.join(ARQ, 'api'))) { console.error('Despliegue se compara con el Prototipo Arquitectura'); process.exit(2); }
+  const lee = f => fs.readFileSync(f, 'utf8').replace(/\r\n/g, '\n');
+  const todos = d => fs.existsSync(d) ? fs.readdirSync(d, { recursive: true }).map(String).filter(f => fs.statSync(path.join(d, f)).isFile()) : [];
+  const COMUN = ['js', 'css', 'img', 'tests/e2e', 'tests/contract', 'supabase/migrations', 'supabase/tests'];
+  const ARCH = ['supabase/aplicar_en_supabase.sql', 'tools/paridad.mjs', 'tools/correr-e2e.js', 'tools/test-sql.sh', 'tools/empaquetar-migraciones.js', 'tools/guardia-reglas.js', 'tools/verificar-modulos.js', 'package.json', 'package-lock.json'];
+  const html = h => h.replace(/^\s*<!--[^\n]*connect-src[^\n]*-->\n/m, '').replace(/connect-src [^;"]*/g, 'connect-src …');
+  const dif = [], cambios = [];
+  const copiar = (a, b) => { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.writeFileSync(b, lee(a)); cambios.push(path.relative(DESP, b)); };
+  const pares = [...COMUN.flatMap(c => [...new Set([...todos(path.join(ARQ, c)), ...todos(path.join(DESP, c))])].map(f => path.join(c, f))), ...ARCH];
+  for (const r of pares) {
+    const a = path.join(ARQ, r), b = path.join(DESP, r), ea = fs.existsSync(a), eb = fs.existsSync(b);
+    if (ea && eb && lee(a) === lee(b)) continue;
+    if (!SINCRONIZAR) { dif.push(!ea ? `${r}: existe solo en Despliegue` : !eb ? `${r}: existe solo en Arquitectura` : `${r}: difiere`); continue; }
+    if (ea) copiar(a, b); else { fs.rmSync(b); cambios.push('(borrado) ' + r); }
+  }
+  // index.html: el de Arquitectura con la CSP (comentario y connect-src) de Despliegue
+  const ha = lee(path.join(ARQ, 'index.html')), hbF = path.join(DESP, 'index.html'), hb = lee(hbF);
+  if (html(ha) !== html(hb)) {
+    if (!SINCRONIZAR) dif.push('index.html: difiere fuera de connect-src');
+    else {
+      const com = h => (/^\s*<!--[^\n]*connect-src[^\n]*-->$/m.exec(h) || [null])[0], cs = (/connect-src [^;"]*/.exec(hb) || [null])[0];
+      let h = ha; if (com(ha) && com(hb)) h = h.replace(com(ha), () => com(hb)); if (cs) h = h.replace(/connect-src [^;"]*/g, () => cs);
+      fs.writeFileSync(hbF, h); cambios.push('index.html');
+    }
+  }
+  if (SINCRONIZAR) console.log(cambios.length ? cambios.map(c => 'COPIA ' + c).join('\n') + `\nsincronizar: ${cambios.length} archivo(s) actualizados en Despliegue` : 'sincronizar: Despliegue ya estaba al día');
+  if (dif.length) { console.log(dif.map(f => 'FALLA ' + f).join('\n') + `\nparidad: ${dif.length} diferencia(s) · traspasar con: node tools/paridad.mjs <despliegue> --sincronizar (desde Arquitectura)`); process.exit(1); }
+  console.log(`OK    paridad Arquitectura ↔ Despliegue (${pares.length} archivos e index.html)${cambios.some(c => c.startsWith('supabase/')) ? '\nAVISO: cambiaron migraciones: volver a aplicar supabase/aplicar_en_supabase.sql en el proyecto Supabase de Despliegue' : ''}`);
+  process.exit(0);
+}
+
 const esCorp = r => fs.existsSync(path.join(r, 'api', 'src', 'http', 'esquemas.ts'));
 const [CORP, PROTO] = esCorp(AQUI) ? [AQUI, OTRO] : [OTRO, AQUI];
 if (!esCorp(CORP) || !fs.existsSync(path.join(PROTO, 'supabase', 'migrations'))) { console.error('No reconozco los repositorios (se espera uno Corporativo y uno Prototipo)'); process.exit(2); }
