@@ -247,29 +247,60 @@ import { MENU, PRIM, SECS, V, esMia, fAbierta, fOculta, fh, fhSave, grupoResumen
   };
 
   /* ======================= Recorrido de primera vez ======================= */
+  /* Pasos por rol: un paso solo se ofrece si su elemento existe en pantalla (el menú ya viene filtrado por rol).
+     q = entra en el recorrido rápido · act = el elemento se puede usar con el recorrido abierto («Pruébalo»). */
+  const navDe = t => () => sr('#side a.nav[title="' + t + '"]');
+  const cocinaTab = () => sr('#main .menu-tabs [data-v="cielo"]');
+  const cocinaDisp = () => menuGroups().some(g => g.vs.some(x => x[0] === 'cielo'));
   const TOUR = [
-    { s: null, t: 'Bienvenido a APIH', d: 'En siete pasos cortos te muestro lo que más vas a usar. Te iré marcando cada cosa con un recuadro amarillo en la pantalla.' },
-    { s: '#side', t: 'El menú', d: 'Aquí están las secciones. Cada rol ve solo las suyas, y dentro de cada sección hay pestañas arriba (por ejemplo, Planificación reúne Gantt, Roadmap, Calendario, Hitos y Riesgos).' },
-    { s: '.top [data-id="pop-new"]', t: 'Crear', d: 'Este botón azul «Nuevo» sirve para crear propuestas, riesgos, hitos y decisiones.' },
-    { s: '#v22-seg', t: 'Simple o Profesional', d: 'Este selector cambia cuánto detalle ves. Las pantallas son las mismas, con el mismo orden y los mismos colores. Siempre partes en Simple.' },
-    { s: '.gsearch', t: 'Buscar', d: 'Encuentra cualquier proyecto, riesgo o hito. Atajo: la tecla «/».' },
-    { s: '#v22-help', t: 'Ayuda según donde estés', d: 'Este botón te sugiere qué hacer en la pantalla que estás viendo, y cambia con ella.' },
-    { s: '#v22-cmt', t: 'Comentarios por área', d: 'Deja una observación en cualquier parte. La verá tu área y un administrador la marcará como abordada.' }
+    { q: 1, nom: 'Menú', s: '#side', t: 'El menú', d: 'Aquí están las secciones que tu rol puede usar. Dentro de cada una hay pestañas arriba.', tip: 'Pasa el mouse por el menú para expandirlo.', act: 1 },
+    { nom: 'Iniciativas', s: navDe('Iniciativas'), t: 'Iniciativas, en un solo lugar', d: 'Tus propuestas y proyectos, en lista o tablero. Cada rol ve solo lo suyo.', tip: 'abre «Iniciativas» en el menú.', act: 1 },
+    { nom: 'Planificación', s: navDe('Planificación'), t: 'Planificación', d: 'Cronograma (Gantt, Fases, Roadmap y Calendario), hitos y riesgos del portafolio.', tip: 'abre «Planificación» en el menú.', act: 1 },
+    { nom: 'Presentaciones', s: navDe('Presentaciones'), t: 'Presentaciones', d: 'Arma la presentación de un proyecto o de todo el portafolio. La ficha de cada proyecto usa el formato 1 a 1.', tip: 'abre «Presentaciones» en el menú.', act: 1 },
+    { nom: 'Mi cocina', s: cocinaTab, ok: cocinaDisp, pre: () => { if (!cocinaTab()) Acts.go({ v: 'dashboard' }); }, t: 'Mi cocina', d: 'Tu espacio personal: tus siguientes pasos y los tenedores y estrellas por gestionar bien tus proyectos.', tip: 'abre «Mi cocina».', act: 1 },
+    { q: 1, nom: 'Nuevo', s: '.top [data-id="pop-new"]', t: 'Crear', d: 'El botón «Nuevo» sirve para crear propuestas, riesgos, hitos y decisiones.', tip: 'Cuando termines, presiónalo para crear algo.' },
+    { q: 1, nom: 'Buscar', s: '.gsearch', t: 'Buscar', d: 'Encuentra proyectos, riesgos, hitos, pantallas y acciones.', tip: 'presiona «/» o Ctrl+K.', act: 1 },
+    { nom: 'Simple y Profesional', s: '#v22-seg', t: 'Simple o Profesional', d: 'Cambia cuánto detalle ves. Las pantallas son las mismas, con el mismo orden y los mismos colores. Siempre partes en Simple.', tip: 'cambia a Profesional y vuelve a Simple.', act: 1 },
+    { q: 1, nom: 'Ayuda', s: '#v22-help', t: 'Ayuda según donde estés', d: 'Te sugiere qué hacer en la pantalla actual y abre «¿Cómo operar esta pantalla?». Desde aquí puedes repetir este recorrido.', tip: 'Cuando termines, presiónalo en cualquier pantalla.' },
+    { nom: 'Comentarios', s: '#v22-cmt', t: 'Comentarios por área', d: 'Deja una observación en cualquier parte. La verá tu área y un administrador la marcará como abordada.', tip: 'Cuando termines, presiónalo para dejar un comentario.' }
   ];
-  function tourEnd() { ['v22-spot', 'v22-tour'].forEach(id => { const e = document.getElementById(id); if (e) e.remove(); }); lsSet('apih_tour22', '1'); window.__tour22 = 1; window.removeEventListener('resize', tourPos); }
-  let tourN = 0;
-  function tourPos() { if (document.getElementById('v22-tour')) tourStep(tourN); }
-  function tourStep(n) {
-    tourN = n; const st = TOUR[n]; if (!st) return tourEnd();
+  const tourEl = st => typeof st.s === 'function' ? st.s() : sr(st.s);
+  const tourOk = st => { if (st.ok) return !!st.ok(); const e = tourEl(st); if (!e) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const listaEs = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' y ' + a[a.length - 1];
+  let tourN = 0, tourModo = '', tourPasos = [];
+  function tourEnd() { ['v22-spot', 'v22-tour'].forEach(id => { const e = document.getElementById(id); if (e) e.remove(); }); lsSet('apih_tour22', '1'); window.__tour22 = 1; tourModo = ''; window.removeEventListener('resize', tourPos); document.removeEventListener('click', tourClick, true); }
+  function tourCard() {
     let sp = document.getElementById('v22-spot'), cd = document.getElementById('v22-tour');
     if (!sp) { sp = document.createElement('div'); sp.id = 'v22-spot'; document.body.appendChild(sp); }
     if (!cd) { cd = document.createElement('div'); cd.id = 'v22-tour'; cd.setAttribute('role', 'dialog'); cd.setAttribute('aria-label', 'Recorrido'); document.body.appendChild(cd); }
-    cd.innerHTML = `<span class="tr-n">Paso ${n + 1} de ${TOUR.length}</span><h3>${esc(st.t)}</h3><p>${esc(st.d)}</p><div class="tr-f"><small></small><button class="btn sm" data-act="tourx">Saltar</button><button class="btn sm pri" data-act="tournext">${n === TOUR.length - 1 ? 'Listo' : 'Siguiente'}</button></div>`;
-    const el = st.s && sr(st.s), r = el && el.getBoundingClientRect();
+    cd.removeAttribute('style'); cd.className = ''; return [sp, cd];
+  }
+  function tourWelcome() {
+    const [sp, cd] = tourCard(), ok = TOUR.filter(tourOk), rap = ok.filter(x => x.q), ext = ok.filter(x => !x.q);
+    cd.className = 'tr-w';
+    cd.innerHTML = `<span class="tr-k">BIENVENIDO A APIH</span><h3>¿Cómo quieres conocerlo?</h3><p>Te marco en pantalla lo que más vas a usar. Solo verás lo que tu rol puede usar y puedes salir cuando quieras.</p>
+      <div class="tr-o"><button class="tr-op pri" data-act="tourgo" data-m="q"><b>Rápido</b><small>${rap.length} pasos · ~1 min</small><span>${esc(listaEs(rap.map(x => x.nom)))}.</span></button>
+      <button class="tr-op" data-act="tourgo" data-m="full"><b>Completo</b><small>${ok.length} pasos · ~${Math.max(1, Math.round(ok.length * .35))} min</small><span>Además: ${esc(listaEs(ext.map(x => x.nom)) || 'nada más para tu rol')}.</span></button></div>
+      <div class="tr-f"><small>Lo encuentras después en «?» → Ver recorrido</small><button class="btn sm" data-act="tourx">Ahora no</button></div>`;
+    Object.assign(sp.style, { left: '50%', top: '40%', width: '0', height: '0' });
+    Object.assign(cd.style, { left: '50%', top: '50%', transform: 'translate(-50%,-50%)' });
+    const b = cd.querySelector('.tr-op.pri'); if (b) b.focus();
+  }
+  function tourPos() { if (!document.getElementById('v22-tour')) return; if (tourModo) tourStep(tourN); else tourWelcome(); }
+  function tourClick(e) { if (!(e.target.closest && e.target.closest('#v22-tour'))) setTimeout(tourPos, 160); }   /* si probó el paso y la pantalla cambió, el marcador se reubica */
+  function tourStep(n) {
+    const st = tourPasos[n]; if (!st) return tourEnd();
+    tourN = n; if (st.pre) st.pre();
+    const [sp, cd] = tourCard(), N = tourPasos.length, last = n === N - 1;
+    cd.innerHTML = `<div class="tr-n">PASO ${n + 1} DE ${N}</div><div class="tr-bar" aria-hidden="true">${tourPasos.map((_, i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</div><h3>${esc(st.t)}</h3><p>${esc(st.d)}</p>
+      <div class="tr-tip"><b aria-hidden="true">✓</b><span>${st.act ? 'Pruébalo: ' : ''}${esc(st.tip)}</span></div>
+      <div class="tr-f"><button class="tr-skip" data-act="tourx">Saltar recorrido</button>${n ? '<button class="btn sm" data-act="tourback">Atrás</button>' : ''}<button class="btn sm pri" data-act="tournext">${last ? 'Listo' : 'Siguiente'}</button></div>`;
+    const el = tourEl(st), r = el && el.getBoundingClientRect();
     if (r && r.width > 0 && r.height > 0) {
       Object.assign(sp.style, { left: r.left - 6 + 'px', top: r.top - 6 + 'px', width: r.width + 12 + 'px', height: r.height + 12 + 'px' });
-      const cw = Math.min(340, innerWidth * .92), ch = cd.offsetHeight || 170; let x, y, side = 't';
+      const cw = Math.min(360, innerWidth * .92), ch = cd.offsetHeight || 200; let x, y, side = 't';
       if (el.id === 'side') { x = r.right + 22; y = Math.max(80, r.top + 40); side = 'l'; }
+      else if (el.closest && el.closest('#side')) { x = r.right + 22; y = Math.max(8, Math.min(innerHeight - ch - 8, r.top + r.height / 2 - 60)); side = 'l'; }
       else { x = Math.min(Math.max(8, r.left + r.width / 2 - cw / 2), innerWidth - cw - 8); y = r.bottom + 22; if (y + ch > innerHeight - 8) { y = Math.max(8, r.top - ch - 22); side = 'b'; } }
       Object.assign(cd.style, { left: x + 'px', top: y + 'px', transform: 'none' });
       const ar = document.createElement('i'); ar.className = 'tr-ar ' + side;
@@ -281,10 +312,17 @@ import { MENU, PRIM, SECS, V, esMia, fAbierta, fOculta, fh, fhSave, grupoResumen
     }
     const b = cd.querySelector('.pri'); if (b) b.focus();
   }
-  Acts.tour = () => { closePops(); window.addEventListener('resize', tourPos); tourStep(0); };
+  Acts.tour = () => { closePops(); tourModo = ''; window.addEventListener('resize', tourPos); document.addEventListener('click', tourClick, true); tourWelcome(); };
+  Acts.tourgo = d => { tourModo = d.m === 'full' ? 'full' : 'q'; tourPasos = TOUR.filter(x => (tourModo === 'full' || x.q) && tourOk(x)); tourStep(0); };
   Acts.tournext = () => tourStep(tourN + 1);
+  Acts.tourback = () => { if (tourN > 0) tourStep(tourN - 1); };
   Acts.tourx = () => tourEnd();
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('v22-tour')) tourEnd(); });
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('v22-tour')) return;
+    if (e.key === 'Escape') return tourEnd();
+    if (!tourModo || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName)) return;
+    if (e.key === 'ArrowRight') Acts.tournext(); else if (e.key === 'ArrowLeft') Acts.tourback();
+  });
   V.ready = () => {
     UI.uiOv = null;   // U-21: parte en el modo recordado (Simple por defecto)
     const seen = lsGet('apih_tour22') === '1' || window.__tour22;
