@@ -202,6 +202,7 @@ function geneHTML(g) {   // lámina del sistema original: elementos absolutos en
   const AL = { l: 'left', ctr: 'center', r: 'right', just: 'justify' };
   return `<div class="slide gs" style="background:${TEMA.bg(g.bg)};${TEMA.css()}">${g.els.map(e0 => {
     const e = TEMA.el(e0);
+    if (e.shape === 'IMG') return `<img class="g" alt="" src="${esc(e.src)}" style="left:${Q(e.x)};top:${Q(e.y)};width:${Q(e.w)};height:${Q(e.h)};object-fit:contain;">`;
     let st = `left:${Q(e.x)};top:${Q(e.y)};width:${Q(e.w)};height:${Q(e.h)};`;
     if (e.fill) st += `background:${e.fill};`;
     if (e.line) st += `border:${Q(e.line.w)} solid ${e.line.c};`;
