@@ -202,10 +202,11 @@ function geneHTML(g) {   // lámina del sistema original: elementos absolutos en
   const AL = { l: 'left', ctr: 'center', r: 'right', just: 'justify' };
   return `<div class="slide gs" style="background:${TEMA.bg(g.bg)};${TEMA.css()}">${g.els.map(e0 => {
     const e = TEMA.el(e0);
+    if (e.shape === 'IMG') return `<img class="g" alt="" src="${esc(e.src)}" style="left:${Q(e.x)};top:${Q(e.y)};width:${Q(e.w)};height:${Q(e.h)};object-fit:contain;">`;
     let st = `left:${Q(e.x)};top:${Q(e.y)};width:${Q(e.w)};height:${Q(e.h)};`;
     if (e.fill) st += `background:${e.fill};`;
     if (e.line) st += `border:${Q(e.line.w)} solid ${e.line.c};`;
-    if (e.shape === 'ROUND') st += `border-radius:${Q(TEMA.radioPt(e))};`; else if (e.shape === 'ELLIPSE') st += 'border-radius:50%;'; else if (e.shape === 'RIGHT_ARROW') st += 'clip-path:polygon(0 25%,60% 25%,60% 0,100% 50%,60% 100%,60% 75%,0 75%);';
+    if (e.shape === 'ROUND') st += `border-radius:${Q(e.pill ? Math.min(e.w, e.h) / 2 : TEMA.radioPt(e))};`; else if (e.shape === 'ELLIPSE') st += 'border-radius:50%;'; else if (e.shape === 'RIGHT_ARROW') st += 'clip-path:polygon(0 25%,60% 25%,60% 0,100% 50%,60% 100%,60% 75%,0 75%);';
     if (e.rot) st += `transform:rotate(${e.rot}deg);`;
     if (e.text !== '') st += `font-size:${Q(e.size)};color:${e.color};text-align:${AL[e.align] || 'left'};padding:${Q(3.6)} ${Q(7.2)};${e.bold ? 'font-weight:700;' : ''}${e.italic ? 'font-style:italic;' : ''}${e.anchor === 'ctr' ? 'display:flex;flex-direction:column;justify-content:center;' : ''}`;
     return `<div class="g" style="${st}">${esc(e.text)}</div>`;

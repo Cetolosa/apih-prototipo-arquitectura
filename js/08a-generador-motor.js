@@ -52,6 +52,7 @@ import { ENLACES } from './00-registro.js';
       },
       setContentAlignment(a) { el.anchor = a; return api; },
       setRotation(r) { el.rot = r; return api; },
+      setPill() { el.pill = true; return api; },   // esquinas totalmente redondeadas (botón tipo píldora)
       sendToBack() { slide.els.splice(slide.els.indexOf(el), 1); slide.els.unshift(el); return api; }
     };
     return api;
@@ -62,6 +63,7 @@ import { ENLACES } from './00-registro.js';
       els: [], bg: '#FFFFFF',
       insertShape(t, x, y, w, h) { return mkShape(s, t, x, y, w, h); },
       insertTextBox(tx, x, y, w, h) { return mkShape(s, 'TEXT', x, y, w, h, tx); },
+      insertImage(src, x, y, w, h) { const a = mkShape(s, 'IMG', x, y, w, h); a._el.src = src; return a; },
       getBackground() { return { setSolidFill(c) { s.bg = c; } }; }
     };
     COLECTOR.push(s); return s;

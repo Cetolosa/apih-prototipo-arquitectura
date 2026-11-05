@@ -1,6 +1,7 @@
 import { ENLACES } from './00-registro.js';
+import { LOGO } from './01-nucleo.js';
 import { Date, Session, SlidesApp, Utilities, leerHojaComoObjetos_ } from './08a-generador-motor.js';
-import { ESTILO_PPT, PPT_INSET_H, ppt_acotarParaAncho_, ppt_acotarParaCaja_, ppt_acotar_, ppt_altoGlifos_, ppt_altoTexto_, ppt_anchoParaTexto_, ppt_factorAncho_, ppt_forma_, ppt_lineasEnAlto_, ppt_lineasNecesarias_, ppt_rect_, ppt_texto_ } from './08b-generador-primitivas.js';
+import { ESTILO_PPT, PPT_INSET_H, ppt_acotarParaAncho_, ppt_acotarParaCaja_, ppt_acotar_, ppt_altoGlifos_, ppt_altoTexto_, ppt_anchoParaTexto_, ppt_factorAncho_, ppt_fondo_, ppt_forma_, ppt_lineasEnAlto_, ppt_lineasNecesarias_, ppt_rect_, ppt_texto_ } from './08b-generador-primitivas.js';
 import { ALT4_PALETA_ACTIVA, ESTILO_ALT4, ppt_fichaFondo_ } from './08c-generador-portafolio.js';
 
 /** Ficha individual de proyecto — "Reporte de avance" (estilo Alt4). Versión completa con
@@ -15,6 +16,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   // Ficha v5: sin columna lateral ("01"), encabezado compacto, KPIs más altos, presupuesto como
   // cuadro largo y tres cajas grandes que se llevan el resto de la altura. Misma paleta y estilo.
   ppt_fichaFondo_(slide);
+  ppt_fondo_(slide, ESTILO_PPT.BLANCO);   // página blanca: las tarjetas se separan con borde fino, como en el modelo
   const X0 = 18, ANCHO_DISP = ESTILO_PPT.ANCHO - X0 * 2;
   const A = ALT4_PALETA_ACTIVA;
   const F = ESTILO_ALT4.FUENTE;
@@ -29,6 +31,10 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     return String(txt || '').split(/[\n;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
   };
   const avance = Math.max(0, Math.min(100, Number(it.avance) || 0));
+  function tarjeta_(x, y, w, h) {   // tarjeta blanca con borde fino y esquinas redondeadas
+    const f = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, x, y, w, h);
+    f.getFill().setSolidFill(ESTILO_PPT.BLANCO); f.getBorder().getLineFill().setSolidFill('#E4E4E4'); f.getBorder().setWeight(0.75);
+  }
 
   const hitosOrd = (hitos || []).filter(function (h) { return (0, ENLACES.muestraDetalle_)(h.mostrar_detalle); })
     .slice().sort(function (a, b) { return (a.fecha || 0) - (b.fecha || 0); });
@@ -47,49 +53,50 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   const badgeEstado = salud === 'Verde' ? { txt: 'EN PLAN', bg: ESTILO_ALT4.VERDE_OK }
     : (salud === 'Rojo' ? { txt: 'CRÍTICO', bg: A.accent } : { txt: 'EN RIESGO', bg: ESTILO_ALT4.AMBAR_TEXTO });
 
-  // ── Encabezado compacto: rótulo + contexto y estado / título y reporte / propósito ──
-  const Y0 = 10;
-  const W_BADGE = 84;
-  const W_META = 236;
-  const W_TIT = ANCHO_DISP - W_META - 10;
+  // ── Encabezado (modelo «Reporte 1 a 1»): logo | PROYECTO + nombre ‖ reporte, estado y PM ──
+  const Y0 = 12;
+  const W_BADGE = 74, W_LOGO = 86, W_META = 270;
+  slide.insertImage(LOGO.arC, X0, Y0 + 4, W_LOGO, W_LOGO * 91 / 360);
+  const xDiv = X0 + W_LOGO + 12;
+  ppt_rect_(slide, xDiv, Y0, 1, 36, '#D4D4D4');
+  const xT = xDiv + 12;
+  const W_TIT = ANCHO_DISP - (xT - X0) - W_META - 8;
   const areaFmt = (0, ENLACES.areasDeIniciativa_)(it.area).join(', ') || (it.area || '');
-  const metaLine = ['Ficha de proyecto', areaFmt, it.categoria, it.prioridad ? 'Prioridad ' + String(it.prioridad).toLowerCase() : null]
+  const metaLine = ['Proyecto', areaFmt, it.categoria, it.prioridad ? 'Prioridad ' + String(it.prioridad).toLowerCase() : null]
     .filter(Boolean).join(' · ').toUpperCase();
-  ppt_texto_(slide, ppt_acotarParaAncho_(metaLine, ANCHO_DISP - W_BADGE - 12, 7.5, true), X0, Y0, ANCHO_DISP - W_BADGE - 12, ppt_altoTexto_(7.5, 1),
-    { tam: 7.5, negrita: true, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
-
-  const badge = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, 18);
-  badge.getFill().setSolidFill(badgeEstado.bg);
-  badge.getBorder().setTransparent();
-  ppt_texto_(slide, badgeEstado.txt, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, 18,
-    { tam: 8.5, negrita: true, color: '#ffffff', alinear: CENTER, medio: true, altoFijo: true, fuente: F });
-
-  const yT = Y0 + ppt_altoTexto_(7.5, 1);
+  ppt_texto_(slide, ppt_acotarParaAncho_(metaLine, W_TIT, 8, false), xT, Y0, W_TIT, ppt_altoTexto_(8, 1),
+    { tam: 8, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
+  const yT = Y0 + ppt_altoTexto_(8, 1);
   let tamT = 18;
   [18, 16, 14, 12].some(function (t) { tamT = t; return ppt_anchoParaTexto_(it.nombre, t, true, 0, 9999) <= W_TIT; });
-  ppt_texto_(slide, ppt_acotarParaAncho_(it.nombre, W_TIT, tamT, true), X0, yT, W_TIT, ppt_altoTexto_(18, 1),
+  ppt_texto_(slide, ppt_acotarParaAncho_(it.nombre, W_TIT, tamT, true), xT, yT, W_TIT, ppt_altoTexto_(18, 1),
     { tam: tamT, negrita: true, color: ESTILO_ALT4.TEXTO, fuente: F });
 
-  const rotuloFecha = corteStr ? 'Cambios desde el ' + corteStr : 'Primer reporte · ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-  const metaIzq = rotuloFecha + (it.responsable ? ' · PM: ' + it.responsable : '');
-  const metaNeg = it.responsable_negocio ? 'Negocio: ' + it.responsable_negocio : '';
-  const metaTexto = ppt_acotarParaAncho_(metaIzq, W_META, 7.5, false) + (metaNeg ? '\n' + ppt_acotarParaAncho_(metaNeg, W_META, 7.5, false) : '');
-  ppt_texto_(slide, metaTexto, X0 + ANCHO_DISP - W_META, yT + 2, W_META, ppt_altoTexto_(7.5, metaNeg ? 2 : 1),
-    { tam: 7.5, color: ESTILO_ALT4.TEXTO_SEC, alinear: END, fuente: F });
+  // Esquina superior derecha (como el modelo): «Reporte de avance - fecha» + píldora de estado en la misma línea, PM debajo
+  const H_BADGE = 18;
+  const badge = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, H_BADGE);
+  badge.setPill();
+  badge.getFill().setSolidFill(badgeEstado.bg);
+  badge.getBorder().setTransparent();
+  ppt_texto_(slide, badgeEstado.txt, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, H_BADGE,
+    { tam: 8.5, negrita: true, color: '#ffffff', alinear: CENTER, medio: true, altoFijo: true, fuente: F });
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const hoyL = new Date();
+  const rotuloFecha = 'Reporte de avance - ' + hoyL.getDate() + ' ' + MESES[hoyL.getMonth()] + ' ' + hoyL.getFullYear();
+  const W_REP = W_META - W_BADGE - 10;
+  ppt_texto_(slide, ppt_acotarParaAncho_(rotuloFecha, W_REP, 9, false), X0 + ANCHO_DISP - W_BADGE - 10 - W_REP, Y0, W_REP, H_BADGE,
+    { tam: 9, color: ESTILO_ALT4.TEXTO_SEC, alinear: END, medio: true, altoFijo: true, fuente: F });
+  const metaPM = [it.responsable ? 'PM Aramark: ' + it.responsable : '', it.responsable_negocio ? 'Negocio: ' + it.responsable_negocio : '']
+    .filter(Boolean).map(function (t) { return ppt_acotarParaAncho_(t, W_META, 8, false); });
+  if (metaPM.length) ppt_texto_(slide, metaPM.join('\n'), X0 + ANCHO_DISP - W_META + PPT_INSET_H, Y0 + H_BADGE + 4, W_META, ppt_altoTexto_(8, metaPM.length),
+    { tam: 8, color: ESTILO_ALT4.TEXTO_TERC, alinear: END, fuente: F });
 
-  let yh = yT + ppt_altoTexto_(18, 1);
-  const proposito = it.proposito || descripcionBase || it.resumen_ejecutivo || '';
-  if (proposito) {
-    ppt_texto_(slide, 'Propósito: ' + ppt_acotarParaAncho_(proposito, ANCHO_DISP - 70, 7.5, false), X0, yh, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
-      { tam: 7.5, italica: true, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
-    yh += ppt_altoTexto_(7.5, 1);
-  }
-  const yDiv = yh + 2;
-  ppt_rect_(slide, X0, yDiv, ANCHO_DISP, 1, '#D4CFC4');
+  const yDiv = Y0 + 44;
+  ppt_rect_(slide, X0, yDiv, ANCHO_DISP, 1, '#E4E4E4');
 
   // ── Fila: 2 KPIs oscuros + panel de hitos ──
-  const yRow = yDiv + 7;
-  const W_KPI = 120, GAP = 8;
+  const yRow = yDiv + 8;
+  const W_KPI = 130, GAP = 8;
   const MAX_HITOS_LINEA = 5, PAD_PH = 12, LIN_MAX_HITO = 3;
   let iniVentana = 0;
   if (hitosOrd.length > MAX_HITOS_LINEA) {
@@ -106,23 +113,20 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     linNombre = Math.max(linNombre, Math.min(LIN_MAX_HITO,
       ppt_lineasNecesarias_((h.completado ? '\u2713 ' : '') + String(h.nombre || ''), WL_PRE, 6.5, true)));
   });
-  const extraHitos = stepHitos.length ? Math.max(0, 34 + 6 + ppt_altoGlifos_(7) + ppt_altoTexto_(6.5, linNombre) - 56) : 0;
+  const extraHitos = stepHitos.length ? Math.max(0, 34 + 8 + ppt_altoGlifos_(7) + ppt_altoTexto_(6.5, linNombre) - 56) : 0;
   const altoRow = 93 + extraHitos;
 
-  function kpiOscuro_(x, eyebrow, numero, pct, valor, valorColor) {
-    ppt_rect_(slide, x, yRow, W_KPI, altoRow, MOD.kpi, false);
-    ppt_texto_(slide, ppt_acotarParaAncho_(eyebrow.toUpperCase(), W_KPI - 16, 6.5, true), x + 8, yRow + 4, W_KPI - 16, ppt_altoTexto_(6.5, 1),
-      { tam: 6.5, negrita: true, color: MOD.kpiSub, fuente: F });
-    ppt_texto_(slide, numero, x + 8, yRow + 19, W_KPI - 16, ppt_altoTexto_(28, 1),
-      { tam: 28, negrita: true, color: '#ffffff', altoFijo: true, fuente: F });
-    ppt_texto_(slide, ppt_acotarParaAncho_(valor, W_KPI - 16, 8.5, true), x + 8, yRow + altoRow - 31, W_KPI - 16, ppt_altoTexto_(8.5, 1),
-      { tam: 8.5, negrita: true, color: valorColor || MOD.kpiSub, altoFijo: true, fuente: F });
-    const pB = Math.max(0, Math.min(100, Number(pct) || 0));
-    ppt_rect_(slide, x + 14, yRow + altoRow - 10, W_KPI - 28, 5, '#2F6F99', true);
-    if (pB > 0) ppt_rect_(slide, x + 14, yRow + altoRow - 10, Math.max(3, (W_KPI - 28) * pB / 100), 5, MOD.cian, true);
+  function kpiOscuro_(x, eyebrow, numero, pct, valor, valorColor) {   // tarjeta azul marino con texto centrado
+    ppt_rect_(slide, x, yRow, W_KPI, altoRow, MOD.kpi, true);
+    ppt_texto_(slide, ppt_acotarParaAncho_(eyebrow, W_KPI - 12, 8.5, false), x + 6, yRow + 16, W_KPI - 12, ppt_altoTexto_(8.5, 1),
+      { tam: 8.5, color: MOD.kpiSub, alinear: CENTER, fuente: F });
+    ppt_texto_(slide, numero, x + 6, yRow + 32, W_KPI - 12, ppt_altoTexto_(30, 1),
+      { tam: 30, negrita: true, color: '#ffffff', alinear: CENTER, altoFijo: true, fuente: F });
+    ppt_texto_(slide, ppt_acotarParaAncho_(valor, W_KPI - 12, 8.5, false), x + 6, yRow + altoRow - 30, W_KPI - 12, ppt_altoTexto_(8.5, 1),
+      { tam: 8.5, color: valorColor || MOD.kpiSub, alinear: CENTER, altoFijo: true, fuente: F });
   }
 
-  kpiOscuro_(X0, 'Avance del proyecto', avance + '%', avance, it.estado || 'En curso', MOD.kpiSub);
+  kpiOscuro_(X0, 'Avance del proyecto', avance + '%', avance, 'Hitos contractuales', MOD.kpiSub);
 
   let subVar = 'Primer ciclo', colVar = MOD.kpiSub;
   if (base) {
@@ -136,7 +140,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   const X_PH = X0 + 2 * (W_KPI + GAP);
   const W_PH = ANCHO_DISP - 2 * (W_KPI + GAP);
   const PAD = 12;
-  ppt_rect_(slide, X_PH, yRow, W_PH, altoRow, ESTILO_PPT.BLANCO, false);
+  tarjeta_(X_PH, yRow, W_PH, altoRow);
 
   const tituloPH = proximo
     ? 'PRÓXIMO HITO: ' + String(proximo.nombre || '').toUpperCase() + (proximo.fecha ? ' · ' + fmt(proximo.fecha) : '')
@@ -151,23 +155,23 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     const cx0 = X_PH + PAD + sw / 2, cxN = X_PH + PAD + sw * (n - 0.5);
     const wl = sw + PPT_INSET_H - 3;
     const hFecha = ppt_altoGlifos_(7);
-    ppt_rect_(slide, cx0, yStep - 1, Math.max(1, cxN - cx0), 2, '#D4CFC4');
+    ppt_rect_(slide, cx0, yStep - 2, Math.max(1, cxN - cx0), 4, MOD.pista, true);
     const nVerde = n > 1 ? (idxProxV === -1 ? n - 1 : idxProxV) : 0;
-    if (nVerde > 0) ppt_rect_(slide, cx0, yStep - 1, sw * nVerde, 2, MOD.rojo);
+    if (nVerde > 0) ppt_rect_(slide, cx0, yStep - 2, sw * nVerde, 4, MOD.rojo, true);
     stepHitos.forEach(function (h, i) {
       const cx = X_PH + PAD + sw * (i + 0.5);
       const esProx = i === idxProxV;
-      const pt = ppt_forma_(slide, SlidesApp.ShapeType.ELLIPSE, cx - 5, yStep - 5, 10, 10);
-      if (h.completado) { pt.getFill().setSolidFill(MOD.rojo); pt.getBorder().setTransparent(); }
-      else if (esProx) { pt.getFill().setSolidFill(A.accent); pt.getBorder().setTransparent(); }
-      else { pt.getFill().setSolidFill('#ffffff'); pt.getBorder().getLineFill().setSolidFill('#CBC6BB'); pt.getBorder().setWeight(1.2); }
-      const colH = h.completado ? MOD.rojo : (esProx ? A.accentDeep : ESTILO_ALT4.TEXTO_SEC);
+      const pt = ppt_forma_(slide, SlidesApp.ShapeType.ELLIPSE, cx - 6, yStep - 6, 12, 12);
+      if (h.completado) { pt.getFill().setSolidFill(MOD.rojo); pt.getBorder().getLineFill().setSolidFill('#ffffff'); pt.getBorder().setWeight(1.5); }
+      else { pt.getFill().setSolidFill('#ffffff'); pt.getBorder().getLineFill().setSolidFill('#98999B'); pt.getBorder().setWeight(1.5); }
+      const colH = h.completado ? MOD.rojo : (esProx ? ESTILO_ALT4.TEXTO : ESTILO_ALT4.TEXTO_SEC);
       const lx = cx - wl / 2;
-      ppt_texto_(slide, fmt(h.fecha) || 'Sin fecha', lx, yStep + 6, wl, hFecha,
-        { tam: 7, negrita: true, altoFijo: true, color: colH, alinear: CENTER, fuente: F });
       const etiqueta = (h.completado ? '✓ ' : '') + String(h.nombre || '');
-      ppt_texto_(slide, ppt_acotarParaCaja_(etiqueta, wl, 6.5, h.completado || esProx, linNombre), lx, yStep + 6 + hFecha, wl, ppt_altoTexto_(6.5, linNombre),
-        { tam: 6.5, negrita: h.completado || esProx, altoFijo: true, color: colH, alinear: CENTER, fuente: F });
+      const hNom = ppt_altoTexto_(6.5, linNombre);
+      ppt_texto_(slide, ppt_acotarParaCaja_(etiqueta, wl, 6.5, true, linNombre), lx, yStep + 8, wl, hNom,
+        { tam: 6.5, negrita: true, altoFijo: true, color: colH, alinear: CENTER, fuente: F });
+      ppt_texto_(slide, fmt(h.fecha) || 'Sin fecha', lx, yStep + 8 + hNom, wl, hFecha,
+        { tam: 7, altoFijo: true, color: h.completado ? MOD.rojo : ESTILO_ALT4.TEXTO_TERC, alinear: CENTER, fuente: F });
     });
   } else {
     ppt_texto_(slide, 'Sin hitos cargados en el plan.', X_PH + PAD, yStep - 6, W_PH - PAD * 2, ppt_altoTexto_(7.5, 1),
@@ -202,12 +206,12 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     const yP = yRow + altoRow + 6;
     const pct = Math.min(999, Math.round((gast / asig) * 100));
     const excedido = gast > asig;
-    ppt_rect_(slide, X0, yP, ANCHO_DISP, 24, ESTILO_PPT.BLANCO, false);
+    tarjeta_(X0, yP, ANCHO_DISP, 24);
     ppt_texto_(slide, 'PRESUPUESTO', X0 + 11, yP, 90, 24,
-      { tam: 7.5, negrita: true, color: A.accentDeep, medio: true, altoFijo: true, fuente: F });
+      { tam: 7.5, negrita: true, color: ESTILO_ALT4.TEXTO_SEC, medio: true, altoFijo: true, fuente: F });
     const xBar = X0 + 100, wBar = ANCHO_DISP - 100 - 190;
-    ppt_rect_(slide, xBar, yP + 9, wBar, 6, '#E4E0D6', true);
-    if (pct > 0) ppt_rect_(slide, xBar, yP + 9, Math.max(3, wBar * Math.min(100, pct) / 100), 6, excedido ? A.accent : A.accentDeep, true);
+    ppt_rect_(slide, xBar, yP + 9, wBar, 6, MOD.pista, true);
+    if (pct > 0) ppt_rect_(slide, xBar, yP + 9, Math.max(3, wBar * Math.min(100, pct) / 100), 6, excedido ? A.accent : MOD.cian, true);
     ppt_texto_(slide, '$' + gast.toLocaleString('es-CL') + ' / $' + asig.toLocaleString('es-CL') + ' · ' + pct + '%',
       X0 + ANCHO_DISP - 190, yP, 190 - 11, 24,
       { tam: 8, negrita: true, color: excedido ? A.accent : ESTILO_ALT4.TEXTO, alinear: END, medio: true, altoFijo: true, fuente: F });
@@ -312,7 +316,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   });
 
   function columna_(x, titulo, colorDot, items, oscuro) {
-    ppt_rect_(slide, x, yCols, W_COL, altoCols, oscuro ? MOD.teal : ESTILO_PPT.BLANCO, false);
+    if (oscuro) ppt_rect_(slide, x, yCols, W_COL, altoCols, MOD.teal, true); else tarjeta_(x, yCols, W_COL, altoCols);
     const px = x + 12, w = W_COL - 24;
     const dot = ppt_forma_(slide, SlidesApp.ShapeType.ELLIPSE, px, yCols + 14, 7, 7);
     dot.getFill().setSolidFill(colorDot); dot.getBorder().setTransparent();
@@ -325,7 +329,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   columna_(X0 + W_COL + gapC, 'Lo que viene', MOD.cian, itemsViene, false);
   columna_(X0 + (W_COL + gapC) * 2, 'Notas de atención', '#FFFFFF', notas, true);
 
-  ppt_texto_(slide, 'Anexo · Ficha de iniciativas', X0, yPie, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
+  ppt_texto_(slide, 'Anexo · Ficha de iniciativas' + (corteStr ? ' · cambios desde el ' + corteStr : ''), X0, yPie, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
     { tam: 7.5, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
 }
 

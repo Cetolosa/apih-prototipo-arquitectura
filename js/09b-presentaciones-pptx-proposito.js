@@ -106,8 +106,9 @@ class PSlide {
   table(x, y, w, cols, rowsXml, hTot) { const id = this.nid(); this.sp += `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${id}" name="Tabla ${id}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x="${EMU(x)}" y="${EMU(y)}"/><a:ext cx="${EMU(w)}" cy="${EMU(hTot)}"/></p:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr firstRow="1"/><a:tblGrid>${cols.map(c => `<a:gridCol w="${EMU(c)}"/>`).join('')}</a:tblGrid>${rowsXml}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`; }
   gsp(e0) {   // elemento del sistema original (coordenadas en pt)
     const e = TEMA.el(e0), id = this.nid(), P = v => Math.round(v * 12700), hx = hexc, rot = ((e.rot || 0) % 360 + 360) % 360;
+    if (e.shape === 'IMG') { if (e0.png) this.pic(e.x / 72, e.y / 72, e.w / 72, e.h / 72, e0.png, 'Aramark'); return; }
     const geom = { RECT: 'rect', TEXT: 'rect', ROUND: 'roundRect', ELLIPSE: 'ellipse', RIGHT_ARROW: 'rightArrow' }[e.shape] || 'rect';
-    const av = e.shape === 'ROUND' ? `<a:gd name="adj" fmla="val ${Math.round(Math.min(50000, 16667 * TEMA.cur.radio))}"/>` : '';
+    const av = e.shape === 'ROUND' ? `<a:gd name="adj" fmla="val ${e.pill ? 50000 : Math.round(Math.min(50000, 16667 * TEMA.cur.radio))}"/>` : '';
     const fill = e.fill ? `<a:solidFill><a:srgbClr val="${hx(e.fill)}"/></a:solidFill>` : '<a:noFill/>';
     const ln = e.line ? `<a:ln w="${P(e.line.w)}"><a:solidFill><a:srgbClr val="${hx(e.line.c)}"/></a:solidFill></a:ln>` : '<a:ln><a:noFill/></a:ln>';
     const body = e.text === '' ? '' : `<p:txBody><a:bodyPr wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="${e.anchor || 't'}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${String(e.text).split('\n').map(l => `<a:p><a:pPr algn="${e.align || 'l'}"><a:buNone/></a:pPr>${l === '' ? `<a:endParaRPr lang="es-CL" sz="${Math.round(e.size * 100)}"/>` : `<a:r><a:rPr lang="es-CL" sz="${Math.round(e.size * 100)}" b="${e.bold ? 1 : 0}" i="${e.italic ? 1 : 0}" dirty="0"><a:solidFill><a:srgbClr val="${hx(e.color)}"/></a:solidFill><a:latin typeface="${TEMA.font()}"/><a:cs typeface="${TEMA.font()}"/></a:rPr><a:t>${XE(l)}</a:t></a:r>`}</a:p>`).join('')}</p:txBody>`;
@@ -162,9 +163,13 @@ function svgPng(svg, w, h, scale = 2) {   // SVG → PNG (Uint8Array) con canvas
     img.onerror = () => done(null); img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);   // data: y no blob: el navegador «contamina» el canvas con un SVG foreignObject desde blob: y no deja exportar
   });
 }
+const IMG_CACHE = new Map();
+async function imgBytes(src) { if (!IMG_CACHE.has(src)) IMG_CACHE.set(src, fetch(src).then(r => r.ok ? r.arrayBuffer() : null).then(b => b ? new Uint8Array(b) : null).catch(() => null)); return IMG_CACHE.get(src); }
 async function prepSlide(s) {   // rasteriza los SVG de la diapositiva (recursivo)
   const walk = async bl => { for (const b of bl || []) { if (b.k === 'svg') b.png = b.svg ? await svgPng(b.svg, b.w, b.h) : null; else { await walk(b.items && b.items[0] && b.items[0].k ? b.items : null); await walk(b.l); await walk(b.r); } } };
-  const copy = JSON.parse(JSON.stringify(s)); await walk(copy.blocks); return copy;
+  const copy = JSON.parse(JSON.stringify(s)); await walk(copy.blocks);
+  if (copy.g) for (const e of copy.g.els) if (e.shape === 'IMG') e.png = await imgBytes(e.src);   // logos de las láminas: bytes del PNG para incrustarlos
+  return copy;
 }
 function slideToPptx(s, total) {
   const S = new PSlide();
