@@ -18,6 +18,8 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   const X0 = 18, ANCHO_DISP = ESTILO_PPT.ANCHO - X0 * 2;
   const A = ALT4_PALETA_ACTIVA;
   const F = ESTILO_ALT4.FUENTE;
+  // Paleta del modelo «Reporte 1 a 1»: tarjetas azul marino, notas verde azulado, avance cian, hitos cumplidos rojo Aramark.
+  const MOD = { kpi: '#01426A', kpiSub: '#9BCBEB', cian: '#41B6E6', teal: '#007D8A', rojo: '#EB002A', pista: '#EBEBEB' };
   const CENTER = SlidesApp.ParagraphAlignment.CENTER, END = SlidesApp.ParagraphAlignment.END, START = SlidesApp.ParagraphAlignment.START;
   const fmt = function (v) {
     const f = (0, ENLACES.parsearFecha_)(v);
@@ -54,7 +56,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   const metaLine = ['Ficha de proyecto', areaFmt, it.categoria, it.prioridad ? 'Prioridad ' + String(it.prioridad).toLowerCase() : null]
     .filter(Boolean).join(' · ').toUpperCase();
   ppt_texto_(slide, ppt_acotarParaAncho_(metaLine, ANCHO_DISP - W_BADGE - 12, 7.5, true), X0, Y0, ANCHO_DISP - W_BADGE - 12, ppt_altoTexto_(7.5, 1),
-    { tam: 7.5, negrita: true, color: A.accentDeep, fuente: F });
+    { tam: 7.5, negrita: true, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
 
   const badge = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, 18);
   badge.getFill().setSolidFill(badgeEstado.bg);
@@ -108,25 +110,25 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   const altoRow = 93 + extraHitos;
 
   function kpiOscuro_(x, eyebrow, numero, pct, valor, valorColor) {
-    ppt_rect_(slide, x, yRow, W_KPI, altoRow, ESTILO_ALT4.FONDO_OSCURO, false);
+    ppt_rect_(slide, x, yRow, W_KPI, altoRow, MOD.kpi, false);
     ppt_texto_(slide, ppt_acotarParaAncho_(eyebrow.toUpperCase(), W_KPI - 16, 6.5, true), x + 8, yRow + 4, W_KPI - 16, ppt_altoTexto_(6.5, 1),
-      { tam: 6.5, negrita: true, color: '#A39E97', fuente: F });
+      { tam: 6.5, negrita: true, color: MOD.kpiSub, fuente: F });
     ppt_texto_(slide, numero, x + 8, yRow + 19, W_KPI - 16, ppt_altoTexto_(28, 1),
       { tam: 28, negrita: true, color: '#ffffff', altoFijo: true, fuente: F });
     ppt_texto_(slide, ppt_acotarParaAncho_(valor, W_KPI - 16, 8.5, true), x + 8, yRow + altoRow - 31, W_KPI - 16, ppt_altoTexto_(8.5, 1),
-      { tam: 8.5, negrita: true, color: valorColor || '#E8E4DA', altoFijo: true, fuente: F });
+      { tam: 8.5, negrita: true, color: valorColor || MOD.kpiSub, altoFijo: true, fuente: F });
     const pB = Math.max(0, Math.min(100, Number(pct) || 0));
-    ppt_rect_(slide, x + 14, yRow + altoRow - 10, W_KPI - 28, 5, '#3A3733', true);
-    if (pB > 0) ppt_rect_(slide, x + 14, yRow + altoRow - 10, Math.max(3, (W_KPI - 28) * pB / 100), 5, A.accentDeep, true);
+    ppt_rect_(slide, x + 14, yRow + altoRow - 10, W_KPI - 28, 5, '#2F6F99', true);
+    if (pB > 0) ppt_rect_(slide, x + 14, yRow + altoRow - 10, Math.max(3, (W_KPI - 28) * pB / 100), 5, MOD.cian, true);
   }
 
-  kpiOscuro_(X0, 'Avance del proyecto', avance + '%', avance, it.estado || 'En curso', '#E8E4DA');
+  kpiOscuro_(X0, 'Avance del proyecto', avance + '%', avance, it.estado || 'En curso', MOD.kpiSub);
 
-  let subVar = 'Primer ciclo', colVar = '#CBC6BB';
+  let subVar = 'Primer ciclo', colVar = MOD.kpiSub;
   if (base) {
     const d = avance - (Number(base.avance) || 0);
     subVar = (d > 0 ? '↑ desde ' : (d < 0 ? '↓ desde ' : '= ')) + (Number(base.avance) || 0) + '%';
-    colVar = d > 0 ? '#7FD6A0' : (d < 0 ? '#E8928A' : '#CBC6BB');
+    colVar = d > 0 ? MOD.cian : (d < 0 ? '#FF9AA2' : MOD.kpiSub);
   }
   kpiOscuro_(X0 + W_KPI + GAP, 'Avance fase activa', avanceFase + '%', avanceFase, subVar, colVar);
 
@@ -151,15 +153,15 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     const hFecha = ppt_altoGlifos_(7);
     ppt_rect_(slide, cx0, yStep - 1, Math.max(1, cxN - cx0), 2, '#D4CFC4');
     const nVerde = n > 1 ? (idxProxV === -1 ? n - 1 : idxProxV) : 0;
-    if (nVerde > 0) ppt_rect_(slide, cx0, yStep - 1, sw * nVerde, 2, ESTILO_ALT4.VERDE_OK);
+    if (nVerde > 0) ppt_rect_(slide, cx0, yStep - 1, sw * nVerde, 2, MOD.rojo);
     stepHitos.forEach(function (h, i) {
       const cx = X_PH + PAD + sw * (i + 0.5);
       const esProx = i === idxProxV;
       const pt = ppt_forma_(slide, SlidesApp.ShapeType.ELLIPSE, cx - 5, yStep - 5, 10, 10);
-      if (h.completado) { pt.getFill().setSolidFill(ESTILO_ALT4.VERDE_OK); pt.getBorder().setTransparent(); }
+      if (h.completado) { pt.getFill().setSolidFill(MOD.rojo); pt.getBorder().setTransparent(); }
       else if (esProx) { pt.getFill().setSolidFill(A.accent); pt.getBorder().setTransparent(); }
       else { pt.getFill().setSolidFill('#ffffff'); pt.getBorder().getLineFill().setSolidFill('#CBC6BB'); pt.getBorder().setWeight(1.2); }
-      const colH = h.completado ? ESTILO_ALT4.VERDE_OK : (esProx ? A.accentDeep : ESTILO_ALT4.TEXTO_SEC);
+      const colH = h.completado ? MOD.rojo : (esProx ? A.accentDeep : ESTILO_ALT4.TEXTO_SEC);
       const lx = cx - wl / 2;
       ppt_texto_(slide, fmt(h.fecha) || 'Sin fecha', lx, yStep + 6, wl, hFecha,
         { tam: 7, negrita: true, altoFijo: true, color: colH, alinear: CENTER, fuente: F });
@@ -179,10 +181,10 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   ppt_texto_(slide, ppt_acotarParaAncho_('Fase activa: ' + (it.estado || '—'), W_PH - PAD * 2 - 54, 7.5, false), X_PH + PAD, yFaseLbl, W_PH - PAD * 2 - 54, ppt_altoTexto_(7.5, 1),
     { tam: 7.5, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
   ppt_texto_(slide, avanceFase + '%', X_PH + W_PH - PAD - 54, yFaseLbl - 1, 54, ppt_altoTexto_(9, 1),
-    { tam: 9, negrita: true, color: A.accentDeep, alinear: END, fuente: F });
+    { tam: 9, negrita: true, color: ESTILO_ALT4.TEXTO, alinear: END, fuente: F });
   const yBar = yRow + 75 + extraHitos;
-  ppt_rect_(slide, X_PH + PAD, yBar, W_PH - PAD * 2, 5, '#E4E0D6', true);
-  if (avanceFase > 0) ppt_rect_(slide, X_PH + PAD, yBar, Math.max(3, (W_PH - PAD * 2) * avanceFase / 100), 5, A.accentDeep, true);
+  ppt_rect_(slide, X_PH + PAD, yBar, W_PH - PAD * 2, 5, MOD.pista, true);
+  if (avanceFase > 0) ppt_rect_(slide, X_PH + PAD, yBar, Math.max(3, (W_PH - PAD * 2) * avanceFase / 100), 5, MOD.cian, true);
   const fpIni = fmt(it.fase_inicio_plan), fpFin = fmt(it.fase_fin_plan), frIni = fmt(it.fase_inicio_real), frFin = fmt(it.fase_fin_real);
   const txtPlan = (fpIni || fpFin) ? 'Plan: ' + (fpIni || '—') + ' → ' + (fpFin || '—') : '';
   const txtReal = frIni ? 'Real: ' + frIni + ' → ' + (frFin || 'en curso') : (frFin ? 'Real: — → ' + frFin : '');
@@ -252,20 +254,20 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   }
 
   const itemsSemana = logros.length > 0
-    ? logros.map(function (t) { return { prefijo: '✓', texto: t, color: ESTILO_ALT4.VERDE_OK }; })
+    ? logros.map(function (t) { return { prefijo: '✓', texto: t, color: MOD.teal }; })
     : (notasPeriodo.length > 0
-      ? notasPeriodo.map(function (t) { return { prefijo: '✓', texto: t, color: ESTILO_ALT4.VERDE_OK }; })
+      ? notasPeriodo.map(function (t) { return { prefijo: '✓', texto: t, color: MOD.teal }; })
       : (completados.length > 0
-        ? completados.slice(-8).reverse().map(function (h) { return { prefijo: '✓', texto: String(h.nombre || '') + (h.fecha ? ' · ' + fmt(h.fecha) : ''), color: ESTILO_ALT4.VERDE_OK }; })
+        ? completados.slice(-8).reverse().map(function (h) { return { prefijo: '✓', texto: String(h.nombre || '') + (h.fecha ? ' · ' + fmt(h.fecha) : ''), color: MOD.teal }; })
         : [{ prefijo: '', texto: 'Sin avances registrados este ciclo.' }]));
   const itemsViene = pasos.length > 0
-    ? pasos.map(function (t) { return { prefijo: '→', texto: t, color: ESTILO_ALT4.AZUL }; })
+    ? pasos.map(function (t) { return { prefijo: '→', texto: t, color: MOD.cian }; })
     : (pendientes.length > 0
-      ? pendientes.map(function (h) { return { prefijo: '→', texto: String(h.nombre || '') + (h.fecha ? ' · ' + fmt(h.fecha) : ''), color: ESTILO_ALT4.AZUL }; })
+      ? pendientes.map(function (h) { return { prefijo: '→', texto: String(h.nombre || '') + (h.fecha ? ' · ' + fmt(h.fecha) : ''), color: MOD.cian }; })
       : [{ prefijo: '', texto: it.proximo_hito || 'Sin próximos hitos registrados.' }]);
   const notas = [];
-  if (it.issue) notas.push({ prefijo: '①', texto: String(it.issue), color: '#E8928A' });
-  if (it.riesgo) notas.push({ prefijo: it.issue ? '②' : '①', texto: String(it.riesgo), color: '#E8C06A' });
+  if (it.issue) notas.push({ prefijo: '①', texto: String(it.issue), color: '#FFFFFF' });
+  if (it.riesgo) notas.push({ prefijo: it.issue ? '②' : '①', texto: String(it.riesgo), color: '#FFFFFF' });
 
   const GAP_ITEM = 1, MAX_LIN = 4;
   const hItems_ = function (items, w, tamT) {
@@ -278,10 +280,10 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   };
 
   function renderItems_(px, yIni, w, hDisp, items, oscuro, tamT) {
-    const colTexto = oscuro ? '#D7D3CC' : ESTILO_ALT4.TEXTO;
+    const colTexto = oscuro ? '#FFFFFF' : ESTILO_ALT4.TEXTO;
     if (items.length === 0) {
       ppt_texto_(slide, 'Sin novedades.', px, yIni, w, ppt_altoTexto_(8.5, 1),
-        { tam: 8.5, italica: true, color: oscuro ? '#9A958D' : ESTILO_ALT4.TEXTO_SEC, fuente: F });
+        { tam: 8.5, italica: true, color: oscuro ? '#E0F1F2' : ESTILO_ALT4.TEXTO_SEC, fuente: F });
       return;
     }
     let y = yIni;
@@ -310,7 +312,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   });
 
   function columna_(x, titulo, colorDot, items, oscuro) {
-    ppt_rect_(slide, x, yCols, W_COL, altoCols, oscuro ? ESTILO_ALT4.FONDO_OSCURO : ESTILO_PPT.BLANCO, false);
+    ppt_rect_(slide, x, yCols, W_COL, altoCols, oscuro ? MOD.teal : ESTILO_PPT.BLANCO, false);
     const px = x + 12, w = W_COL - 24;
     const dot = ppt_forma_(slide, SlidesApp.ShapeType.ELLIPSE, px, yCols + 14, 7, 7);
     dot.getFill().setSolidFill(colorDot); dot.getBorder().setTransparent();
@@ -319,9 +321,9 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
     renderItems_(px, yCols + yIniRel, w, hDispCols, items, oscuro, tamItems);
   }
 
-  columna_(X0, 'Esta semana', ESTILO_ALT4.VERDE_OK, itemsSemana, false);
-  columna_(X0 + W_COL + gapC, 'Lo que viene', ESTILO_ALT4.AZUL, itemsViene, false);
-  columna_(X0 + (W_COL + gapC) * 2, 'Notas de atención', A.accent, notas, true);
+  columna_(X0, 'Esta semana', MOD.teal, itemsSemana, false);
+  columna_(X0 + W_COL + gapC, 'Lo que viene', MOD.cian, itemsViene, false);
+  columna_(X0 + (W_COL + gapC) * 2, 'Notas de atención', '#FFFFFF', notas, true);
 
   ppt_texto_(slide, 'Anexo · Ficha de iniciativas', X0, yPie, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
     { tam: 7.5, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
