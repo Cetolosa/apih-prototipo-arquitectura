@@ -108,7 +108,7 @@ class PSlide {
     const e = TEMA.el(e0), id = this.nid(), P = v => Math.round(v * 12700), hx = hexc, rot = ((e.rot || 0) % 360 + 360) % 360;
     if (e.shape === 'IMG') { if (e0.png) this.pic(e.x / 72, e.y / 72, e.w / 72, e.h / 72, e0.png, 'Aramark'); return; }
     const geom = { RECT: 'rect', TEXT: 'rect', ROUND: 'roundRect', ELLIPSE: 'ellipse', RIGHT_ARROW: 'rightArrow' }[e.shape] || 'rect';
-    const av = e.shape === 'ROUND' ? `<a:gd name="adj" fmla="val ${Math.round(Math.min(50000, 16667 * TEMA.cur.radio))}"/>` : '';
+    const av = e.shape === 'ROUND' ? `<a:gd name="adj" fmla="val ${e.pill ? 50000 : Math.round(Math.min(50000, 16667 * TEMA.cur.radio))}"/>` : '';
     const fill = e.fill ? `<a:solidFill><a:srgbClr val="${hx(e.fill)}"/></a:solidFill>` : '<a:noFill/>';
     const ln = e.line ? `<a:ln w="${P(e.line.w)}"><a:solidFill><a:srgbClr val="${hx(e.line.c)}"/></a:solidFill></a:ln>` : '<a:ln><a:noFill/></a:ln>';
     const body = e.text === '' ? '' : `<p:txBody><a:bodyPr wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="${e.anchor || 't'}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${String(e.text).split('\n').map(l => `<a:p><a:pPr algn="${e.align || 'l'}"><a:buNone/></a:pPr>${l === '' ? `<a:endParaRPr lang="es-CL" sz="${Math.round(e.size * 100)}"/>` : `<a:r><a:rPr lang="es-CL" sz="${Math.round(e.size * 100)}" b="${e.bold ? 1 : 0}" i="${e.italic ? 1 : 0}" dirty="0"><a:solidFill><a:srgbClr val="${hx(e.color)}"/></a:solidFill><a:latin typeface="${TEMA.font()}"/><a:cs typeface="${TEMA.font()}"/></a:rPr><a:t>${XE(l)}</a:t></a:r>`}</a:p>`).join('')}</p:txBody>`;

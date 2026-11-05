@@ -52,6 +52,7 @@ import { ENLACES } from './00-registro.js';
       },
       setContentAlignment(a) { el.anchor = a; return api; },
       setRotation(r) { el.rot = r; return api; },
+      setPill() { el.pill = true; return api; },   // esquinas totalmente redondeadas (botón tipo píldora)
       sendToBack() { slide.els.splice(slide.els.indexOf(el), 1); slide.els.unshift(el); return api; }
     };
     return api;

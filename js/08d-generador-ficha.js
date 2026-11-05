@@ -55,7 +55,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
 
   // ── Encabezado (modelo «Reporte 1 a 1»): logo | PROYECTO + nombre ‖ reporte, estado y PM ──
   const Y0 = 12;
-  const W_BADGE = 70, W_LOGO = 86, W_META = 236;
+  const W_BADGE = 74, W_LOGO = 86, W_META = 270;
   slide.insertImage(LOGO.arC, X0, Y0 + 4, W_LOGO, W_LOGO * 91 / 360);
   const xDiv = X0 + W_LOGO + 12;
   ppt_rect_(slide, xDiv, Y0, 1, 36, '#D4D4D4');
@@ -72,19 +72,24 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   ppt_texto_(slide, ppt_acotarParaAncho_(it.nombre, W_TIT, tamT, true), xT, yT, W_TIT, ppt_altoTexto_(18, 1),
     { tam: tamT, negrita: true, color: ESTILO_ALT4.TEXTO, fuente: F });
 
-  const badge = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, X0 + ANCHO_DISP - W_BADGE, Y0 + 1, W_BADGE, 16);
+  // Esquina superior derecha (como el modelo): «Reporte de avance - fecha» + píldora de estado en la misma línea, PM debajo
+  const H_BADGE = 18;
+  const badge = ppt_forma_(slide, SlidesApp.ShapeType.ROUND_RECTANGLE, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, H_BADGE);
+  badge.setPill();
   badge.getFill().setSolidFill(badgeEstado.bg);
   badge.getBorder().setTransparent();
-  ppt_texto_(slide, badgeEstado.txt, X0 + ANCHO_DISP - W_BADGE, Y0 + 1, W_BADGE, 16,
-    { tam: 8, negrita: true, color: '#ffffff', alinear: CENTER, medio: true, altoFijo: true, fuente: F });
-  const rotuloFecha = corteStr ? 'Reporte de avance · cambios desde el ' + corteStr : 'Reporte de avance · ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy');
-  const W_REP = W_META - W_BADGE - 8;
-  ppt_texto_(slide, ppt_acotarParaAncho_(rotuloFecha, W_REP, 8, false), X0 + ANCHO_DISP - W_BADGE - 8 - W_REP, Y0 + 3, W_REP, ppt_altoTexto_(8, 1),
-    { tam: 8, color: ESTILO_ALT4.TEXTO_SEC, alinear: END, fuente: F });
+  ppt_texto_(slide, badgeEstado.txt, X0 + ANCHO_DISP - W_BADGE, Y0, W_BADGE, H_BADGE,
+    { tam: 8.5, negrita: true, color: '#ffffff', alinear: CENTER, medio: true, altoFijo: true, fuente: F });
+  const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  const hoyL = new Date();
+  const rotuloFecha = 'Reporte de avance - ' + hoyL.getDate() + ' ' + MESES[hoyL.getMonth()] + ' ' + hoyL.getFullYear();
+  const W_REP = W_META - W_BADGE - 10;
+  ppt_texto_(slide, ppt_acotarParaAncho_(rotuloFecha, W_REP, 9, false), X0 + ANCHO_DISP - W_BADGE - 10 - W_REP, Y0, W_REP, H_BADGE,
+    { tam: 9, color: ESTILO_ALT4.TEXTO_SEC, alinear: END, medio: true, altoFijo: true, fuente: F });
   const metaPM = [it.responsable ? 'PM Aramark: ' + it.responsable : '', it.responsable_negocio ? 'Negocio: ' + it.responsable_negocio : '']
-    .filter(Boolean).map(function (t) { return ppt_acotarParaAncho_(t, W_META, 7.5, false); });
-  if (metaPM.length) ppt_texto_(slide, metaPM.join('\n'), X0 + ANCHO_DISP - W_META, Y0 + 21, W_META, ppt_altoTexto_(7.5, metaPM.length),
-    { tam: 7.5, color: ESTILO_ALT4.TEXTO_TERC, alinear: END, fuente: F });
+    .filter(Boolean).map(function (t) { return ppt_acotarParaAncho_(t, W_META, 8, false); });
+  if (metaPM.length) ppt_texto_(slide, metaPM.join('\n'), X0 + ANCHO_DISP - W_META + PPT_INSET_H, Y0 + H_BADGE + 4, W_META, ppt_altoTexto_(8, metaPM.length),
+    { tam: 8, color: ESTILO_ALT4.TEXTO_TERC, alinear: END, fuente: F });
 
   const yDiv = Y0 + 44;
   ppt_rect_(slide, X0, yDiv, ANCHO_DISP, 1, '#E4E4E4');
@@ -324,7 +329,7 @@ export function construirSlideFicha_(slide, it, base, corteStr, descripcionBase,
   columna_(X0 + W_COL + gapC, 'Lo que viene', MOD.cian, itemsViene, false);
   columna_(X0 + (W_COL + gapC) * 2, 'Notas de atención', '#FFFFFF', notas, true);
 
-  ppt_texto_(slide, 'Anexo · Ficha de iniciativas', X0, yPie, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
+  ppt_texto_(slide, 'Anexo · Ficha de iniciativas' + (corteStr ? ' · cambios desde el ' + corteStr : ''), X0, yPie, ANCHO_DISP, ppt_altoTexto_(7.5, 1),
     { tam: 7.5, color: ESTILO_ALT4.TEXTO_SEC, fuente: F });
 }
 
