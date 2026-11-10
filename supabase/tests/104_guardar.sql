@@ -34,7 +34,7 @@ select pg_temp.falla($$select public.apih_guardar_riesgo(null, '{"ini":"PRJ-004"
 select pg_temp.falla($$select public.apih_guardar_riesgo(null, '{"ini":"PRJ-001","desc":"x","prob":9,"imp":1}')$$, 'probabilidad fuera de 1..5', null, 'prob');
 select pg_temp.falla($$select public.apih_guardar_riesgo(null, '{"ini":"PRJ-001","desc":"x","prob":2,"imp":2,"campoInventado":1}')$$, 'campo fuera del catálogo', '%campo desconocido%');
 select pg_temp.ok((public.apih_guardar_riesgo(null, '{"ini":"PRJ-001","desc":"Caída","prob":4,"imp":4,"mit":"Plan B"}') ->> 'id') = 'RSK-008', 'alta de riesgo con id del servidor (respeta seq)');
-select pg_temp.ok((public.apih_guardar_riesgo(null, '{"ini":"PRJ-001","desc":"Menor","prob":1,"imp":2}') ->> 'critico') = 'false', 'riesgo no crítico sin mitigación');
+select pg_temp.ok((public.apih_guardar_riesgo(null, '{"ini":"PRJ-001","desc":"Menor","prob":1,"imp":2,"inPres":true}') ->> 'critico') = 'false', 'riesgo no crítico sin mitigación (el formulario envía inPres)');
 select pg_temp.ok(pg_temp.j('APIH_Riesgos','RSK-009') ->> 'estado' = 'Abierto' and pg_temp.j('APIH_Riesgos','RSK-009') ->> 'fIdent' = '2026-10-28', 'valores por defecto del servidor (estado, fecha)');
 select public.apih_guardar_riesgo('RSK-009', '{"estado":"Cerrado","imp":5,"prob":5}');
 select pg_temp.ok(pg_temp.j('APIH_Riesgos','RSK-009') ->> 'estado' = 'Cerrado', 'riesgo cerrado con exposición alta no exige mitigación');
