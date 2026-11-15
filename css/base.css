@@ -781,3 +781,8 @@ body{font:13px/1.45 var(--font)}
 .gsearch .res button.kb,#gsres button.kb{background:var(--hover,#EEF3F8);outline:2px solid #0D446A;outline-offset:-2px}
 .sky-pop{inset:auto 20px 20px auto;display:block;background:none;width:min(300px,calc(100vw - 40px))}   /* U-26: la celebración ya no tapa la pantalla de trabajo */
 .flt-guia,.guia-min{display:none!important}   /* U-25: la ayuda vive en un solo botón «?» de la barra superior */
+
+/* Foco de Mi cocina: lista de proyectos con casillas */
+.foco-l{display:flex;flex-direction:column;gap:4px;max-height:46vh;overflow:auto;margin:8px 0 0;padding:2px}
+.foco-i{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 10px;border:1px solid var(--bd3);border-radius:12px;background:var(--card);cursor:pointer}
+.foco-i:hover{background:var(--bg2,rgba(0,0,0,.035))}.foco-i input{width:18px;height:18px;flex:none}.foco-i span{display:flex;flex-direction:column;min-width:0}.foco-i b{font-size:13px;font-weight:600}.foco-i small{font-size:11px}

@@ -325,6 +325,7 @@ export const GUIA = {
     ['Respalda', '«Respaldo JSON» antes de cambios grandes; «Importar respaldo» restaura.']] },
   cielo: { t: 'Mi cocina', p: [
     ['Lee tus tenedores', 'Cada proyecto activo muestra sus 5 tenedores de la semana, de lunes a domingo.'],
+    ['Haz foco', '«Foco» (arriba) te deja elegir qué proyectos ver: los demás se ocultan de tus pasos, lo que cambió, tu misión, tus tenedores y el borrador del reporte. Tu racha, nivel e insignias no cambian. «Ver todos» lo quita.'],
     ['Enciende los apagados', 'Toca (o pasa el mouse sobre) un tenedor apagado para ver cómo ganarlo.'],
     ['Actualiza', '«Ronda de actualización» te lleva proyecto por proyecto para dejarlos al día.'],
     ['Ordena tu semana', 'Tus siguientes pasos van por importancia (0–100: plazo y criticidad). Ajusta la importancia de un paso una sola vez: queda guardada en tu perfil. Filtra por un proyecto o mira todos juntos.'],
