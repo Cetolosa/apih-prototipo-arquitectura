@@ -343,7 +343,7 @@ Acts.fasefechas = d => {
 Acts.fzir = d => { const f = F('fases', {}); f.tab = 'linea'; f.id = d.id; UI.view = 'fases'; render(); };
 /* Mi cocina: pasos de todos mis proyectos activos */
 export function pasosCocinaHTML(me) {
-  const f = F('cielo', {}), mine = (0, ENLACES.proyActivos)(me, (0, ENLACES.hoyW)()), TP = tareasPasos();
+  const f = F('cielo', {}), mine = (0, ENLACES.proyFoco)(me), TP = tareasPasos();
   let P = mine.flatMap(pasosDe).filter(p => p.u <= 1); const pp0 = f.pp !== undefined ? f.pp : (semOf().pp || ''), pp = pp0 === '__per' && TP.length ? '__per' : (mine.some(i => i.id === pp0) ? pp0 : '');
   if (pp === '__per') P = []; else if (pp) P = P.filter(p => p.ini.id === pp);
   if (!pp || pp === '__per') P = P.concat(TP);

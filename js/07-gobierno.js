@@ -34,9 +34,15 @@ export function starsOf(i) {
 }
 const cieloLleno = st => !!st.lleno;
 export const proyActivos = me => St.ini.filter(i => CIELO().proy[i.id] && (!me || i.lider === me));
+/* C2.38 · Foco de Mi cocina: tú eliges cuáles de tus proyectos activos se muestran (preferencia de vista, en tu perfil: sem.foco).
+   Solo filtra lo que se lista; la racha, el nivel y las insignias los sigue calculando el servidor con todos tus proyectos.
+   Sin selección (o con todos marcados) se ven todos. Un proyecto que ya no está activo sale solo del foco. */
+export const focoSel = () => { const f = F('cielo', {}); return Array.isArray(f.foco) ? f.foco : (Array.isArray(semOf().foco) ? semOf().foco : []); };
+export function focoVigente(me) { const act = proyActivos(me), ids = new Set(act.map(i => i.id)), sel = new Set(focoSel().filter(id => ids.has(id))); return sel.size && sel.size < ids.size ? sel : null; }
+export const proyFoco = me => { const S = focoVigente(me); return proyActivos(me).filter(i => !S || S.has(i.id)); };
 const NIV_COLOR = { 'Pinche': '#8A8886', 'Cocinero': '#C98A00', 'Chef de partida': '#0B5394', 'Chef ejecutivo': '#7A5AF8' };
 export function cieloPersona(me) {
-  const W0 = hoyW(), mine = proyActivos(me), cur = mine.map(i => ({ i, st: starsOf(i, W0) })), p = CIELO().personas[me] || { racha: 0, total: 0, nivel: 'Pinche', sig: 1 };
+  const W0 = hoyW(), mine = proyFoco(me), cur = mine.map(i => ({ i, st: starsOf(i, W0) })), p = CIELO().personas[me] || { racha: 0, total: 0, nivel: 'Pinche', sig: 1 };
   return { cur, racha: p.racha, total: p.total, nivel: p.nivel, sig: p.sig, color: NIV_COLOR[p.nivel], on: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'on').length, 0), off: cur.reduce((s, x) => s + x.st.filter(y => y.s === 'off').length, 0) };
 }
 export function cieloColectivo() {
@@ -187,7 +193,7 @@ Acts.cocpg = d => { const f = F('cielo', {}); f.pg = (f.pg || 0) + (+d.d); rende
 /* C2.31 · Borrador del reporte semanal: los informes de estado de tus proyectos vigentes (o del que filtraste) en un solo texto, listo para copiar.
    Parte de lo que ya registraste; no incluye pendientes personales. */
 function semanalTxt(me, pp) {
-  const W = hoyW(), d7 = addD(hoy(), -7), mine = proyActivos(me, W).filter(i => !pp || pp === '__per' || i.id === pp);
+  const W = hoyW(), d7 = addD(hoy(), -7), mine = proyFoco(me).filter(i => !pp || pp === '__per' || i.id === pp);
   if (!mine.length) return '';
   const bloques = mine.map(i => {
     const hc = hitosDe(i.id).filter(h => h.completado && h.fechaReal && h.fechaReal > d7 && h.fechaReal <= hoy()).sort(by('fechaReal'));
@@ -205,13 +211,13 @@ Acts.semrep = () => {
 export const nowTs = () => hoy() + 'T' + pad(new Date().getHours()) + ':' + pad(new Date().getMinutes());
 function cambiosDesde(me) {
   const v = semOf().visita; if (!v) return null;
-  const vd = v.slice(0, 10), H = hoy(), n = _nrm(me), ids = new Set(St.ini.filter(i => _nrm(i.lider) === n && !esSB(i) && !esProp(i) && !isDone(i)).map(i => i.id));
+  const vd = v.slice(0, 10), H = hoy(), n = _nrm(me), S = focoVigente(me), en = id => !S || S.has(id), ids = new Set(St.ini.filter(i => _nrm(i.lider) === n && !esSB(i) && !esProp(i) && !isDone(i) && en(i.id)).map(i => i.id));
   const venc = [
     ...St.hitos.filter(h => !h.completado && ids.has(h.ini) && h.fecha > vd && h.fecha < H).map(h => ({ k: 'Hito', t: h.nombre, f: h.fecha, ini: h.ini })),
-    ...todosAcu().filter(a => a.abierto && _nrm(a.resp) === n && a.limite && a.limite > vd && a.limite < H).map(a => ({ k: 'Compromiso', t: a.texto, f: a.limite, ini: a.ini })),
+    ...todosAcu().filter(a => a.abierto && _nrm(a.resp) === n && a.limite && a.limite > vd && a.limite < H && en(a.ini)).map(a => ({ k: 'Compromiso', t: a.texto, f: a.limite, ini: a.ini })),
     ...St.riesgos.filter(r => ids.has(r.ini) && riesgoAbierto(r) && r.fRev && r.fRev > vd && r.fRev < H).map(r => ({ k: 'Revisión de riesgo', t: r.desc, f: r.fRev, ini: r.ini }))
   ].sort((a, b) => a.f < b.f ? -1 : 1);
-  const nuevos = ACUERDOS().filter(a => a.estado === 'Abierto' && _nrm(a.resp) === n && _nrm(a.de) !== n && a.creada && a.creada > vd);
+  const nuevos = ACUERDOS().filter(a => a.estado === 'Abierto' && _nrm(a.resp) === n && _nrm(a.de) !== n && a.creada && a.creada > vd && en(a.ini));
   const otros = (St.bitacora || []).filter(b => b.ts > v && b.ini && ids.has(b.ini) && _nrm(b.autor) !== n);
   return { v, vd, venc, nuevos, otros, total: venc.length + nuevos.length + otros.length };
 }

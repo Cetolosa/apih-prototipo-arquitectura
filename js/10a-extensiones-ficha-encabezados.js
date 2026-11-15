@@ -6,7 +6,7 @@ import { Acts, F, UI, Views, banner, btn, closePops, confirmBox, fasePill, fitMa
 import { faseTag, pasosDe, planFichaHTML } from './05b-vistas-portafolio-fases.js';
 import { ADM_TABS } from './06-administracion.js';
 import { cut } from './06b-administracion-herramientas.js';
-import { NIV, actSemana, cieloOn, cieloPersona, cocFit, hoyW, insignias, modoUI, proyActivos, starsOf, starsRow } from './07-gobierno.js';
+import { NIV, actSemana, cieloOn, cieloPersona, cocFit, hoyW, insignias, modoUI, proyActivos, proyFoco, starsOf, starsRow } from './07-gobierno.js';
 import { NO_PERM, areaVisible, areasDe, esAdministra, puedeEditarIni, puedeGobernar, puedeVerAnalisis, rolActual, soloLectura } from './07b-gobierno-analisis-capacidad.js';
 import { presLayout } from './09-presentaciones.js';
 import { MENU, PRIM, SECS, V, esMia, fAbierta, fOculta, fh, fhSave, grupoResumen, histHTML, lsGet, lsSet, panoFicha, parsePanel, primaria, secCam, secCom, secDec, secHitos, secInt, secNota, secRiesgos, sr, sra } from './10-extensiones.js';
@@ -367,7 +367,7 @@ import { MENU, PRIM, SECS, V, esMia, fAbierta, fOculta, fh, fhSave, grupoResumen
     }
     return out;
   }
-  V.misionPend = me => proyActivos(me, hoyW()).map(i => ({ i, m: misionDe(i), st: starsOf(i, hoyW()) }));
+  V.misionPend = me => proyFoco(me).map(i => ({ i, m: misionDe(i), st: starsOf(i, hoyW()) }));
   function misionPanel(me) {
     const P = cieloPersona(me), L = V.misionPend(me), pend = L.filter(x => x.m.length), n = P.off;
     const d = (pD(hoy()).getDay() + 6) % 7, resta = 6 - d, nx = NIV.find(x => x[0] === P.nivel), sigN = (NIV[NIV.indexOf(nx) + 1] || [])[0], falt = nx[2] - P.total;
@@ -419,12 +419,12 @@ import { MENU, PRIM, SECS, V, esMia, fAbierta, fOculta, fh, fhSave, grupoResumen
       estado: i => 'Presupuesto ' + fmtMon(i.presupuesto, monOf(i)) + ' · consumido ' + fmtMon(i.gastado || 0, monOf(i)) + ' (' + Math.round((i.gastado || 0) / i.presupuesto * 100) + '%)',
       btn: i => [{ l: 'Registrar consumo', a: 'misgasto', d: { id: i.id }, pri: true }, { l: 'Está al día, sin cambios', a: 'misgastook', d: { id: i.id } }] }
   ];
-  function mesResumen(me) {
-    const P = proyActivos(me, hoyW()), out = MES_DEF.map(m => { const L = P.filter(m.aplica).map(i => ({ i, h: m.hecho(i) })); return { m, L }; });
+  function mesResumen(me, foco) {
+    const P = foco ? proyFoco(me) : proyActivos(me, hoyW()), out = MES_DEF.map(m => { const L = P.filter(m.aplica).map(i => ({ i, h: m.hecho(i) })); return { m, L }; });
     return { out, done: out.reduce((s, x) => s + x.L.filter(y => y.h).length, 0), of: out.reduce((s, x) => s + x.L.length, 0) };
   }
   function misionesMes(me) {
-    const R = mesResumen(me), mes = MESES[pD(hoy()).getMonth()].toLowerCase();
+    const R = mesResumen(me, true), mes = MESES[pD(hoy()).getMonth()].toLowerCase();
     const blocks = R.out.filter(x => x.L.length).map(({ m, L }) => {
       const nd = L.filter(x => x.h).length;
       return `<div class="mis-p"><div class="mis-ph">${icon('cal', 18)}<b>${esc(m.t)}</b><span class="pill ${nd === L.length ? '' : 'soft'}">${nd} de ${L.length} proyectos</span></div><div class="mis-t" style="grid-template-columns:minmax(0,1fr)"><p class="mis-how" style="margin:0"><b>Para qué:</b> ${esc(m.d)}</p></div>${L.map(({ i, h }) => `<div class="mis-t"><span class="mis-n" style="${h ? 'background:#E4F3E5;color:#107C10' : 'background:rgba(0,0,0,.07);color:var(--mut)'}">${h ? '✓' : '·'}</span><div><h4>${esc(i.titulo)}</h4><p>${h ? esc(h) : esc(m.estado(i))}</p></div><div class="mis-a edit-only">${h ? '' : m.btn(i).map(b => btn(b.l, b.a, { d: b.d, cls: b.pri ? 'pri' : 'sm' })).join('')}</div></div>`).join('')}</div>`;

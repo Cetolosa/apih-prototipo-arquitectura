@@ -2,20 +2,42 @@
 import { ENLACES } from './00-registro.js';
 import { CALC, APIH_CONFIG, PERM, DECS, FASES_ACT, FL, HITOS, MESES, RAG_C, St, _PP, _nrm, avatar, by, byId, critScore, desv, diffD, esAdmin, esAdminReal, esProp, esc, expo, fmtD, fmtMon, fmtN, fmtTot, hoy, icon, inArea, isLive, kpis, miUsuario, monOf, nameOf, pD, pct, pctMon, personProjects, ppInval, ragSugerido, respSel, riesgosCriticos, save, scope, scopeP, uniq, tonoOnTrack } from './01-nucleo.js';
 import { DataService } from './02-datos.js';
-import { Acts, Chg, F, UI, Views, btn, copyText, download, empty, go, kv, openForm, pageHead, refresh, render, selOpts, selectEntity, spark, toCSV, toast } from './03-interfaz.js';
+import { Acts, Chg, F, Modal, UI, Views, btn, copyText, download, empty, go, kv, openForm, pageHead, refresh, render, selOpts, selectEntity, spark, toCSV, toast } from './03-interfaz.js';
 import { decForm, hitoForm, riskForm, toggleHito } from './03b-interfaz-excel-formularios.js';
 import { priorScore } from './04-flujos.js';
 import { pasosCocinaHTML, semOf, semSet } from './05b-vistas-portafolio-fases.js';
 import { notifUserCard } from './06-administracion.js';
 import { cut, rondaIds } from './06b-administracion-herramientas.js';
-import { CIELO, CIELO_TABS, COLS_SIMPLE, MS_DEF, MS_SVG, NAV_GRP, NAV_SIMPLE, NIV, PERS_DEF, PERS_KEYS, PRES_MIO, STAR_DEF, STAR_SVG, ampliable, anillo, cambiosHTML, celebrar, cfgI, cfgMi, cfgOf, cfgSet, cfgUOf, chkInsignias, cieloColectivo, cieloOn, cieloPersona, cocFit, cocaPase, decEscalada, decMaxDias, estrellasOn, evm, fijo, hisHTML, hoyW, insignias, medalla, menuRolCard, modoUI, msN, msRow, msToastSeen, nowTs, proyActivos, semLbl, simplify, starsMini, starsOf, starsRow, verComoLista, asignar_PRES_MIO, asignar_celebrar, asignar_cocFit, asignar_insignias } from './07-gobierno.js';
+import { CIELO, CIELO_TABS, COLS_SIMPLE, MS_DEF, MS_SVG, NAV_GRP, NAV_SIMPLE, NIV, PERS_DEF, PERS_KEYS, PRES_MIO, STAR_DEF, STAR_SVG, ampliable, anillo, cambiosHTML, celebrar, cfgI, cfgMi, cfgOf, cfgSet, cfgUOf, chkInsignias, cieloColectivo, cieloOn, cieloPersona, cocFit, cocaPase, decEscalada, decMaxDias, estrellasOn, evm, fijo, hisHTML, hoyW, insignias, medalla, menuRolCard, modoUI, msN, msRow, msToastSeen, nowTs, focoVigente, proyActivos, proyFoco, semLbl, simplify, starsMini, starsOf, starsRow, verComoLista, asignar_PRES_MIO, asignar_celebrar, asignar_cocFit, asignar_insignias } from './07-gobierno.js';
 
+/* C2.38 · Foco de Mi cocina: elegir qué proyectos propios se muestran. Se guarda en tu perfil (sem.foco), igual que el filtro de pasos. */
+function focoBtn(me) {
+  const tot = proyActivos(me).length; if (tot < 2) return '';
+  const S = focoVigente(me);
+  return `<div class="toolbar">${btn(S ? 'Foco: ' + S.size + ' de ' + tot : 'Foco: todos', 'focoabrir', { ic: 'target', cls: S ? 'foco-on' : '', title: 'Elige qué proyectos ver en Mi cocina' })}</div>`;   // va en la fila de filtros (el encabezado compacto la une con las pestañas)
+}
+function focoGuardar(v) {
+  const f = F('cielo', {}); f.foco = v; f.pg = 0; f.sel = ''; f.pp = '';
+  if (!soloLectura()) { semSet({ foco: v, pp: '' }); refresh(); } else render();
+  Modal.close();
+}
+Acts.focoabrir = () => {
+  const me = miUsuario(), L = proyActivos(me).slice().sort(by(i => String(i.titulo).toLowerCase())), S = focoVigente(me);
+  Modal.open({
+    title: 'Foco de Mi cocina',
+    body: `<p class="desc" style="margin-top:0">Marca los proyectos que quieres ver. Los demás se ocultan de tus siguientes pasos, lo que cambió, tu misión, tus tenedores y el borrador del reporte semanal. Tu racha, tu nivel y tus insignias se siguen contando con todos tus proyectos. Sin marcar ninguno, ves todos.</p>
+      <div class="foco-l" role="group" aria-label="Proyectos que lideras">${L.map(i => `<label class="foco-i"><input type="checkbox" class="foco-ck" value="${esc(i.id)}"${S && S.has(i.id) ? ' checked' : ''}><span><b>${esc(cut(i.titulo, 60))}</b><small class="mut">${esc(i.fase)}</small></span></label>`).join('')}</div>`,
+    footer: `<button class="btn" data-act="mclose">Cancelar</button><button class="btn" data-act="fococlear">Ver todos</button><button class="btn pri" data-act="focook">Aplicar foco</button>`
+  });
+};
+Acts.focook = () => { const ids = [...document.querySelectorAll('#modal .foco-ck:checked')].map(x => x.value); focoGuardar(ids.length >= proyActivos(miUsuario()).length ? [] : ids); };
+Acts.fococlear = () => focoGuardar([]);
 Acts.cambvisto = () => { if (soloLectura()) return NO_PERM('Tu rol o el modo solo lectura no permiten editar'); if (semSet({ visita: nowTs() })) { toast('Listo: desde ahora te mostraré lo nuevo'); refresh(); } };
 Views.cielo = {
   render() {
     const f = F('cielo', { tab: 'sem' }), me = miUsuario(), P = cieloPersona(me), C = cieloColectivo(), meta = ((CIELO().yo || {}).meta) || cfgMi('cieloMeta'), adm = rolActual() === 'Administra' || rolActual() === 'Responsable';
     const tabs = `<div class="seg" style="margin-bottom:12px">${CIELO_TABS.map(([k, l]) => `<button class="${f.tab === k ? 'on' : ''}" data-act="cielotab" data-k="${k}">${l}</button>`).join('')}</div>`;
-    const head = pageHead('Mi cocina', 'Tenedores por gestionar bien el día a día (se mueven cada semana) y estrellas Michelin por cumplir hitos (una vez ganadas, no se pierden). Un proyecto en rojo que se reporta a tiempo también enciende sus tenedores.', `<span class="edit-only">${btn('Ronda de actualización' + (rondaIds().length ? ' (' + rondaIds().length + ')' : ''), 'ronda', { ic: 'refresh', cls: 'pri' })}</span>`) + tabs;
+    const head = pageHead('Mi cocina', 'Tenedores por gestionar bien el día a día (se mueven cada semana) y estrellas Michelin por cumplir hitos (una vez ganadas, no se pierden). Un proyecto en rojo que se reporta a tiempo también enciende sus tenedores.', `<span class="edit-only">${btn('Ronda de actualización' + (rondaIds().length ? ' (' + rondaIds().length + ')' : ''), 'ronda', { ic: 'refresh', cls: 'pri' })}</span>`) + ((f.tab || 'sem') === 'sem' ? focoBtn(me) : '') + tabs;
     if (f.tab === 'his') return head + hisHTML(me);
     if (f.tab === 'ins') {
       const B = insignias(me), n = B.filter(x => x.ok).length;
@@ -458,6 +480,7 @@ Object.defineProperties(ENLACES, {
   motorAlertas: { get: () => motorAlertas, enumerable: true, configurable: true },
   msN: { get: () => msN, enumerable: true, configurable: true },
   proyActivos: { get: () => proyActivos, enumerable: true, configurable: true },
+  proyFoco: { get: () => proyFoco, enumerable: true, configurable: true },
   puedeEditarIni: { get: () => puedeEditarIni, enumerable: true, configurable: true },
   puedeVerAnalisis: { get: () => puedeVerAnalisis, enumerable: true, configurable: true },
   rolActual: { get: () => rolActual, set: v => { rolActual = v; }, enumerable: true, configurable: true },
